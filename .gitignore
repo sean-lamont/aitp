@@ -7,8 +7,11 @@
 #!experiments/hol4/model_checkpoints/best_gnn/graph_token_encoder.pk
 
 
-data/*
-!data/hol4/
+#data/*
+#!data/hol4/
+#!data/hol-light/supervised/data/
+
+data/hol-light/supervised/data/tmp/
 
 data/hol4/old/*
 
