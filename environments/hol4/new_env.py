@@ -11,7 +11,7 @@ import os
 from copy import deepcopy
 import re
 
-HOLPATH = "/home/sean/Documents/hol/HOL/bin/hol --maxheap=256"
+HOLPATH = "/home/sean/Documents/phd/hol/HOL/bin/hol --maxheap=256"
 #HOLPATH = "/home/sean/Documents/PhD/HOL4/HOL/bin/hol --maxheap=256"
 
 EXCLUDED_THEORIES = ["min"] #["min", "bool"]

@@ -1,7 +1,7 @@
 #!/bin/bash
 x=tactic-zero/test_project/holstep_raw_data:latest 
-y=tactic-zero/test_project/holstep_hol_dict:latest 
-#data_dir="/home/sean/Documents/phd/aitp/data/hol_light/supervised/data/"
+y=tactic-zero/test_project/holstep_hol_dict:latest
+
 if [ -d ../raw_data ]; then
 	echo "Raw Data found"
 else
@@ -24,8 +24,10 @@ rm -r ./artifacts
 
 echo "Generating expression graphs from raw HOL Step data..."
 
-mkdir ../graph_data/
+#mkdir ../graph_data/
 
-python3 -m generate_hol_dataset ../raw_data/raw_data ../graph_data/
+python3 -m generate_hol_dataset ../raw_data/raw_data 
+
+#python3 -m combine_data 
 
 

@@ -19,48 +19,50 @@ import pickle
 from data.hol4.ast_def import *
 import matplotlib.pyplot as plt
 from torch_geometric.loader import DataLoader
-
+import os
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # device = "cpu"
 
-with open("/data/hol4/old/dep_data.json") as fp:
+
+data_dir = "data/hol4/data/"
+data_dir = os.path.join(os.getcwd(),data_dir)
+
+with open(data_dir + "dep_data.json") as fp:
     dep_db = json.load(fp)
     
-with open("/data/hol4/old/new_db.json") as fp:
+with open(data_dir + "new_db.json") as fp:
     new_db = json.load(fp)
 
 #with open("polished_dict.json") as f:
 #    p_d = json.load(f)
 
-full_db = {}
-count = 0
-for key in new_db.keys():
-    val = new_db[key]
+# full_db = {}
+# count = 0
+# for key in new_db.keys():
+#     val = new_db[key]
+#
+#     if key[0] == " ":
+#         full_db[key[1:]] = val
+#     else:
+#         full_db[key] = val
+#
+# deps = {}
+# for key in dep_db.keys():
+#     val = dep_db[key]
+#
+#     if key[0] == " ":
+#         deps[key[1:]] = val
+#     else:
+#         deps[key] = val
 
-    if key[0] == " ":
-        full_db[key[1:]] = val
-    else:
-        full_db[key] = val
-
-deps = {}
-for key in dep_db.keys():
-    val = dep_db[key]
-
-    if key[0] == " ":
-        deps[key[1:]] = val
-    else:
-        deps[key] = val
-
-with open("/data/hol4/old/torch_graph_dict.pk", "rb") as f:
+with open(data_dir + "torch_graph_dict.pk", "rb") as f:
     torch_graph_dict = pickle.load(f)
-
-
 
 # with open("one_hot_dict.pk", "rb") as f:
 #     one_hot_dict = pickle.load(f)
 
-with open("/data/hol4/old/train_test_data.pk", "rb") as f:
+with open(data_dir + "train_test_data.pk", "rb") as f:
     train, val, test, enc_nodes = pickle.load(f)
 
 polished_goals = []
@@ -1063,10 +1065,7 @@ def positional_encoding(d_model, depth_vec):
 def binary_loss(preds, targets):
     return -1. * torch.sum(targets * torch.log(preds) + (1 - targets) * torch.log((1. - preds)))
 
-
-
-
-
+#todo remove this when cartesian product used
 def ptr_to_complete_edge_index(ptr):
     from_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat_interleave(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
     to_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
@@ -1101,7 +1100,7 @@ def to_batch(list_data, data_dict, directed_attention=False):
 
     batch = next(iter(loader))
 
-    # todo cat these along correct axis
+    # todo do this with cartesian product as in combined experiment
     if not directed_attention:
         # for complete edge index non directed
         batch.edge_index_t_complete = ptr_to_complete_edge_index(batch.x_t_ptr)
@@ -1109,58 +1108,6 @@ def to_batch(list_data, data_dict, directed_attention=False):
 
     return batch
 
-
-def to_combined_batch(list_data, data_dict):
-    batch_list = []
-    for (x1, x2, y) in list_data:
-        # x1/x_t is conj, x2/x_s is stmt
-        conj = x1
-        stmt = x2
-
-        conj_graph = data_dict[conj]
-        stmt_graph = data_dict[stmt]
-
-        # batch_list.append(
-        #     LinkData(edge_index_s=stmt_graph.edge_index, x_s=stmt_graph.x, edge_attr_s=stmt_graph.edge_attr, edge_index_t=conj_graph.edge_index, x_t=conj_graph.x, edge_attr_t=conj_graph.edge_attr, y=torch.tensor(y)))
-
-        # Concatenate node feature matrices
-        combined_features = torch.cat([graph1.x, graph2.x], dim=0)
-
-        # Combine edge indices
-        num_nodes_g1 = conj_graph.num_nodes
-        edge_index1 = conj_graph.edge_index
-        edge_index2 = stmt_graph.edge_index + num_nodes1
-        combined_edge_index = torch.cat([edge_index1, edge_index2], dim=1)
-
-        # combine edge attributes
-        edge_attr1 = conj_graph.edge_attr
-        edge_attr2 = stmt_graph.edge_attr + num_nodes1
-        combined_edge_attr = torch.cat([edge_attr1, edge_attr2], dim=1)
-
-
-        # Compute disjoint pairwise complete edge indices
-        complete_edge_index1 = torch.cartesian_prod(torch.arange(num_nodes1),
-                                                    torch.arange(num_nodes1))  # All pairs of nodes in conj_graph
-
-        complete_edge_index2 = torch.cartesian_prod(torch.arange(num_nodes1, num_nodes1 + stmt_graph.num_nodes),
-                                                    torch.arange(num_nodes1,
-                                                                 num_nodes1 + stmt_graph.num_nodes))  # All pairs of nodes in stmt_graph
-
-        complete_edge_index = torch.cat([complete_edge_index1, complete_edge_index2], dim=0).t().contiguous()
-
-        #append combined graph to batch
-        batch_list.append(CombinedGraphData(combined_x=combined_features,combined_edge_index=combined_edge_index, combined_edge_attr=combined_edge_attr, complete_edge_index=complete_edge_index, num_nodes_g1=num_nodes_g1))
-
-    loader = iter(DataLoader(batch_list, batch_size=len(batch_list)))
-
-    batch = next(iter(loader))
-
-    return batch
-
-
-
-
-# todo add and test edge based model
 
 def get_model(config):
 
@@ -1208,6 +1155,8 @@ val_data = val
 # with open("torch_graph_dict_directed.pk", "wb") as f:
 #     pickle.dump(torch_graph_dict, f)
 
+
+# todo move generation of this to data module
 with open("/home/sean/Documents/phd/aitp/experiments/hol4/supervised/torch_graph_dict_directed_depth.pk", "rb") as f:
     torch_graph_dict = pickle.load(f)
 
@@ -1235,7 +1184,6 @@ def run_dual_encoders(config):
 
     print(graph_net_1)
 
-    wandb.log({"Num_model_params": sum([p.numel() for p in graph_net_1.parameters() if p.requires_grad])})
 
     embedding_dim = model_config['embedding_dim']
     lr = exp_config['learning_rate']
@@ -1244,10 +1192,15 @@ def run_dual_encoders(config):
     batch_size = exp_config['batch_size']
     save = exp_config['model_save']
     val_size = exp_config['val_size']
+    logging = exp_config['logging']
+
     if 'directed_attention' in model_config:
         directed_attention = model_config['directed_attention']
     else:
         directed_attention = False
+
+    if logging:
+        wandb.log({"Num_model_params": sum([p.numel() for p in graph_net_1.parameters() if p.requires_grad])})
 
     #wandb load
     # if wandb.run.resumed:
@@ -1381,9 +1334,10 @@ def run_dual_encoders(config):
 
                 print (f"Failed batches: {err_count}")
 
-                wandb.log({"acc": validation_loss.detach(),
-                           "train_loss_avg": sum(training_losses[-100:]) / len(training_losses[-100:]),
-                           "epoch": j})
+                if logging:
+                    wandb.log({"acc": validation_loss.detach(),
+                               "train_loss_avg": sum(training_losses[-100:]) / len(training_losses[-100:]),
+                               "epoch": j})
 
                 if validation_loss > best_acc:
                     best_acc = validation_loss
@@ -1406,7 +1360,9 @@ def run_dual_encoders(config):
                 graph_net_1.train()
                 graph_net_2.train()
 
-        wandb.log({"failed_batches": err_count})
+        if logging:
+            wandb.log({"failed_batches": err_count})
+
     print(f"Best validation accuracy: {best_acc}")
 
     return training_losses, val_losses
@@ -1454,13 +1410,6 @@ def val_acc_dual_encoder(model_1, model_2, batch, fc, embedding_dim, directed_at
 
     return torch.sum(preds == torch.LongTensor(batch.y).to(device)) / len(batch.y)
 
-
-# data_config = {
-
-#
-# }
-
-
 sat_config = {
     "model_type": "sat",
     "vocab_size": len(tokens),
@@ -1485,6 +1434,7 @@ exp_config = {
     "batch_size": 32,
     "model_save": False,
     "val_size": 2048,
+    "logging": False
 }
 
 formula_net_config = {
@@ -1493,10 +1443,6 @@ formula_net_config = {
     "embedding_dim": 256,
     "gnn_layers": 4,
 }
-
-#initialise with default parameters
-# torch.set_float32_matmul_precision('high')
-# run_dual_encoders(config = {"model_config": sat_config, "exp_config": exp_config})
 
 
 def main():
@@ -1517,37 +1463,37 @@ def main():
 
     return
 
-# main()
-#
-sweep_configuration = {
-    "method": "bayes",
-    "metric": {'goal': 'maximize', 'name': 'acc'},
-    "parameters": {
-        "model_config" : {
-            "parameters": {
-                "model_type": {"values":["sat"]},
-                "vocab_size": {"values":[len(tokens)]},
-                "embedding_dim": {"values":[128]},
-                "in_embed": {"values":[False]},
-                "abs_pe": {"values":[True, False]},
-                "abs_pe_dim": {"values":[128]},
-                "use_edge_attr": {"values":[True, False]},
-                "dim_feedforward": {"values": [256]},
-                "num_heads": {"values": [8]},
-                "num_layers": {"values": [4]},
-                "se": {"values": ['pna']},
-                "dropout": {"values": [0.2]},
-                "gnn_layers": {"values": [0,4]},
-                "directed_attention": {"values": [True,False]}
-            }
-        }
-    }
-}
+run_dual_encoders(config = {"model_config": sat_config, "exp_config": exp_config})
 
-
-sweep_id = wandb.sweep(sweep=sweep_configuration, project='hol4_premise_selection')
+# sweep_configuration = {
+#     "method": "bayes",
+#     "metric": {'goal': 'maximize', 'name': 'acc'},
+#     "parameters": {
+#         "model_config" : {
+#             "parameters": {
+#                 "model_type": {"values":["sat"]},
+#                 "vocab_size": {"values":[len(tokens)]},
+#                 "embedding_dim": {"values":[128]},
+#                 "in_embed": {"values":[False]},
+#                 "abs_pe": {"values":[True, False]},
+#                 "abs_pe_dim": {"values":[128]},
+#                 "use_edge_attr": {"values":[True, False]},
+#                 "dim_feedforward": {"values": [256]},
+#                 "num_heads": {"values": [8]},
+#                 "num_layers": {"values": [4]},
+#                 "se": {"values": ['pna']},
+#                 "dropout": {"values": [0.2]},
+#                 "gnn_layers": {"values": [0,4]},
+#                 "directed_attention": {"values": [True,False]}
+#             }
+#         }
+#     }
+# }
 #
-wandb.agent(sweep_id,function=main)
+#
+# sweep_id = wandb.sweep(sweep=sweep_configuration, project='hol4_premise_selection')
+# #
+# wandb.agent(sweep_id,function=main)
 #
 #
 #

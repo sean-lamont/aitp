@@ -1,4 +1,6 @@
 import os
+import data_loader
+from pymongo import MongoClient
 import sys
 import argparse
 import pickle
@@ -10,42 +12,20 @@ import torch
 from holstep_parser import graph_from_hol_stmt
 from holstep_parser import tree_from_hol_stmt
 
-from pymongo import MongoClient
-client = MongoClient()
-db = client.hol_step
 
-def generate_dataset(path, converter, split,files=None):
-    '''Generate dataset at given path
-
-    Parameters
-    ----------
-    path : str
-        Path to the source
-    output : str
-        Path to the destination
-    partition : int
-        Number of the partition for this dataset (i.e. # of files)
-    split : str
-        Train, val or test
-    '''
+def generate_dataset(path, converter, split, graph_collection, split_collection,files=None):
 
     if files is None:
         files = os.listdir(path)
 
-    import data_loader
 
-    print (os.curdir)
+    # print (os.curdir)
     loader = data_loader.DataLoader("../raw_data/raw_data/train", "../dicts/hol_train_dict")
 
-    #mongodb collections for expression -> Graph dict and training data
-
-    graph_collection = db.expression_graph_db
-    split_collection = db.pairs
-
-
-    for i, fname in enumerate(files):
+    for i in tqdm(range(len(files))):
+        fname = files[i]
         fpath = os.path.join(path, fname)
-        print('Processing file {}/{} at {}.'.format(i + 1, len(files), fpath))
+        # print('Processing file {}/{} at {}.'.format(i + 1, len(files), fpath))
 
         with open(fpath, 'r') as f:
             next(f)
@@ -89,7 +69,7 @@ def generate_dataset(path, converter, split,files=None):
 if __name__ == '__main__':
     sys.setrecursionlimit(10000)
     parser = argparse.ArgumentParser(
-        description='Generate graph repr dataset from HolStep')
+        description='Generate graph dataset from HolStep')
 
     parser.add_argument('path', type=str, help='Path to the root of HolStep dataset')
 
@@ -98,6 +78,26 @@ if __name__ == '__main__':
         type=str,
         default='graph',
         help='Format of the representation. Either tree of graph (default).')
+
+    parser.add_argument(
+        '--db_name',
+        type=str,
+        default='hol_step',
+        help='Name of MongoDB database')
+
+
+    parser.add_argument(
+        '--graph_name',
+        type=str,
+        default='expression_graphs',
+        help='Graph Expression collection name for database')
+
+
+    parser.add_argument(
+        '--split_name',
+        type=str,
+        default='train_val_test_data',
+        help='Train, Val, Test split collection name for database')
 
     args = parser.parse_args()
 
@@ -120,8 +120,21 @@ if __name__ == '__main__':
     valid_files = random.sample(files, int(len(files)*0.07+0.5))
     train_files = [x for x in files if x not in valid_files]
 
-    generate_dataset(train_path, format_choice[args.format],  split="train",files=train_files)
 
-    generate_dataset(test_path, format_choice[args.format], split="test", files=None)
+    db_client = MongoClient()
+    db_name = args.db_name
+    graph_name = args.graph_name
+    split_name = args.split_name
+    db = db_client[db_name]
 
-    generate_dataset(train_path, format_choice[args.format], split="valid",files=valid_files)
+
+    graph_collection = db[graph_name]
+    split_collection = db[split_name]
+
+    print (f"Saving to MongoDB database {db_name}, graph representations to collection {graph_name} and train/test/val pairs to {split_name}")
+
+    generate_dataset(train_path, format_choice[args.format],  split="train", graph_collection=graph_collection, split_collection=split_collection, files=train_files)
+
+    generate_dataset(test_path, format_choice[args.format], split="test", graph_collection=graph_collection, split_collection=split_collection, files=None)
+
+    generate_dataset(train_path, format_choice[args.format], split="valid", graph_collection=graph_collection, split_collection=split_collection, files=valid_files)

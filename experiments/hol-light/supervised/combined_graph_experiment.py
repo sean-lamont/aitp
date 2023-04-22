@@ -644,37 +644,37 @@ def main():
 # exp_config['epochs'] = 2
 # exp_config['model_save'] = False
 #
-sweep_configuration = {
-    "method": "bayes",
-    "metric": {'goal': 'maximize', 'name': 'acc'},
-    "parameters": {
-        "model_config" : {
-            "parameters": {
-                "model_type": {"values":["sat"]},
-                "vocab_size": {"values":[1909]},
-                "embedding_dim": {"values":[128, 256]},
-                "in_embed": {"values":[False]},
-                "abs_pe": {"values":[False]},
-                "abs_pe_dim": {"values":[None]},
-                "use_edge_attr": {"values":[False]},
-                "dim_feedforward": {"values": [256]},
-                "num_heads": {"values": [8]},
-                "num_layers": {"values": [4]},
-                "se": {"values": ['pna']},
-                "dropout": {"values": [0.2]},
-                "gnn_layers": {"values": [0, 2, 4]},
-                "global_pool": {"values": ['cls']}
-                }
-            }
-        }
-    }
-
-
-sweep_id = wandb.sweep(sweep=sweep_configuration, project='hol4_premise_selection')
-
-wandb.agent(sweep_id,function=main)
-# #
-# #
-# #
-# #
-# #
+# sweep_configuration = {
+#     "method": "bayes",
+#     "metric": {'goal': 'maximize', 'name': 'acc'},
+#     "parameters": {
+#         "model_config" : {
+#             "parameters": {
+#                 "model_type": {"values":["sat"]},
+#                 "vocab_size": {"values":[1909]},
+#                 "embedding_dim": {"values":[128, 256]},
+#                 "in_embed": {"values":[False]},
+#                 "abs_pe": {"values":[False]},
+#                 "abs_pe_dim": {"values":[None]},
+#                 "use_edge_attr": {"values":[False]},
+#                 "dim_feedforward": {"values": [256]},
+#                 "num_heads": {"values": [8]},
+#                 "num_layers": {"values": [4]},
+#                 "se": {"values": ['pna']},
+#                 "dropout": {"values": [0.2]},
+#                 "gnn_layers": {"values": [0, 2, 4]},
+#                 "global_pool": {"values": ['cls']}
+#                 }
+#             }
+#         }
+#     }
+#
+#
+# sweep_id = wandb.sweep(sweep=sweep_configuration, project='hol4_premise_selection')
+#
+# wandb.agent(sweep_id,function=main)
+# # #
+# # #
+# # #
+# # #
+# # #

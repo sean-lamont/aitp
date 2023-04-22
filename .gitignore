@@ -19,6 +19,7 @@ data/hol4/data/*
 !data/hol4/data/dataset.json
 !data/hol4/data/new_db.json
 !data/hol4/data/paper_goals.pk
+!data/hol4/data/hol_data.txt
 
 #*.json
 #!data/hol4/data/dataset.json

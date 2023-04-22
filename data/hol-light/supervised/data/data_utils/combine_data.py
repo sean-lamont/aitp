@@ -2,57 +2,60 @@ import pickle
 import os
 from tqdm import tqdm
 
-files = os.listdir("train")
+data_dir = "../graph_data/"
+
+
+files = os.listdir(data_dir + "train")
 train_list = []
 
 for file in tqdm(files):
-    fpath = os.path.join('train', file)
+    fpath = os.path.join(data_dir,'train', file)
 
     with open(fpath, "rb") as f:
         x = pickle.load(f)
 
     train_list.extend(x)
 
-print (len(train_list))
+print (f"Train samples: {len(train_list)}")
 
 
-with open("train_data.pk", "wb") as f:
+with open(data_dir + "train_data.pk", "wb") as f:
     pickle.dump(train_list, f)
 
 
-files = os.listdir("valid")
+files = os.listdir(data_dir + "valid")
 valid_list = []
 
 for file in tqdm(files):
-    fpath = os.path.join('valid', file)
+    fpath = os.path.join(data_dir, 'valid', file)
 
     with open(fpath, "rb") as f:
         x = pickle.load(f)
 
     valid_list.extend(x)
 
-print (len(valid_list))
+print (f"Valid samples: {len(valid_list)}")
 
 
-with open("val_data.pk", "wb") as f:
+with open(data_dir + "val_data.pk", "wb") as f:
     pickle.dump(valid_list, f)
 
 
 
-files = os.listdir("test")
+files = os.listdir(data_dir + "test")
 test_list = []
 
 for file in tqdm(files):
-    fpath = os.path.join('valid', file)
+    fpath = os.path.join(data_dir,'test', file)
 
     with open(fpath, "rb") as f:
         x = pickle.load(f)
 
     test_list.extend(x)
 
-print (len(test_list))
 
+print (f"Test samples: {len(test_list)}")
 
-with open("data.pk", "wb") as f:
+with open(data_dir + "test_data.pk", "wb") as f:
     pickle.dump(test_list, f)
 

@@ -267,6 +267,7 @@ def generate_gnn_data(data, train_ratio, val_ratio, rand, data_dir,deps,full_db)
     with open(data_dir+"graph_token_encoder.pk", "wb") as f:
         pickle.dump(enc, f)
 
+    # todo add directed edge info + depth info to torch_graph_dict
 
 
 

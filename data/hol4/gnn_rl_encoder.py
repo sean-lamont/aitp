@@ -4,9 +4,10 @@ import pickle
 from data.hol4 import generate_gnn_data
 import os
 
-data_dir = "/data/hol4/data/"
 
-paper_dir = os.path.join(data_dir, "old/paper_goals.pk")
+data_dir = "data/hol4/data/"
+data_dir = os.path.join(os.getcwd(),data_dir)
+paper_dir = os.path.join(data_dir, "paper_goals.pk")
 
 if os.path.exists(paper_dir):
     with open(paper_dir, "rb") as f:
@@ -14,7 +15,7 @@ if os.path.exists(paper_dir):
 else:
     print("Generating original goals from TacticZero paper...")
 
-    with open("data/dataset.json") as fp:
+    with open(data_dir + "dataset.json") as fp:
         dataset = json.load(fp)
 
     env = HolEnv("T")
