@@ -1,6 +1,10 @@
 import json
+import os
 
-with open("data/hol_data.txt") as fp:
+data_dir = "data/hol4/data/"
+data_dir = os.path.join(os.getcwd(),data_dir)
+
+with open(data_dir + "hol_data.txt") as fp:
     x = fp.readlines()
 
 y = "".join(x)
@@ -67,9 +71,9 @@ for key in dep_dict.keys():
         deps[key] = val
 
 #dependency database for theorems
-with open("old/dep_data.json", "w") as f:
+with open(data_dir + "dep_data.json", "w") as f:
     json.dump(deps, f)
 
 #database for all expressions and their info (e.g. thm vs dep, dep number, utf encoding)
-with open("old/new_db.json", "w") as f:
+with open(data_dir + "new_db.json", "w") as f:
     json.dump(full_db, f)
