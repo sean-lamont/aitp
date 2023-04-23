@@ -5,3 +5,6 @@ pip install einops
 pip install matplotlib
 pip install plotly
 pip install igraph
+pip install pymongo
+
+# install local mongodb server

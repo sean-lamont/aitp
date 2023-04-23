@@ -32,24 +32,6 @@ with open("/data/hol4/old/new_db.json") as fp:
 #with open("polished_dict.json") as f:
 #    p_d = json.load(f)
 
-full_db = {}
-count = 0
-for key in new_db.keys():
-    val = new_db[key]
-
-    if key[0] == " ":
-        full_db[key[1:]] = val
-    else:
-        full_db[key] = val
-
-deps = {}
-for key in dep_db.keys():
-    val = dep_db[key]
-
-    if key[0] == " ":
-        deps[key[1:]] = val
-    else:
-        deps[key] = val
 
 with open("/data/hol4/old/torch_graph_dict.pk", "rb") as f:
     torch_graph_dict = pickle.load(f)
@@ -64,6 +46,8 @@ polished_goals = []
 for val_ in new_db.values():
     polished_goals.append(val_[2])
 
+
+# todo load this from somewhere!
 tokens = list(set([token.value for polished_goal in polished_goals for token in polished_to_tokens_2(polished_goal)  if token.value[0] != 'V']))
 
 tokens.append("VAR")
@@ -169,6 +153,7 @@ def positional_encoding(d_model, depth_vec):
     return pe
 
 
+# todo port to MongoDB
 def to_combined_batch(list_data, data_dict, embedding_dim, directed_attention=False):
     batch_list = []
     for (x1, x2, y) in list_data:
