@@ -6,6 +6,7 @@ import os
 
 
 data_dir = "data/hol4/data/"
+# data_dir = "data/"
 data_dir = os.path.join(os.getcwd(),data_dir)
 paper_dir = os.path.join(data_dir, "paper_goals.pk")
 
@@ -39,6 +40,9 @@ with open(data_dir + "dep_data.json") as fp:
 with open(data_dir + "new_db.json") as fp:
     full_db = json.load(fp)
 
+with open(data_dir + "include_probability.json") as fp:
+    old_db = json.load(fp)
+
 unique_thms = list(set(deps.keys()))
 
 paper_goals_polished = [g[0] for g in paper_goals]
@@ -54,7 +58,9 @@ for thm in unique_thms:
 
 #remove theorems the RL agent trains/tests on from those used to pretrain the GNN encoder
 gnn_encoder_set = list(set(unique_thms) - set(exp_thms))
-        
+
+# print (len(set(exp_thms)), len(set(unique_thms)), len(gnn_encoder_set))
+
 train_thms = exp_thms[:int(0.8 * len(exp_thms))]
 test_thms = exp_thms[int(0.8 * len(exp_thms)):]
 

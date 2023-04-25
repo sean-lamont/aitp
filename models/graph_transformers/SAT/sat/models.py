@@ -38,7 +38,7 @@ class GraphTransformer(nn.Module):
         super().__init__()
 
         # self.pos_encoder = PositionalEncoding(d_model, dropout, max_len=256)
-
+        print ("running")
         self.abs_pe = abs_pe
         self.abs_pe_dim = abs_pe_dim
         if abs_pe and abs_pe_dim > 0:
@@ -46,8 +46,7 @@ class GraphTransformer(nn.Module):
             self.embedding_abs_pe = nn.Linear(abs_pe_dim, d_model)
         if in_embed:
             if isinstance(in_size, int):
-
-                self.embedding = nn.Embedding(in_size, d_model) 
+                self.embedding = nn.Embedding(in_size, d_model)
             elif isinstance(in_size, nn.Module):
                 self.embedding = in_size
             else:

@@ -1,4 +1,6 @@
+import json
 from datetime import datetime
+import pickle
 from data.hol4 import ast_def
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
@@ -114,7 +116,7 @@ class Agent:
         pass
 
 
-with open("../../../data/hol4/old/torch_graph_dict.pk", "rb") as f:
+with open("data/hol4/data/torch_graph_dict.pk", "rb") as f:
     torch_graph_dict = pickle.load(f)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -150,7 +152,7 @@ def nodes_list(g, result=[]):
     return list(set(result))
 
 
-with open("../../../data/hol4/old/graph_token_encoder.pk", "rb") as f:
+with open("data/hol4/graph_token_encoder.pk", "rb") as f:
     token_enc = pickle.load(f)
 
 def sp_to_torch(sparse):
@@ -218,11 +220,10 @@ from data.hol4.generate_gnn_data import graph_to_torch_labelled
 
 # #make database compatible with GNN encoder
 encoded_graph_db = []
-with open('../../../data/hol4/data/include_probability.json') as f:
+with open('data/hol4/data/include_probability.json') as f:
     compat_db = json.load(f)
     
 reverse_database = {(value[0], value[1]) : key for key, value in compat_db.items()}
-
 
 graph_db = {}
 
@@ -230,30 +231,14 @@ print ("Generating premise graph db...")
 for i,t in enumerate(compat_db):
     graph_db[t] = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t))
 
-with open("../../../data/hol4/old/paper_goals.pk", "rb") as f:
+with open("data/hol4/data/paper_goals.pk", "rb") as f:
    paper_goals = pickle.load(f)
 
-# only take valid goals with database
-# valid_goals = []
-# for goal in paper_goals:
-#    if goal[0] in compat_db.keys():
-#        valid_goals.append(goal)
-#
-# print (f"Len valid {len(valid_goals)}")
-# np.random.shuffle(valid_goals)
-#
-# with open("valid_goals_shuffled.pk", "wb") as f:
-#    pickle.dump(valid_goals, f)
-
-
-
-with open("../../../data/hol4/old/valid_goals_shuffled.pk", "rb") as f:
+with open("data/hol4/data/valid_goals_shuffled.pk", "rb") as f:
     valid_goals = pickle.load(f)
 
 train_goals = valid_goals[:int(0.8 * len(valid_goals))]
 test_goals = valid_goals[int(0.8 * len(valid_goals)):]
-
-#compat_goals = paper_goals
 
 
 def gather_encoded_content_gnn(history, encoder):
@@ -281,28 +266,6 @@ def gather_encoded_content_gnn(history, encoder):
 
     return representations, contexts, fringe_sizes
 
-# def gather_encoded_content_gnn_induct(history, encoder):
-#     fringe_sizes = []
-#     contexts = []
-#     reverted = []
-#     for i in history:
-#         c = i["content"]
-#         contexts.extend(c)
-#         fringe_sizes.append(len(c))
-#     for e in contexts:
-#         g = revert_with_polish(e)
-#         reverted.append(g)
-#
-# #    graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch(ast_def.goal_to_graph(t)) for t in reverted]
-#     graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t)) for t in reverted]
-#
-#     loader = DataLoader(graphs, batch_size = len(reverted))
-#
-#     batch = next(iter(loader))
-#
-#     representations = torch.unsqueeze(encoder.forward(batch.x.to(device), batch.edge_index.to(device), batch.batch.to(device)), 1)
-#     #return graphs so it can be passed to induct GNN
-#     return representations, contexts,fringe_sizes, graphs
 
 '''
 
@@ -870,7 +833,7 @@ class GNNVanilla(Agent):
 
                     induct_nodes = self.induct_gnn(induct_graph.x.to(self.device), induct_graph.edge_index.to(self.device))
 
-                    # select representations of Variable nodes nodes with ('V' label only)
+                    # select representations of Variable nodes with ('V' label only)
 
                     token_representations = torch.index_select(induct_nodes, 0, torch.tensor(token_inds).to(device))
 
@@ -1131,18 +1094,18 @@ class Experiment_GNN:
                 date = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
 
 
-                with open(f"traces/gnn_induction_agent_reward_trace_{date}.pk", "wb") as f:
-                    pickle.dump(reward_trace, f)
-
-                with open("traces/gnn_model_induction_errors.pk", "wb") as f:
-                    pickle.dump((env_errors, agent_errors), f)
-
-                with open(f"traces/gnn_model_induction_proved_{date}.pk", "wb") as f:
-                    pickle.dump(proved_trace, f)
+                # with open(f"traces/gnn_induction_agent_reward_trace_{date}.pk", "wb") as f:
+                #     pickle.dump(reward_trace, f)
+                #
+                # with open("traces/gnn_model_induction_errors.pk", "wb") as f:
+                #     pickle.dump((env_errors, agent_errors), f)
+                #
+                # with open(f"traces/gnn_model_induction_proved_{date}.pk", "wb") as f:
+                #     pickle.dump(proved_trace, f)
 
 
                 #save parameters every iteration
-                self.agent.save()
+                # self.agent.save()
 
             print (prove_count)
             print ("wefwef")
@@ -1173,7 +1136,7 @@ class Experiment_GNN:
                     candidate_args.append(t)
 
             env.toggle_simpset("diminish", goal_theory)
-            #print("Removed simpset of {}".format(goal_theory))
+            print("Removed simpset of {}".format(goal_theory))
 
         except:
             allowed_arguments_ids = []
@@ -1188,6 +1151,7 @@ class Experiment_GNN:
         graphs = [graph_db[t] for t in candidate_args]
         
         loader = DataLoader(graphs, batch_size = len(candidate_args))
+
         
         allowed_fact_batch = next(iter(loader))
 
@@ -1203,9 +1167,9 @@ class Experiment_GNN:
 
 def run_experiment():
     try:
-        agent = GNNVanilla(tactic_pool, replay_dir="old_replays/gnn_induct_agent_replays.json")
+        agent = GNNVanilla(tactic_pool)#, replay_dir="old_replays/gnn_induct_agent_replays.json")
 
-        agent.load()
+        # agent.load()
 
         exp_gnn = Experiment_GNN(agent, train_goals, compat_db, 800)
 

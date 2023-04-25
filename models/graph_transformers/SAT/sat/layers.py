@@ -140,9 +140,9 @@ class Attention(gnn.MessagePassing):
                 subgraph_edge_attr=subgraph_edge_attr,
             )
         else: # k-subtree SAT
-            x_struct = self.structure_extractor(x, edge_index, edge_attr)
+            # x_struct = self.structure_extractor(x, edge_index, edge_attr)
             # can set x_struct = x here for normal transformer
-            # x_struct = x
+            x_struct = x
 
 
         # print (f"x.shape {x.shape} x_struct {x_struct.shape}")
@@ -151,11 +151,16 @@ class Attention(gnn.MessagePassing):
             qk = self.to_qk(x_struct)
             qk = (qk, qk)
         else:
+            # todo AMR, Q is using nodes (x_struct), K is using relation R(i,j)
+            # todo return tuple (K, Q) as needed? K are r(i,j)
+            # todo keep Q_out, Q_in for target/source embeddings, only need one K
             qk = self.to_qk(x_struct).chunk(2, dim=-1)
         
         # Compute complete self-attention
         attn = None
 
+        print (f"qk {qk[0].shape, qk[1].shape}, v: {v.shape}")
+        print (f"qk {qk}, v: {v}")
 
         #passed in as None for ppa and code?
         # MUCH faster than if no complete edge index, pad batch from self_attn is extremely slow
@@ -164,8 +169,28 @@ class Attention(gnn.MessagePassing):
         #for DAG, complete edge index should be
         if complete_edge_index is not None:
             # print ("complete")
+
+
+            #todo AMR implementation:
+
+            #todo q with h_i, k,v with r(i,j)
+            #todo message is from -> to (j -> i)
+
+            #todo edge index will be "from" all edge relations "to" nodes. Each edge relation must map to it's source/target so will have 2 * num_edges edges
+
+            #todo make separate "complete_edge_index" which has "from" relations "to" source nodes, and "from" relations to the corresponding "target" nodes
+            #todo can then use these edge indices to do two separate propagate calls, then combine the outputs g_i_out, g_i_in afterwards
+
+
+
             out = self.propagate(complete_edge_index, v=v, qk=qk, edge_attr=None, size=None,
                                  return_attn=return_attn)
+
+            # checking output below, confirm q/k is in right order with qk_j = qk[0][j], qk_i = qk[1][i]
+
+            # out = self.propagate(complete_edge_index, v=v, qk=(qk[1],qk[0]), edge_attr=None, size=None,
+            #                      return_attn=return_attn)
+
             if return_attn:
                 attn = self._attn
                 self._attn = None
@@ -182,12 +207,36 @@ class Attention(gnn.MessagePassing):
     def message(self, v_j, qk_j, qk_i, edge_attr, index, ptr, size_i, return_attn):
         """Self-attention operation compute the dot-product attention """
 
+
+        #todo AMR make sure size_i isn't breaking softmax for non-complete index
+
+        # size_i = max(index) + 1 # from torch_geometric docs? todo test correct
+
+        # qk_j is keys i.e. message "from" j, qk_i maps to queries i.e. messages "to" i
+
+        # index maps to the "to"/ i values i.e. index[i] = 3 means i = 3, and len(index) is the number of messages
+        # i.e. index will be 0,n repeating n times (if complete_edge_index is every combination of nodes)
+
+        print (f"qkj: {qk_j}, qki: {qk_i}, vj: {v_j}")
+
+        print (f"message: v_j {v_j.shape}, qk_j: {qk_j.shape}, index: {index}, ptr: {ptr}, size_i: {size_i}")
+
         qk_i = rearrange(qk_i, 'n (h d) -> n h d', h=self.num_heads)
         qk_j = rearrange(qk_j, 'n (h d) -> n h d', h=self.num_heads)
         v_j = rearrange(v_j, 'n (h d) -> n h d', h=self.num_heads)
+
+        print (f"message after: v_j {v_j.shape}, qk_j: {qk_j.shape}, index: {index}, ptr: {ptr}, size_i: {size_i}")
+
+        # sum over dimension, giving n h shape
         attn = (qk_i * qk_j).sum(-1) * self.scale
+
+        print (attn.shape)
+
         if edge_attr is not None:
             attn = attn + edge_attr
+
+        # index gives what to softmax over
+
         attn = utils.softmax(attn, index, ptr, size_i)
         if return_attn:
             self._attn = attn
@@ -385,6 +434,7 @@ class TransformerEncoderLayer(nn.TransformerEncoderLayer):
             return_attn=False,
         ):
 
+        print (f"running")
         if self.pre_norm:
             x = self.norm1(x)
 

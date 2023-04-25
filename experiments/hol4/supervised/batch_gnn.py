@@ -1248,19 +1248,34 @@ def run_dual_encoders(config):
             op_g2.zero_grad()
             op_fc.zero_grad()
 
+
             data_1 = Data(x=batch.x_t.float().to(device), edge_index=batch.edge_index_t.to(device),
                           batch=batch.x_t_batch.to(device),
                           ptr=torch._convert_indices_from_coo_to_csr(batch.x_t_batch, len(batch)).to(device),
                           complete_edge_index=batch.edge_index_t_complete.to(device),
-                          edge_attr=batch.edge_attr_t.long().to(device),
-                      abs_pe=positional_encoding(embedding_dim, batch.depth_x_t.unsqueeze(1)).to(device))
+                          edge_attr=batch.edge_attr_t.long().to(device))
 
             data_2 = Data(x=batch.x_s.float().to(device), edge_index=batch.edge_index_s.to(device),
                           batch=batch.x_s_batch.to(device),
                           ptr=torch._convert_indices_from_coo_to_csr(batch.x_s_batch, len(batch)).to(device),
                           complete_edge_index=batch.edge_index_s_complete.to(device),
-                          edge_attr=batch.edge_attr_s.long().to(device),
-                          abs_pe=positional_encoding(embedding_dim, batch.depth_x_s.unsqueeze(1)).to(device))
+                          edge_attr=batch.edge_attr_s.long().to(device))
+
+
+            # data_1 = Data(x=batch.x_t.float().to(device), edge_index=batch.edge_index_t.to(device),
+            #               batch=batch.x_t_batch.to(device),
+            #               ptr=torch._convert_indices_from_coo_to_csr(batch.x_t_batch, len(batch)).to(device),
+            #               complete_edge_index=batch.edge_index_t_complete.to(device),
+            #               edge_attr=batch.edge_attr_t.long().to(device),
+            #           abs_pe=positional_encoding(embedding_dim, batch.depth_x_t.unsqueeze(1)).to(device))
+            #
+            # data_2 = Data(x=batch.x_s.float().to(device), edge_index=batch.edge_index_s.to(device),
+            #               batch=batch.x_s_batch.to(device),
+            #               ptr=torch._convert_indices_from_coo_to_csr(batch.x_s_batch, len(batch)).to(device),
+            #               complete_edge_index=batch.edge_index_s_complete.to(device),
+            #               edge_attr=batch.edge_attr_s.long().to(device),
+            #               abs_pe=positional_encoding(embedding_dim, batch.depth_x_s.unsqueeze(1)).to(device))
+            #
 
             try:
                 graph_enc_1 = graph_net_1(data_1)
@@ -1344,8 +1359,8 @@ def run_dual_encoders(config):
                     print(f"New best validation accuracy: {best_acc}")
                     # only save encoder if best accuracy so far
                     if save == True:
-                        torch.save(graph_net_1, "gnn_transformer_goal_holist")
-                        torch.save(graph_net_2, "gnn_transformer_premise_holist")
+                        torch.save(graph_net_1, "gnn_transformer_goal_hol4")
+                        torch.save(graph_net_2, "gnn_transformer_premise_hol4")
 
                     # wandb save
                     # torch.save({  # Save our checkpoint loc
@@ -1370,21 +1385,38 @@ def run_dual_encoders(config):
 
 def val_acc_dual_encoder(model_1, model_2, batch, fc, embedding_dim, directed_attention):
 
-    # if directed_attention:
+
+
+
     data_1 = Data(x=batch.x_t.float().to(device), edge_index=batch.edge_index_t.to(device),
                   batch=batch.x_t_batch.to(device),
                   ptr=torch._convert_indices_from_coo_to_csr(batch.x_t_batch, len(batch)).to(device),
                   complete_edge_index=batch.edge_index_t_complete.to(device),
-                  edge_attr=batch.edge_attr_t.long().to(device),
-                abs_pe = positional_encoding(embedding_dim, batch.depth_x_t.unsqueeze(1)).to(device))
+                  edge_attr=batch.edge_attr_t.long().to(device))
 
     data_2 = Data(x=batch.x_s.float().to(device), edge_index=batch.edge_index_s.to(device),
-                batch = batch.x_s_batch.to(device),
-                ptr = torch._convert_indices_from_coo_to_csr(batch.x_s_batch, len(batch)).to(device),
-                complete_edge_index = batch.edge_index_s_complete.to(device),
-                edge_attr = batch.edge_attr_s.long().to(device),
-                abs_pe = positional_encoding(embedding_dim, batch.depth_x_s.unsqueeze(1)).to(device))
+                  batch=batch.x_s_batch.to(device),
+                  ptr=torch._convert_indices_from_coo_to_csr(batch.x_s_batch, len(batch)).to(device),
+                  complete_edge_index=batch.edge_index_s_complete.to(device),
+                  edge_attr=batch.edge_attr_s.long().to(device))
 
+
+
+    # if directed_attention:
+    # data_1 = Data(x=batch.x_t.float().to(device), edge_index=batch.edge_index_t.to(device),
+    #               batch=batch.x_t_batch.to(device),
+    #               ptr=torch._convert_indices_from_coo_to_csr(batch.x_t_batch, len(batch)).to(device),
+    #               complete_edge_index=batch.edge_index_t_complete.to(device),
+    #               edge_attr=batch.edge_attr_t.long().to(device),
+    #             abs_pe = positional_encoding(embedding_dim, batch.depth_x_t.unsqueeze(1)).to(device))
+    #
+    # data_2 = Data(x=batch.x_s.float().to(device), edge_index=batch.edge_index_s.to(device),
+    #             batch = batch.x_s_batch.to(device),
+    #             ptr = torch._convert_indices_from_coo_to_csr(batch.x_s_batch, len(batch)).to(device),
+    #             complete_edge_index = batch.edge_index_s_complete.to(device),
+    #             edge_attr = batch.edge_attr_s.long().to(device),
+    #             abs_pe = positional_encoding(embedding_dim, batch.depth_x_s.unsqueeze(1)).to(device))
+    #
     # else:
     #     data_1 = Data(x=batch.x_t.float().to(device), edge_index=batch.edge_index_t.to(device),
     #                   batch=batch.x_t_batch.to(device),
