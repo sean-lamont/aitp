@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+import copy
+
+import einops
 import torch
 import numpy as np
 from torch import nn
@@ -141,10 +144,12 @@ class Attention(gnn.MessagePassing):
             # print (f"ptr: {ptr}")
             complete_edge_index = ptr_to_complete_edge_index(ptr.cpu()).cuda()
 
+        # compute r matrix
+
 
         v = self.to_v(x)
 
-        # Compute structure-aware node embeddings 
+        # Compute structure-aware node embeddings
         if self.se == 'khopgnn': # k-subgraph SAT
             x_struct = self.khop_structure_extractor(
                 x=x,
@@ -170,7 +175,7 @@ class Attention(gnn.MessagePassing):
             # todo return tuple (K, Q) as needed? K are r(i,j)
             # todo keep Q_out, Q_in for target/source embeddings, only need one K
             qk = self.to_qk(x_struct).chunk(2, dim=-1)
-        
+
         # Compute complete self-attention
         attn = None
 
@@ -194,6 +199,14 @@ class Attention(gnn.MessagePassing):
 
             #todo make separate "complete_edge_index" which has "from" relations "to" source nodes, and "from" relations to the corresponding "target" nodes
             #todo can then use these edge indices to do two separate propagate calls, then combine the outputs g_i_out, g_i_in afterwards
+
+
+
+
+
+
+
+
 
 
 
@@ -478,3 +491,200 @@ class TransformerEncoderLayer(nn.TransformerEncoderLayer):
         if not self.pre_norm:
             x = self.norm2(x)
         return x
+
+
+class AttentionAMR(gnn.MessagePassing):
+    """Multi-head AMR attention implementation using PyG interface
+
+    Args:
+    ----------
+    embed_dim (int):        the embeding dimension
+    num_heads (int):        number of attention heads (default: 8)
+    dropout (float):        dropout value (default: 0.0)
+    bias (bool):            whether layers have an additive bias (default: False)
+    """
+
+    def __init__(self, embed_dim, edge_dim = 0, num_heads=8, dropout=0., bias=False, **kwargs):
+
+        super().__init__(node_dim=0, aggr='add')
+
+        self.embed_dim = embed_dim
+        self.bias = bias
+
+        head_dim = embed_dim // num_heads
+
+        assert head_dim * num_heads == embed_dim, "embed_dim must be divisible by num_heads"
+
+        self.num_heads = num_heads
+
+        self.scale = head_dim ** -0.5
+
+        self.r_proj = nn.Linear(embed_dim * 2 + edge_dim, embed_dim , bias=bias)
+
+        self.to_q = nn.Linear(embed_dim, embed_dim, bias=bias)
+
+        self.to_k = nn.Linear(embed_dim, embed_dim, bias=bias)
+
+        self.to_v = nn.Linear(embed_dim, embed_dim, bias=bias)
+
+        self.combine_source_target  = nn.Linear(embed_dim * 2, embed_dim, bias=bias)
+
+        self.ffn = torch.nn.Sequential(nn.Linear(embed_dim, embed_dim * 4, bias=bias),
+                                       nn.ReLU(),
+                                       nn.Linear(embed_dim * 4, embed_dim * 2))
+
+        self.layer_norm = torch.nn.LayerNorm(embed_dim)
+
+        self.attn_dropout = nn.Dropout(dropout)
+
+        self.out_proj = nn.Linear(embed_dim, embed_dim)
+
+        self._reset_parameters()
+
+        self.attn_sum = None
+
+        # print (f"Attn network {self}")
+
+    def _reset_parameters(self):
+        nn.init.xavier_uniform_(self.to_v.weight)
+        nn.init.xavier_uniform_(self.to_q.weight)
+        nn.init.xavier_uniform_(self.to_k.weight)
+
+        if self.bias:
+            nn.init.xavier_uniform_(self.to_q.weight)
+            nn.init.xavier_uniform_(self.to_k.weight)
+            nn.init.constant_(self.to_v.bias, 0.)
+
+    def forward(self,
+                x_source,
+                x_target,
+                edge_index,
+                edge_attr=None,
+                ptr=None,
+                return_attn=False):
+        """
+        Compute attention layer.
+
+        Args:
+        ----------
+        x:                          input node features
+        edge_index:                 edge index from the graph
+        complete_edge_index:        edge index from fully connected graph
+        subgraph_node_index:        documents the node index in the k-hop subgraphs
+        subgraph_edge_index:        edge index of the extracted subgraphs
+        subgraph_indicator_index:   indices to indicate to which subgraph corresponds to which node
+        subgraph_edge_attr:         edge attributes of the extracted k-hop subgraphs
+        edge_attr:                  edge attributes
+        return_attn:                return attention (default: False)
+
+        """
+        # Compute value matrix
+
+        # print (x_source.shape)
+        # print (x_target.shape)
+        if edge_attr:
+            R = torch.stack([torch.cat([x_source[edge_index[0][i]], edge_attr[i], x_target[edge_index[1][i]]], dim = 0)  for i in range(len(edge_index[0]))], dim=1)
+        else:
+            R = torch.stack([torch.cat([x_source[edge_index[0][i]], x_target[edge_index[1][i]]], dim = 0)  for i in range(len(edge_index[0]))], dim=1)
+
+        #todo make separate "complete_edge_index" which has "from" relations "to" source nodes, and "from" relations to the corresponding "target" nodes
+
+        R = rearrange(R, "d n -> n d")
+
+        edge_index_source = torch.LongTensor([[i for i in range(edge_index.shape[1])], [edge_index[0][i] for i in range(edge_index.shape[1])]])
+
+        edge_index_target = torch.LongTensor([[i for i in range(edge_index.shape[1])], [edge_index[1][i] for i in range(edge_index.shape[1])]])
+
+        Q_source = self.to_q(x_source)
+        Q_target = self.to_q(x_target)
+
+
+        print (R.shape)
+        R = self.r_proj(R)
+
+        V = self.to_v(R)
+        K = self.to_k(R)
+
+        attn = None
+
+        print (f"R : {R}, Q_source: {Q_source}, Q_target: {Q_target}, V: {V}, K: {K}")
+
+        out_source = self.propagate(edge_index_source, v=V, qk=(K, Q_source), edge_attr=None, size=None,
+                                    return_attn=return_attn)
+
+        out_target = self.propagate(edge_index_target, v=V, qk=(K, Q_target), edge_attr=None, size=None,
+                                    return_attn=return_attn)
+
+
+        out_source = rearrange(out_source, 'n h d -> n (h d)')
+
+        out_target = rearrange(out_target, 'n h d -> n (h d)')
+
+        out_source = self.out_proj(out_source)
+
+        out_target = self.out_proj(out_target)
+
+        scale = F.sigmoid(self.combine_source_target(torch.cat([out_source, out_target], dim = 1)))
+
+        out = scale * out_source + (1 - scale) * out_target
+
+        O_source, O_target = self.ffn(out).chunk(2, dim=-1)
+
+        x_source = self.layer_norm(x_source + O_source)
+        x_target = self.layer_norm(x_target + O_target)
+
+
+        # if return_attn:
+        #     attn = self._attn
+        #     self._attn = None
+        #     attn = torch.sparse_coo_tensor(
+        #         complete_edge_index,
+        #         attn,
+        #     ).to_dense().transpose(0, 1)
+
+
+        return x_source, x_target
+
+    def message(self, v_j, qk_j, qk_i, edge_attr, index, ptr, size_i, return_attn):
+        """Self-attention operation compute the dot-product attention """
+
+
+        print (f"v_j {v_j}, qk_j: {qk_j}, qk_i: {qk_i}")
+
+        print (f"index {index}\n\n")
+
+        #todo AMR make sure size_i isn't breaking softmax for non-complete index
+
+        # size_i = max(index) + 1 # from torch_geometric docs? todo test correct
+
+        # qk_j is keys i.e. message "from" j, qk_i maps to queries i.e. messages "to" i
+
+        # index maps to the "to"/ i values i.e. index[i] = 3 means i = 3, and len(index) is the number of messages
+        # i.e. index will be 0,n repeating n times (if complete_edge_index is every combination of nodes)
+
+        # print (f"qkj: {qk_j}, qki: {qk_i}, vj: {v_j}")
+
+        # print (f"message: v_j {v_j.shape}, qk_j: {qk_j.shape}, index: {index}, ptr: {ptr}, size_i: {size_i}")
+
+        qk_i = rearrange(qk_i, 'n (h d) -> n h d', h=self.num_heads)
+        qk_j = rearrange(qk_j, 'n (h d) -> n h d', h=self.num_heads)
+        v_j = rearrange(v_j, 'n (h d) -> n h d', h=self.num_heads)
+
+        # print (f"message after: v_j {v_j.shape}, qk_j: {qk_j.shape}, index: {index}, ptr: {ptr}, size_i: {size_i}")
+
+        # sum over dimension, giving n h shape
+        attn = (qk_i * qk_j).sum(-1) * self.scale
+
+        # print (attn.shape)
+
+        if edge_attr is not None:
+            attn = attn + edge_attr
+
+        # index gives what to softmax over
+
+        attn = utils.softmax(attn, index, ptr, size_i)
+        if return_attn:
+            self._attn = attn
+        attn = self.attn_dropout(attn)
+
+        return v_j * attn.unsqueeze(-1)
