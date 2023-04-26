@@ -75,6 +75,20 @@ class Parent_Aggregation(MessagePassing):
 
         return deg_inv.view(-1, 1) * self.propagate(edge_index, x=x)
 
+class Final_Agg_induct(nn.Module):
+    def __init__(self, embedding_dim):
+        super(Final_Agg_induct, self).__init__()
+
+        self.fc = nn.Linear(embedding_dim * 3, embedding_dim * 2)
+        #
+        self.fc2 = nn.Linear(embedding_dim * 2, embedding_dim)
+
+        # self.fc = nn.Linear(embedding_dim, embedding_dim)
+
+    def forward(self, x):
+        x = self.fc2(dropout(torch.relu(self.fc(dropout(x)))))
+        # x = torch.relu(self.fc(dropout(x)))
+        return x
 
 class Final_Agg(nn.Module):
     def __init__(self, embedding_dim):
@@ -252,7 +266,7 @@ class message_passing_gnn_induct(nn.Module):
 
         self.child_agg = Child_Aggregation(embedding_dim, embedding_dim).to(device)
 
-        self.final_agg = Final_Agg(embedding_dim).to(device)
+        self.final_agg = Final_Agg_induct(embedding_dim).to(device)
 
         self.conv1 = torch.nn.Conv1d(embedding_dim, embedding_dim * 2, 1, stride=1).to(device)
 

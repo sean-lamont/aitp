@@ -56,33 +56,33 @@ with open("../../../data/hol4/data/vanilla_tactic_zero/polished_def_dict.json") 
 with open("../../../data/hol4/data/vanilla_tactic_zero/typed_database.json") as f:
     database = json.load(f)
 
-if CONTINUE:
-    with open("fact_pool.json") as f:
-        fact_pool = json.load(f)
-else:
-    fact_pool = list(defs.keys())
+# if CONTINUE:
+#     with open("fact_pool.json") as f:
+#         fact_pool = json.load(f)
+# else:
+#     fact_pool = list(defs.keys())
 
-reverse_database = {(value[0], value[1]) : key for key, value in database.items()}
+# reverse_database = {(value[0], value[1]) : key for key, value in database.items()}
 
-PROVABLES = [value[4] for key, value in database.items() if value[0] == "list" and value[1] in provables]
+# PROVABLES = [value[4] for key, value in database.items() if value[0] == "list" and value[1] in provables]
 
-if not MORE_TACTICS:
-    thms_tactic = ["simp", "fs", "metis_tac"]
-    thm_tactic = ["irule"]
-    term_tactic = ["Induct_on"]
-    no_arg_tactic = ["strip_tac"]
-else:
-    thms_tactic = ["simp", "fs", "metis_tac", "rw"]
-    thm_tactic = ["irule", "drule"]
-    term_tactic = ["Induct_on"]
-    no_arg_tactic = ["strip_tac", "EQ_TAC"]
-    
-    # thms_tactic = ["simp", "fs", "metis_tac", "rw"]
-    # thm_tactic = [] #["irule", "drule"] 
-    # term_tactic = ["Induct_on"]
-    # no_arg_tactic = ["strip_tac", "EQ_TAC", "simp[]", "rw[]", "metis_tac[]", "fs[]"]
-
-tactic_pool = thms_tactic + thm_tactic + term_tactic + no_arg_tactic
+# if not MORE_TACTICS:
+#     thms_tactic = ["simp", "fs", "metis_tac"]
+#     thm_tactic = ["irule"]
+#     term_tactic = ["Induct_on"]
+#     no_arg_tactic = ["strip_tac"]
+# else:
+#     thms_tactic = ["simp", "fs", "metis_tac", "rw"]
+#     thm_tactic = ["irule", "drule"]
+#     term_tactic = ["Induct_on"]
+#     no_arg_tactic = ["strip_tac", "EQ_TAC"]
+#
+#     thms_tactic = ["simp", "fs", "metis_tac", "rw"]
+#     thm_tactic = [] #["irule", "drule"]
+#     term_tactic = ["Induct_on"]
+#     no_arg_tactic = ["strip_tac", "EQ_TAC", "simp[]", "rw[]", "metis_tac[]", "fs[]"]
+#
+# tactic_pool = thms_tactic + thm_tactic + term_tactic + no_arg_tactic
 
 # with open("thm_dict_sorted.json") as f:
 #     thms = json.load(f)
@@ -90,31 +90,31 @@ tactic_pool = thms_tactic + thm_tactic + term_tactic + no_arg_tactic
 
 # original = list(thms.keys())
 
-GOALS = [value[4] for key, value in database.items() if value[3] == "thm" and value[0] in TARGET_THEORIES]
-plain_database = {value[4] : [value[0], value[1], value[2], value[3], key] for key, value in database.items()}
+# GOALS = [value[4] for key, value in database.items() if value[3] == "thm" and value[0] in TARGET_THEORIES]
+# plain_database = {value[4] : [value[0], value[1], value[2], value[3], key] for key, value in database.items()}
 # GOALS = [t for t in database if database[t][0] in TARGET_THEORIES]
 # TEST_GOALS = [GOALS[5]]
-SMALL = ["∀c l. EXISTS (λx. c) l ⇔ l ≠ [] ∧ c",
-             "REVERSE l = [] ⇔ l = []",
-             "∀l. l = [] ∨ ∃h t. l = h::t",
-             "∀l1 l2 l3. l1 ++ (l2 ++ l3) = l1 ++ l2 ++ l3",
-             "∀M M' v f. M = M' ∧ (M' = [] ⇒ v = v') ∧ (∀a0 a1. M' = a0::a1 ⇒ f a0 a1 = f' a0 a1) ⇒ list_CASE M v f = list_CASE M' v' f'",
-             "l1 ++ l2 = [e] ⇔ l1 = [e] ∧ l2 = [] ∨ l1 = [] ∧ l2 = [e]",
-             "LAST (h::t) = if t = [] then h else LAST t",
-             "0 = LENGTH l ⇔ l = []",
-             "¬SHORTLEX R l []",
-             "list_CASE x v f = v' ⇔ x = [] ∧ v = v' ∨ ∃a l. x = a::l ∧ f a l = v'"]
-
-TYPED_SMALL = ["∀(c :bool) (l :α list). EXISTS (λ(x :α). c) l ⇔ l ≠ ([] :α list) ∧ c",
-               "REVERSE (l :α list) = ([] :α list) ⇔ l = ([] :α list)",
-               "∀(l :α list). l = ([] :α list) ∨ ∃(h :α) (t :α list). l = h::t",
-               "∀(l1 :α list) (l2 :α list) (l3 :α list). l1 ++ (l2 ++ l3) = l1 ++ l2 ++ l3",
-               "∀(M :α list) (M' :α list) (v :β) (f :α -> α list -> β). M = M' ∧ (M' = ([] :α list) ⇒ v = (v' :β)) ∧ (∀(a0 :α) (a1 :α list). M' = a0::a1 ⇒ f a0 a1 = (f' :α -> α list -> β) a0 a1) ⇒ (list_CASE M v f :β) = (list_CASE M' v' f' :β)",
-               "(l1 :α list) ++ (l2 :α list) = [(e :α)] ⇔ l1 = [e] ∧ l2 = ([] :α list) ∨ l1 = ([] :α list) ∧ l2 = [e]",
-               "LAST ((h :α)::(t :α list)) = if t = ([] :α list) then h else LAST t",
-               "(0 :num) = LENGTH (l :α list) ⇔ l = ([] :α list)",
-               "¬SHORTLEX (R :α -> α -> bool) (l :α list) ([] :α list)",
-               "(list_CASE (x :α list) (v :β) (f :α -> α list -> β) :β) = (v' :β) ⇔ x = ([] :α list) ∧ v = v' ∨ ∃(a :α) (l :α list). x = a::l ∧ f a l = v'"]
+# SMALL = ["∀c l. EXISTS (λx. c) l ⇔ l ≠ [] ∧ c",
+#              "REVERSE l = [] ⇔ l = []",
+#              "∀l. l = [] ∨ ∃h t. l = h::t",
+#              "∀l1 l2 l3. l1 ++ (l2 ++ l3) = l1 ++ l2 ++ l3",
+#              "∀M M' v f. M = M' ∧ (M' = [] ⇒ v = v') ∧ (∀a0 a1. M' = a0::a1 ⇒ f a0 a1 = f' a0 a1) ⇒ list_CASE M v f = list_CASE M' v' f'",
+#              "l1 ++ l2 = [e] ⇔ l1 = [e] ∧ l2 = [] ∨ l1 = [] ∧ l2 = [e]",
+#              "LAST (h::t) = if t = [] then h else LAST t",
+#              "0 = LENGTH l ⇔ l = []",
+#              "¬SHORTLEX R l []",
+#              "list_CASE x v f = v' ⇔ x = [] ∧ v = v' ∨ ∃a l. x = a::l ∧ f a l = v'"]
+#
+# TYPED_SMALL = ["∀(c :bool) (l :α list). EXISTS (λ(x :α). c) l ⇔ l ≠ ([] :α list) ∧ c",
+#                "REVERSE (l :α list) = ([] :α list) ⇔ l = ([] :α list)",
+#                "∀(l :α list). l = ([] :α list) ∨ ∃(h :α) (t :α list). l = h::t",
+#                "∀(l1 :α list) (l2 :α list) (l3 :α list). l1 ++ (l2 ++ l3) = l1 ++ l2 ++ l3",
+#                "∀(M :α list) (M' :α list) (v :β) (f :α -> α list -> β). M = M' ∧ (M' = ([] :α list) ⇒ v = (v' :β)) ∧ (∀(a0 :α) (a1 :α list). M' = a0::a1 ⇒ f a0 a1 = (f' :α -> α list -> β) a0 a1) ⇒ (list_CASE M v f :β) = (list_CASE M' v' f' :β)",
+#                "(l1 :α list) ++ (l2 :α list) = [(e :α)] ⇔ l1 = [e] ∧ l2 = ([] :α list) ∨ l1 = ([] :α list) ∧ l2 = [e]",
+#                "LAST ((h :α)::(t :α list)) = if t = ([] :α list) then h else LAST t",
+#                "(0 :num) = LENGTH (l :α list) ⇔ l = ([] :α list)",
+#                "¬SHORTLEX (R :α -> α -> bool) (l :α list) ([] :α list)",
+#                "(list_CASE (x :α list) (v :β) (f :α -> α list -> β) :β) = (v' :β) ⇔ x = ([] :α list) ∧ v = v' ∨ ∃(a :α) (l :α list). x = a::l ∧ f a l = v'"]
 
 # LARGER = PROVABLES + ["∀l. ZIP (UNZIP l) = l",
 #                       "ZIP ([],[]) = [] ∧ ∀x1 l1 x2 l2. ZIP (x1::l1,x2::l2) = (x1,x2)::ZIP (l1,l2)",
@@ -159,10 +159,10 @@ TYPED_SMALL = ["∀(c :bool) (l :α list). EXISTS (λ(x :α). c) l ⇔ l ≠ ([]
 #          "∀x l. FRONT (SNOC x l) = l",
 #          "∀f l1 l2. INJ f (set l1 ∪ set l2) 𝕌(:β) ⇒ (MAP f l1 = MAP f l2 ⇔ l1 = l2)"]
 
-TEST_GOALS = PROVABLES
+# TEST_GOALS = PROVABLES
 # TEST_GOALS = SMALL
 
-random.shuffle(TEST_GOALS)
-random.shuffle(GOALS)
-TEST = GOALS[:(len(GOALS)//4)]
-TRAIN = GOALS[(len(GOALS)//4):]
+# random.shuffle(TEST_GOALS)
+# random.shuffle(GOALS)
+# TEST = GOALS[:(len(GOALS)//4)]
+# TRAIN = GOALS[(len(GOALS)//4):]

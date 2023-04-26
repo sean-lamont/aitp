@@ -1092,7 +1092,13 @@ def to_batch(list_data, data_dict, directed_attention=False):
                          edge_index_t_complete=conj_graph.complete_edge_index, depth_x_t=conj_graph.depth,
                          y=torch.tensor(y)))
         else:
-            batch_list.append(LinkData(edge_index_s=stmt_graph.edge_index, x_s=stmt_graph.x, edge_attr_s=stmt_graph.edge_attr, depth_x_s=stmt_graph.depth, edge_index_t=conj_graph.edge_index, x_t=conj_graph.x, edge_attr_t=conj_graph.edge_attr, depth_x_t = conj_graph.depth, y=torch.tensor(y)))
+
+            if hasattr(conj_graph, 'depth') and hasattr(stmt_graph, 'depth'):
+                depth_x_s = stmt_graph.depth
+                depth_x_t = conj_graph.depth
+            else:
+                depth_x_s = depth_x_t = None
+            batch_list.append(LinkData(edge_index_s=stmt_graph.edge_index, x_s=stmt_graph.x, edge_attr_s=stmt_graph.edge_attr, depth_x_s=depth_x_s, edge_index_t=conj_graph.edge_index, x_t=conj_graph.x, edge_attr_t=conj_graph.edge_attr, depth_x_t = depth_x_t, y=torch.tensor(y)))
 
 
 
@@ -1157,9 +1163,8 @@ val_data = val
 
 
 # todo move generation of this to data module
-with open("/home/sean/Documents/phd/aitp/experiments/hol4/supervised/torch_graph_dict_directed_depth.pk", "rb") as f:
-    torch_graph_dict = pickle.load(f)
-
+# with open("/home/sean/Documents/phd/aitp/experiments/hol4/supervised/torch_graph_dict_directed_depth.pk", "rb") as f:
+#     torch_graph_dict = pickle.load(f)
 
 
 # def run_dual_encoders(model_config, exp_config):
@@ -1359,8 +1364,8 @@ def run_dual_encoders(config):
                     print(f"New best validation accuracy: {best_acc}")
                     # only save encoder if best accuracy so far
                     if save == True:
-                        torch.save(graph_net_1, "gnn_transformer_goal_hol4")
-                        torch.save(graph_net_2, "gnn_transformer_premise_hol4")
+                        torch.save(graph_net_1, exp_config['model_dir'] + "/gnn_transformer_goal_hol4")
+                        torch.save(graph_net_2, exp_config['model_dir'] + "/gnn_transformer_premise_hol4")
 
                     # wandb save
                     # torch.save({  # Save our checkpoint loc
@@ -1445,18 +1450,18 @@ def val_acc_dual_encoder(model_1, model_2, batch, fc, embedding_dim, directed_at
 sat_config = {
     "model_type": "sat",
     "vocab_size": len(tokens),
-    "embedding_dim": 256,
+    "embedding_dim": 128,
     "dim_feedforward": 256,
     "num_heads": 8,
     "num_layers": 4,
     "in_embed": False,
     "se": "pna",
-    "abs_pe": True,
+    "abs_pe": False,
     "abs_pe_dim": 256,
     "use_edge_attr": True,
     "dropout": 0.2,
     "gnn_layers": 4,
-    "directed_attention": True,
+    "directed_attention": False,
 }
 
 exp_config = {
@@ -1464,9 +1469,10 @@ exp_config = {
     "epochs": 20,
     "weight_decay": 1e-6,
     "batch_size": 32,
-    "model_save": False,
+    "model_save": True,
     "val_size": 2048,
-    "logging": False
+    "logging": False,
+    "model_dir": "/home/sean/Documents/phd/aitp/experiments/hol4/supervised/model_checkpoints"
 }
 
 formula_net_config = {

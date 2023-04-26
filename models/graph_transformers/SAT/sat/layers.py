@@ -13,6 +13,14 @@ from .gnn_layers import get_simple_gnn_layer, EDGE_GNN_TYPES
 from models.digae_layers import DirectedGCNConvEncoder
 import torch.nn.functional as F
 
+def ptr_to_complete_edge_index(ptr):
+    # print (ptr)
+    from_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat_interleave(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
+    to_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
+    combined_complete_edge_index = torch.vstack((torch.cat(from_lists, dim=0), torch.cat(to_lists, dim=0)))
+    return combined_complete_edge_index
+
+
 class DigaeSE(torch.nn.Module):
     def __init__(self,  embedding_dim, hidden_dim, out_dim, encoder=None, decoder=None):
         super(DigaeSE, self).__init__()
@@ -87,7 +95,7 @@ class Attention(gnn.MessagePassing):
 
         self.attn_sum = None
 
-        print (f"Attn network {self}")
+        # print (f"Attn network {self}")
 
     def _reset_parameters(self):
         nn.init.xavier_uniform_(self.to_qk.weight)
@@ -127,6 +135,13 @@ class Attention(gnn.MessagePassing):
         # Compute value matrix
 
 
+        assert ptr is not None
+
+        if complete_edge_index is None:
+            # print (f"ptr: {ptr}")
+            complete_edge_index = ptr_to_complete_edge_index(ptr.cpu()).cuda()
+
+
         v = self.to_v(x)
 
         # Compute structure-aware node embeddings 
@@ -140,9 +155,9 @@ class Attention(gnn.MessagePassing):
                 subgraph_edge_attr=subgraph_edge_attr,
             )
         else: # k-subtree SAT
-            # x_struct = self.structure_extractor(x, edge_index, edge_attr)
+            x_struct = self.structure_extractor(x, edge_index, edge_attr)
             # can set x_struct = x here for normal transformer
-            x_struct = x
+            # x_struct = x
 
 
         # print (f"x.shape {x.shape} x_struct {x_struct.shape}")
@@ -159,8 +174,8 @@ class Attention(gnn.MessagePassing):
         # Compute complete self-attention
         attn = None
 
-        print (f"qk {qk[0].shape, qk[1].shape}, v: {v.shape}")
-        print (f"qk {qk}, v: {v}")
+        # print (f"qk {qk[0].shape, qk[1].shape}, v: {v.shape}")
+        # print (f"qk {qk}, v: {v}")
 
         #passed in as None for ppa and code?
         # MUCH faster than if no complete edge index, pad batch from self_attn is extremely slow
@@ -169,7 +184,6 @@ class Attention(gnn.MessagePassing):
         #for DAG, complete edge index should be
         if complete_edge_index is not None:
             # print ("complete")
-
 
             #todo AMR implementation:
 
@@ -217,20 +231,20 @@ class Attention(gnn.MessagePassing):
         # index maps to the "to"/ i values i.e. index[i] = 3 means i = 3, and len(index) is the number of messages
         # i.e. index will be 0,n repeating n times (if complete_edge_index is every combination of nodes)
 
-        print (f"qkj: {qk_j}, qki: {qk_i}, vj: {v_j}")
+        # print (f"qkj: {qk_j}, qki: {qk_i}, vj: {v_j}")
 
-        print (f"message: v_j {v_j.shape}, qk_j: {qk_j.shape}, index: {index}, ptr: {ptr}, size_i: {size_i}")
+        # print (f"message: v_j {v_j.shape}, qk_j: {qk_j.shape}, index: {index}, ptr: {ptr}, size_i: {size_i}")
 
         qk_i = rearrange(qk_i, 'n (h d) -> n h d', h=self.num_heads)
         qk_j = rearrange(qk_j, 'n (h d) -> n h d', h=self.num_heads)
         v_j = rearrange(v_j, 'n (h d) -> n h d', h=self.num_heads)
 
-        print (f"message after: v_j {v_j.shape}, qk_j: {qk_j.shape}, index: {index}, ptr: {ptr}, size_i: {size_i}")
+        # print (f"message after: v_j {v_j.shape}, qk_j: {qk_j.shape}, index: {index}, ptr: {ptr}, size_i: {size_i}")
 
         # sum over dimension, giving n h shape
         attn = (qk_i * qk_j).sum(-1) * self.scale
 
-        print (attn.shape)
+        # print (attn.shape)
 
         if edge_attr is not None:
             attn = attn + edge_attr
@@ -434,7 +448,7 @@ class TransformerEncoderLayer(nn.TransformerEncoderLayer):
             return_attn=False,
         ):
 
-        print (f"running")
+        # print (f"running")
         if self.pre_norm:
             x = self.norm1(x)
 

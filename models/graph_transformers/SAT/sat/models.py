@@ -38,7 +38,7 @@ class GraphTransformer(nn.Module):
         super().__init__()
 
         # self.pos_encoder = PositionalEncoding(d_model, dropout, max_len=256)
-        print ("running")
+        # print ("r_inductunning")
         self.abs_pe = abs_pe
         self.abs_pe_dim = abs_pe_dim
         if abs_pe and abs_pe_dim > 0:
@@ -175,11 +175,11 @@ class GraphTransformer(nn.Module):
                 output = output[-bsz:]
                 # print (output.shape)
             else:
-                output = gnn.global_max_pool(output, data.batch)
+                # output = gnn.global_max_pool(output, data.batch)
 
-                # output_1 = self.pooling(output, data.batch)
-                # output_2 = gnn.global_max_pool(output, data.batch)
-                # output = torch.cat([output_1, output_2], dim=1)
+                output_1 = self.pooling(output, data.batch)
+                output_2 = gnn.global_max_pool(output, data.batch)
+                output = torch.cat([output_1, output_2], dim=1)
 
         return output
 

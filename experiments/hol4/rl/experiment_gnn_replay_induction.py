@@ -1,4 +1,12 @@
 import json
+
+import traceback
+
+import torch
+
+from data.hol4.ast_def import graph_to_torch_labelled
+from torch.distributions import Categorical
+import torch.nn.functional as F
 from datetime import datetime
 import pickle
 from data.hol4 import ast_def
@@ -116,111 +124,21 @@ class Agent:
         pass
 
 
+
 with open("data/hol4/data/torch_graph_dict.pk", "rb") as f:
     torch_graph_dict = pickle.load(f)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-def nodes_list_to_senders_receivers(node_list):
-    senders = []
-    receivers = []
-    for i, node in enumerate(node_list):
-        for child in node.children:
-            senders.append(i)
-            receivers.append(node_list.index(child))
-    return senders, receivers
-
-def nodes_list_to_senders_receivers_labelled(node_list):
-    senders = []
-    receivers = []
-    edge_labels = []
-    for i, node in enumerate(node_list):
-        for j, child in enumerate(node.children):
-            senders.append(i)
-            receivers.append(node_list.index(child))
-            edge_labels.append(j)
-    return senders, receivers, edge_labels
-
-
-def nodes_list(g, result=[]):
-    result.append(g)
-
-    for child in g.children:
-        nodes_list(child, result)
-
-    return list(set(result))
-
-
-with open("data/hol4/graph_token_encoder.pk", "rb") as f:
+with open("data/hol4/data/graph_token_encoder.pk", "rb") as f:
     token_enc = pickle.load(f)
 
-def sp_to_torch(sparse):
-    coo = sparse.tocoo()
-
-    values = coo.data
-    indices = np.vstack((coo.row, coo.col))
-
-    i = torch.LongTensor(indices)
-    v = torch.FloatTensor(values)
-    shape = coo.shape
-
-    return torch.sparse.FloatTensor(i, v, torch.Size(shape))  # .to_dense()
 
 
-def graph_to_torch(g):
-    node_list = nodes_list(g, result=[])
-    senders, receivers = nodes_list_to_senders_receivers(node_list)
-
-    # get the one hot encoding from enc
-    t_f = lambda x: np.array([x.node.value])
-
-    node_features = list(map(t_f, node_list))
-
-    node_features = token_enc.transform(node_features)
-
-    edges = torch.tensor([senders, receivers], dtype=torch.long)
-
-    nodes = sp_to_torch(node_features)
-
-    return Data(x=nodes, edge_index=edges)
-
-
-from data.hol4.generate_gnn_data import graph_to_torch_labelled
-# def graph_to_torch_labelled(g):
-#     node_list = nodes_list(g, result=[])
-# #    senders, receivers = nodes_list_to_senders_receivers(node_list)
-#     senders, receivers, edge_labels = nodes_list_to_senders_receivers_labelled(node_list)
-#
-#
-#
-#     # define labels before renaming to keep original variables for induction
-#     labels = [x.node.value for x in node_list]
-#
-#     # rename variables to be constant
-#     for node in node_list:
-#         if node.node.value[0] == 'V':
-#             if node.children != []:
-#                 node.node.value = "VARFUNC"
-#             else:
-#                 node.node.value = "VAR"
-#
-#     # get the one hot encoding from enc
-#     t_f = lambda x: np.array([x.node.value])
-#
-#     node_features = list(map(t_f, node_list))
-#
-#     node_features = token_enc.transform(node_features)
-#
-#     edges = torch.tensor([senders, receivers], dtype=torch.long)
-#
-#     nodes = sp_to_torch(node_features)
-#
-#     return Data(x=nodes, edge_index=edges, edge_attr=torch.Tensor(edge_labels), labels=labels)
-
-# #make database compatible with GNN encoder
 encoded_graph_db = []
-with open('data/hol4/data/include_probability.json') as f:
+with open('data/hol4/data/adjusted_db.json') as f:
+# with open('data/hol4/data/include_probability.json') as f:
     compat_db = json.load(f)
     
 reverse_database = {(value[0], value[1]) : key for key, value in compat_db.items()}
@@ -229,7 +147,7 @@ graph_db = {}
 
 print ("Generating premise graph db...")
 for i,t in enumerate(compat_db):
-    graph_db[t] = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t))
+    graph_db[t] = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc)
 
 with open("data/hol4/data/paper_goals.pk", "rb") as f:
    paper_goals = pickle.load(f)
@@ -254,15 +172,21 @@ def gather_encoded_content_gnn(history, encoder):
         reverted.append(g)
 
 #    graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch(ast_def.goal_to_graph(t)) for t in reverted]
-    graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t)) for t in reverted]
+    graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
 
     loader = DataLoader(graphs, batch_size = len(reverted))
 
     batch = next(iter(loader))
 
+    batch.edge_attr = batch.edge_attr.long()#torch.LongTensor(batch.edge_attr)
+
+    # print (batch)
+    # print (batch.edge_attr)
     # representations = torch.unsqueeze(encoder.forward(batch.x.to(device), batch.edge_indegraph_pow_defdevice), batch.batch.to(device)), 1)
     #encode_and_pool for digae model
-    representations = torch.unsqueeze(encoder.encode_and_pool(batch.x.to(device), batch.x.to(device), batch.edge_index.to(device), batch.batch.to(device)), 1)
+    # representations = torch.unsqueeze(encoder.encode_and_pool(batch.x.to(device), batch.x.to(device), batch.edge_index.to(device), batch.batch.to(device)), 1)
+
+    representations = torch.unsqueeze(encoder(batch.to(device)), 1)
 
     return representations, contexts, fringe_sizes
 
@@ -313,8 +237,8 @@ class GNNVanilla(Agent):
         self.optimizer_encoder_goal = torch.optim.RMSprop(list(self.encoder_goal.parameters()), lr=self.term_rate)
 
     def load_encoder(self):
-        self.encoder_premise = torch.load("model_checkpoints/gnn_encoder_latest_premise")
-        self.encoder_goal = torch.load("model_checkpoints/gnn_encoder_latest_goal")
+        self.encoder_premise = torch.load("/home/sean/Documents/phd/aitp/experiments/hol4/supervised/model_checkpoints/gnn_transformer_premise_hol4")
+        self.encoder_goal = torch.load("/home/sean/Documents/phd/aitp/experiments/hol4/supervised/model_checkpoints/gnn_transformer_goal_hol4")
         return
 
     def save(self):
@@ -374,10 +298,14 @@ class GNNVanilla(Agent):
                 representations, context_set, fringe_sizes = gather_encoded_content_gnn(env.history, self.encoder_goal)
             except Exception as e:
                 print ("Encoder error {}".format(e))
+                print (traceback.print_exc())
                 return ("Encoder error", str(e))
 
 
+            encoded_fact_pool = self.encoder_premise(allowed_fact_batch.to(device))
+
             #representations = torch.stack([i.to(self.device) for i in representations])
+
             context_scores = self.context_net(representations)
             contexts_by_fringe, scores_by_fringe = split_by_fringe(context_set, context_scores, fringe_sizes)
             fringe_scores = []
@@ -426,7 +354,7 @@ class GNNVanilla(Agent):
                 
             elif tactic_pool[tac] == "Induct_on":
 
-                target_graph = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(target_goal))
+                target_graph = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(target_goal), token_enc)
 
 
                 arg_probs = []
@@ -445,7 +373,7 @@ class GNNVanilla(Agent):
 
 
                     # pass whole graph through Induct GNN
-                    induct_graph = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(target_goal))
+                    induct_graph = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(target_goal), token_enc)
 
                     induct_nodes = self.induct_gnn(induct_graph.x.to(self.device), induct_graph.edge_index.to(self.device))
 
@@ -520,7 +448,8 @@ class GNNVanilla(Agent):
                 #encoded_fact_pool = self.encoder_premise.forward(allowed_fact_batch.x.to(device), allowed_fact_batch.edge_index.to(device), allowed_fact_batch.batch.to(device))
                 #encode and pool for digae
                 #do this at start to avoid recomputation?
-                encoded_fact_pool = self.encoder_premise.encode_and_pool(allowed_fact_batch.x.to(device), allowed_fact_batch.x.to(device), allowed_fact_batch.edge_index.to(device), allowed_fact_batch.batch.to(device))
+                # encoded_fact_pool = self.encoder_premise.encode_and_pool(allowed_fact_batch.x.to(device), allowed_fact_batch.x.to(device), allowed_fact_batch.edge_index.to(device), allowed_fact_batch.batch.to(device))
+                # encoded_fact_pool = self.encoder_premise(allowed_fact_batch.to(device))
                 candidates = torch.cat([encoded_fact_pool, hiddenl], dim=1)
                 candidates = candidates.to(self.device)
                             
@@ -812,7 +741,7 @@ class GNNVanilla(Agent):
                 arg_probs = []
                 candidates = []
 
-                target_graph = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(target_goal))
+                target_graph = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(target_goal), token_enc)
 
 
                 tokens = [[t] for t in target_graph.labels if t[0] == "V"]
@@ -829,7 +758,7 @@ class GNNVanilla(Agent):
 
                     #feed through induct GNN to get representation
 
-                    induct_graph = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(target_goal))
+                    induct_graph = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(target_goal), token_enc)
 
                     induct_nodes = self.induct_gnn(induct_graph.x.to(self.device), induct_graph.edge_index.to(self.device))
 
@@ -903,7 +832,8 @@ class GNNVanilla(Agent):
                     return ("hiddenl error...{}", str(e))
 
 
-                encoded_fact_pool = self.encoder_premise.encode_and_pool(allowed_fact_batch.x.to(device), allowed_fact_batch.x.to(device),allowed_fact_batch.edge_index.to(device), allowed_fact_batch.batch.to(device))
+                # encoded_fact_pool = self.encoder_premise.encode_and_pool(allowed_fact_batch.x.to(device), allowed_fact_batch.x.to(device),allowed_fact_batch.edge_index.to(device), allowed_fact_batch.batch.to(device))
+                encoded_fact_pool = self.encoder_premise(allowed_fact_batch.to(device))
                 candidates = torch.cat([encoded_fact_pool, hiddenl], dim=1)
                 candidates = candidates.to(self.device)
 
@@ -1043,6 +973,7 @@ class Experiment_GNN:
                 except Exception as e:
                     print ("Env error: {}".format(e))
                     #env_errors.append((goal, "Error generating fact pool", i))
+                    print (traceback.print_exc())
                     continue
                     
                 result = self.agent.run(env, 
@@ -1131,7 +1062,8 @@ class Experiment_GNN:
             allowed_arguments_ids = []
             candidate_args = []
             for i,t in enumerate(self.database):
-                if self.database[t][0] in allowed_theories and (self.database[t][0] != goal_theory or int(self.database[t][2]) < int(self.database[polished_goal][2])):
+                # if self.database[t][0] in allowed_theories and (self.database[t][0] != goal_theory or int(self.database[t][2]) < int(self.database[polished_goal][2])):
+                if self.database[t][0] in allowed_theories and (self.database[t][0] != goal_theory or int(self.database[t][3]) < int(self.database[polished_goal][3])):
                     allowed_arguments_ids.append(i)
                     candidate_args.append(t)
 
@@ -1156,6 +1088,7 @@ class Experiment_GNN:
         allowed_fact_batch = next(iter(loader))
 
 
+        allowed_fact_batch.edge_attr = allowed_fact_batch.edge_attr.long()
         # encoded_fact_pool = gnn_enc.forward(batch.x.to(device), batch.edge_index.to(device), batch.batch.to(device))
 
         # return encoded_fact_pool, allowed_arguments_ids, candidate_args
@@ -1177,13 +1110,14 @@ def run_experiment():
 
     except Exception as e:
         print (f"Fatal error {e}")
+        print (traceback.print_exc())
         run_experiment()
 
 def run_test():
     try:
         agent = GNNVanilla(tactic_pool, replay_dir=None, train_mode=False)
 
-        agent.load()
+        # agent.load()
 
         exp_gnn = Experiment_GNN(agent, test_goals, compat_db, 1, train_mode=False)
 
@@ -1191,6 +1125,7 @@ def run_test():
 
     except Exception as e:
         print (f"Fatal error {e}")
+        print (traceback.print_exc())
         # run_experiment()
 
 

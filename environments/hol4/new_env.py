@@ -1,3 +1,4 @@
+import json
 import plotly.graph_objects as go
 from igraph import Graph
 import pexpect
@@ -11,10 +12,33 @@ import os
 from copy import deepcopy
 import re
 
+
+MORE_TACTICS = True
+if not MORE_TACTICS:
+    thms_tactic = ["simp", "fs", "metis_tac"]
+    thm_tactic = ["irule"]
+    term_tactic = ["Induct_on"]
+    no_arg_tactic = ["strip_tac"]
+else:
+    thms_tactic = ["simp", "fs", "metis_tac", "rw"]
+    thm_tactic = ["irule", "drule"]
+    term_tactic = ["Induct_on"]
+    no_arg_tactic = ["strip_tac", "EQ_TAC"]
+
+tactic_pool = thms_tactic + thm_tactic + term_tactic + no_arg_tactic
+
+
+UNEXPECTED_REWARD = -1000
+
 HOLPATH = "/home/sean/Documents/phd/hol/HOL/bin/hol --maxheap=256"
 #HOLPATH = "/home/sean/Documents/PhD/HOL4/HOL/bin/hol --maxheap=256"
 
 EXCLUDED_THEORIES = ["min"] #["min", "bool"]
+
+
+with open("/home/sean/Documents/phd/aitp/data/hol4/data/adjusted_db.json") as f:
+    database = json.load(f)
+
 
 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
