@@ -17,16 +17,15 @@ class Child_Aggregation(MessagePassing):
     def __init__(self, in_channels, out_channels):
         super().__init__(aggr='sum', flow='target_to_source')
 
+        self.mlp = Seq(Linear(2 * in_channels, out_channels),
+                       ReLU(),
+                       Linear(out_channels, out_channels))
+
         # self.mlp = Seq(Linear(2 * in_channels, out_channels),
         #                nn.BatchNorm1d(out_channels),
-        #                ReLU(),nn.BatchNorm1d(out_channels),
-        #                Linear(out_channels, out_channels))
-
-        self.mlp = Seq(Linear(2 * in_channels, out_channels),
-                       nn.BatchNorm1d(out_channels),
-                       ReLU(),
-                       Linear(out_channels, out_channels),
-                       nn.BatchNorm1d(out_channels))
+        #                ReLU(),
+        #                Linear(out_channels, out_channels),
+        #                nn.BatchNorm1d(out_channels))
     def message(self, x_i, x_j):
         tmp = torch.cat([x_i, x_j], dim=1)  # tmp has shape [E, 2 * in_channels]
         return self.mlp(tmp)
@@ -46,15 +45,15 @@ class Parent_Aggregation(MessagePassing):
     def __init__(self, in_channels, out_channels):
         super().__init__(aggr='sum', flow='source_to_target')
 
-        # self.mlp = Seq(Dropout(), Linear(2 * in_channels, out_channels),
-        #                ReLU(), Dropout(),
-        #                Linear(out_channels, out_channels))
+        self.mlp = Seq(Dropout(), Linear(2 * in_channels, out_channels),
+                       ReLU(), Dropout(),
+                       Linear(out_channels, out_channels))
 
-        self.mlp = Seq(Linear(2 * in_channels, out_channels),
-                       nn.BatchNorm1d(out_channels),
-                       ReLU(),
-                       Linear(out_channels, out_channels),
-                       nn.BatchNorm1d(out_channels))
+        # self.mlp = Seq(Linear(2 * in_channels, out_channels),
+        #                nn.BatchNorm1d(out_channels),
+        #                ReLU(),
+        #                Linear(out_channels, out_channels),
+        #                nn.BatchNorm1d(out_channels))
 
 
     def message(self, x_i, x_j):

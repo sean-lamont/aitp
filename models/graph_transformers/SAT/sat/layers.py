@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import math
 import copy
 
 import einops
@@ -171,9 +172,6 @@ class Attention(gnn.MessagePassing):
             qk = self.to_qk(x_struct)
             qk = (qk, qk)
         else:
-            # todo AMR, Q is using nodes (x_struct), K is using relation R(i,j)
-            # todo return tuple (K, Q) as needed? K are r(i,j)
-            # todo keep Q_out, Q_in for target/source embeddings, only need one K
             qk = self.to_qk(x_struct).chunk(2, dim=-1)
 
         # Compute complete self-attention
@@ -188,35 +186,10 @@ class Attention(gnn.MessagePassing):
 
         #for DAG, complete edge index should be
         if complete_edge_index is not None:
-            # print ("complete")
-
-            #todo AMR implementation:
-
-            #todo q with h_i, k,v with r(i,j)
-            #todo message is from -> to (j -> i)
-
-            #todo edge index will be "from" all edge relations "to" nodes. Each edge relation must map to it's source/target so will have 2 * num_edges edges
-
-            #todo make separate "complete_edge_index" which has "from" relations "to" source nodes, and "from" relations to the corresponding "target" nodes
-            #todo can then use these edge indices to do two separate propagate calls, then combine the outputs g_i_out, g_i_in afterwards
-
-
-
-
-
-
-
-
-
 
 
             out = self.propagate(complete_edge_index, v=v, qk=qk, edge_attr=None, size=None,
                                  return_attn=return_attn)
-
-            # checking output below, confirm q/k is in right order with qk_j = qk[0][j], qk_i = qk[1][i]
-
-            # out = self.propagate(complete_edge_index, v=v, qk=(qk[1],qk[0]), edge_attr=None, size=None,
-            #                      return_attn=return_attn)
 
             if return_attn:
                 attn = self._attn
@@ -234,25 +207,12 @@ class Attention(gnn.MessagePassing):
     def message(self, v_j, qk_j, qk_i, edge_attr, index, ptr, size_i, return_attn):
         """Self-attention operation compute the dot-product attention """
 
-
-        #todo AMR make sure size_i isn't breaking softmax for non-complete index
-
-        # size_i = max(index) + 1 # from torch_geometric docs? todo test correct
-
-        # qk_j is keys i.e. message "from" j, qk_i maps to queries i.e. messages "to" i
-
-        # index maps to the "to"/ i values i.e. index[i] = 3 means i = 3, and len(index) is the number of messages
-        # i.e. index will be 0,n repeating n times (if complete_edge_index is every combination of nodes)
-
-        # print (f"qkj: {qk_j}, qki: {qk_i}, vj: {v_j}")
-
-        # print (f"message: v_j {v_j.shape}, qk_j: {qk_j.shape}, index: {index}, ptr: {ptr}, size_i: {size_i}")
+        # print (index)
+        # print (f"qkj: {qk_j.shape}, qki: {qk_i.shape}, vj: {v_j.shape}")
 
         qk_i = rearrange(qk_i, 'n (h d) -> n h d', h=self.num_heads)
         qk_j = rearrange(qk_j, 'n (h d) -> n h d', h=self.num_heads)
         v_j = rearrange(v_j, 'n (h d) -> n h d', h=self.num_heads)
-
-        # print (f"message after: v_j {v_j.shape}, qk_j: {qk_j.shape}, index: {index}, ptr: {ptr}, size_i: {size_i}")
 
         # sum over dimension, giving n h shape
         attn = (qk_i * qk_j).sum(-1) * self.scale
@@ -447,8 +407,10 @@ class TransformerEncoderLayer(nn.TransformerEncoderLayer):
 
         self.self_attn = Attention(d_model, nhead, dropout=dropout,
             bias=False, gnn_type=gnn_type, se=se, k_hop=k_hop, **kwargs)
+
         self.batch_norm = batch_norm
         self.pre_norm = pre_norm
+
         if batch_norm:
             self.norm1 = nn.BatchNorm1d(d_model)
             self.norm2 = nn.BatchNorm1d(d_model)
@@ -485,12 +447,65 @@ class TransformerEncoderLayer(nn.TransformerEncoderLayer):
             x = self.norm2(x)
         else:
             x = self.norm1(x)
+
         x2 = self.linear2(self.dropout(self.activation(self.linear1(x))))
+
         x = x + self.dropout2(x2)
 
         if not self.pre_norm:
             x = self.norm2(x)
         return x
+
+class AMREncoderLayer(nn.TransformerEncoderLayer):
+
+    def __init__(self, d_model, nhead=8, dim_feedforward=512, dropout=0.1,
+                 activation="relu", edge_dim = 0, layer_norm=True, pre_norm=False,
+                  **kwargs):
+
+        super().__init__(d_model, nhead, dim_feedforward, dropout, activation)
+
+        self.self_attn = AttentionAMR(embed_dim=d_model, num_heads=nhead, dropout=dropout,
+                                   bias=False, edge_dim=edge_dim,**kwargs)
+
+        self.layer_norm = layer_norm
+        self.pre_norm = pre_norm
+
+        if layer_norm:
+            self.norm1 = nn.LayerNorm(d_model)
+            self.norm2 = nn.LayerNorm(d_model)
+
+    def forward(self, xs,xt,edge_index,edge_index_source, edge_index_target, softmax_idx,
+                edge_attr=None, ptr=None,
+                return_attn=False,
+                ):
+
+        # print (f"running")
+
+        xs, xt = self.self_attn(
+            x_source = xs,
+            x_target = xt,
+            edge_index=edge_index,
+            edge_attr=edge_attr,
+            edge_index_source=edge_index_source,
+            edge_index_target=edge_index_target,
+            softmax_idx=softmax_idx,
+            ptr=ptr,
+            return_attn=return_attn
+        )
+
+        # x = x + self.dropout1(x2)
+        #
+        # if self.pre_norm:
+        #     x = self.norm2(x)
+        # else:
+        #     x = self.norm1(x)
+        #
+        # x2 = self.linear2(self.dropout(self.activation(self.linear1(x))))
+        # x = x + self.dropout2(x2)
+        #
+        # if not self.pre_norm:
+        #     x = self.norm2(x)
+        return xs, xt
 
 
 class AttentionAMR(gnn.MessagePassing):
@@ -559,6 +574,9 @@ class AttentionAMR(gnn.MessagePassing):
                 x_source,
                 x_target,
                 edge_index,
+                edge_index_source,
+                edge_index_target,
+                softmax_idx,
                 edge_attr=None,
                 ptr=None,
                 return_attn=False):
@@ -582,24 +600,27 @@ class AttentionAMR(gnn.MessagePassing):
 
         # print (x_source.shape)
         # print (x_target.shape)
-        if edge_attr:
-            R = torch.stack([torch.cat([x_source[edge_index[0][i]], edge_attr[i], x_target[edge_index[1][i]]], dim = 0)  for i in range(len(edge_index[0]))], dim=1)
+        first = torch.index_select(x_source, 0, edge_index[0])
+        last = torch.index_select(x_target, 0, edge_index[1])
+
+        if edge_attr is not None:
+            R = torch.cat([first, edge_attr, last], dim = 1)
         else:
-            R = torch.stack([torch.cat([x_source[edge_index[0][i]], x_target[edge_index[1][i]]], dim = 0)  for i in range(len(edge_index[0]))], dim=1)
+            R = torch.cat([first, last], dim = 1)
+        # R = rearrange(R, "d n -> n d")
 
-        #todo make separate "complete_edge_index" which has "from" relations "to" source nodes, and "from" relations to the corresponding "target" nodes
+        #"complete_edge_index" which has "from" relations "to" source nodes, and "from" relations to the corresponding "target" nodes
+        # edge_index_source = torch.LongTensor([[i for i in torch.arange(edge_index.shape[1])], [edge_index[0][i] for i in torch.arange(edge_index.shape[1])]]).cuda()
+        #
+        # edge_index_target = torch.LongTensor([[i for i in torch.arange(edge_index.shape[1])], [edge_index[1][i] for i in torch.arange(edge_index.shape[1])]]).cuda()
 
-        R = rearrange(R, "d n -> n d")
+        # edge_index_source = torch.stack([torch.arange(edge_index.shape[1]), torch.index_select(edge_index[0],1, torch.arange(edge_index.shape[1]))])
+        # edge_index_target = torch.stack([torch.arange(edge_index.shape[1]), torch.index_select(edge_index[1],1,torch.arange(edge_index.shape[1]))])
 
-        edge_index_source = torch.LongTensor([[i for i in range(edge_index.shape[1])], [edge_index[0][i] for i in range(edge_index.shape[1])]])
-
-        edge_index_target = torch.LongTensor([[i for i in range(edge_index.shape[1])], [edge_index[1][i] for i in range(edge_index.shape[1])]])
 
         Q_source = self.to_q(x_source)
         Q_target = self.to_q(x_target)
 
-
-        print (R.shape)
         R = self.r_proj(R)
 
         V = self.to_v(R)
@@ -607,13 +628,17 @@ class AttentionAMR(gnn.MessagePassing):
 
         attn = None
 
-        print (f"R : {R}, Q_source: {Q_source}, Q_target: {Q_target}, V: {V}, K: {K}")
+        # print (f"R : {R}, Q_source: {Q_source}, Q_target: {Q_target}, V: {V}, K: {K}")
+
+
+        # print (f"ptr {ptr}")
+
 
         out_source = self.propagate(edge_index_source, v=V, qk=(K, Q_source), edge_attr=None, size=None,
-                                    return_attn=return_attn)
+                                    return_attn=return_attn, softmax_idx= softmax_idx)
 
         out_target = self.propagate(edge_index_target, v=V, qk=(K, Q_target), edge_attr=None, size=None,
-                                    return_attn=return_attn)
+                                    return_attn=return_attn, softmax_idx= softmax_idx)
 
 
         out_source = rearrange(out_source, 'n h d -> n (h d)')
@@ -645,13 +670,13 @@ class AttentionAMR(gnn.MessagePassing):
 
         return x_source, x_target
 
-    def message(self, v_j, qk_j, qk_i, edge_attr, index, ptr, size_i, return_attn):
+    def message(self, v_j, qk_j, qk_i, edge_attr, index, ptr, size_i, return_attn, softmax_idx):
+
         """Self-attention operation compute the dot-product attention """
 
+        # print (f"v_j {v_j}, qk_j: {qk_j}, qk_i: {qk_i}")
 
-        print (f"v_j {v_j}, qk_j: {qk_j}, qk_i: {qk_i}")
-
-        print (f"index {index}\n\n")
+        # print (f"index {index}\n\n")
 
         #todo AMR make sure size_i isn't breaking softmax for non-complete index
 
@@ -682,9 +707,251 @@ class AttentionAMR(gnn.MessagePassing):
 
         # index gives what to softmax over
 
-        attn = utils.softmax(attn, index, ptr, size_i)
+
+
+
+
+        # print (f"attn: {attn}, index {index}, soft_ind {softmax_idx}, size {softmax_idx[-1]}, lenidx {len(index)}")
+        attn = utils.softmax(attn, ptr=softmax_idx, num_nodes=softmax_idx[-1])
+        # print (f"attn after {attn}")
         if return_attn:
             self._attn = attn
+
         attn = self.attn_dropout(attn)
 
         return v_j * attn.unsqueeze(-1)
+
+
+
+def ptr_to_complete_edge_index(ptr):
+    # print (ptr)
+    from_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat_interleave(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
+    to_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
+    combined_complete_edge_index = torch.vstack((torch.cat(from_lists, dim=0), torch.cat(to_lists, dim=0)))
+    return combined_complete_edge_index
+
+
+
+class MPAttentionAggr(gnn.MessagePassing):
+
+
+    def __init__(self, embed_dim,  num_heads=8, dropout=0., bias=False, **kwargs):
+
+        super().__init__(node_dim=0, aggr='add')
+
+        self.embed_dim = embed_dim
+        self.bias = bias
+
+        head_dim = embed_dim // num_heads
+
+        assert head_dim * num_heads == embed_dim, "embed_dim must be divisible by num_heads"
+
+        self.num_heads = num_heads
+
+        self.scale = head_dim ** -0.5
+
+        self.to_qk = nn.Linear(embed_dim, embed_dim * 2, bias=bias)
+
+        self.to_v = nn.Linear(embed_dim, embed_dim, bias=bias)
+
+        self.layer_norm = torch.nn.LayerNorm(embed_dim)
+
+        self.attn_dropout = nn.Dropout(dropout)
+
+        self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
+
+        self._reset_parameters()
+
+    def _reset_parameters(self):
+
+        nn.init.xavier_uniform_(self.to_v.weight)
+        nn.init.xavier_uniform_(self.to_qk.weight)
+
+        if self.bias:
+            nn.init.xavier_uniform_(self.to_qk.weight)
+            nn.init.constant_(self.to_v.bias, 0.)
+
+    def forward(self,
+                data,
+                return_attn=False):
+
+
+        x = data.x
+        embed_dim = x.size(1)
+
+        cls_token = nn.Parameter(torch.randn(1, embed_dim))
+
+        bsz = len(data.ptr) - 1
+
+        new_index = torch.vstack((torch.arange(data.num_nodes).to(x), data.batch + data.num_nodes))
+        new_index2 = torch.vstack((new_index[1], new_index[0]))
+        idx_tmp = torch.arange(data.num_nodes, data.num_nodes + bsz).to(data.batch)
+        new_index3 = torch.vstack((idx_tmp, idx_tmp))
+
+        complete_edge_index = torch.cat((
+            new_index, new_index2, new_index3), dim=-1)
+
+        cls_tokens = einops.repeat(cls_token, '() d -> b d', b=bsz).to(x)
+
+        x = torch.cat((x, cls_tokens))
+
+        qk = self.to_qk(x).chunk(2, dim=-1)
+
+        v = self.to_v(x)
+
+        attn = None
+
+        out = self.propagate(complete_edge_index.long(), v=v, qk=qk, edge_attr=None, size=None,
+                             return_attn=return_attn)
+
+        out = rearrange(out, 'n h d -> n (h d)')
+
+        if return_attn:
+            attn = self._attn
+            self._attn = None
+            attn = torch.sparse_coo_tensor(
+                complete_edge_index,
+                attn,
+            ).to_dense().transpose(0, 1)
+
+
+        return self.out_proj(out), attn
+
+    def message(self, v_j, qk_j, qk_i, edge_attr, index, ptr, size_i, return_attn):
+
+        qk_i = rearrange(qk_i, 'n (h d) -> n h d', h=self.num_heads)
+        qk_j = rearrange(qk_j, 'n (h d) -> n h d', h=self.num_heads)
+        v_j = rearrange(v_j, 'n (h d) -> n h d', h=self.num_heads)
+
+        attn = (qk_i * qk_j).sum(-1) * self.scale
+
+        attn = utils.softmax(attn, index, ptr, size_i)
+
+        if return_attn:
+            self._attn = attn
+
+        attn = self.attn_dropout(attn)
+
+        msg = v_j * attn.unsqueeze(-1)
+
+        return msg
+
+class MPAttention(gnn.MessagePassing):
+
+
+    def __init__(self, embed_dim,  num_heads=8, dropout=0., bias=False, **kwargs):
+
+        super().__init__(node_dim=0, aggr='add')
+
+        self.embed_dim = embed_dim
+        self.bias = bias
+
+        head_dim = embed_dim // num_heads
+
+        assert head_dim * num_heads == embed_dim, "embed_dim must be divisible by num_heads"
+
+        self.num_heads = num_heads
+
+        self.scale = head_dim ** -0.5
+
+        self.to_qk = nn.Linear(embed_dim, embed_dim * 2, bias=bias)
+
+        self.to_v = nn.Linear(embed_dim, embed_dim, bias=bias)
+
+        self.layer_norm = torch.nn.LayerNorm(embed_dim)
+
+        self.attn_dropout = nn.Dropout(dropout)
+
+        self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
+
+        self._reset_parameters()
+
+    def _reset_parameters(self):
+
+        nn.init.xavier_uniform_(self.to_v.weight)
+        nn.init.xavier_uniform_(self.to_qk.weight)
+
+        if self.bias:
+            nn.init.xavier_uniform_(self.to_qk.weight)
+            nn.init.constant_(self.to_v.bias, 0.)
+
+    def forward(self,
+                data,
+                return_attn=False):
+
+
+        x = data.x
+        embed_dim = x.size(1)
+
+        cls_token = nn.Parameter(torch.randn(1, embed_dim))
+
+        bsz = len(data.ptr) - 1
+
+        # complete_edge_index = ptr_to_complete_edge_index(data.ptr.cpu()).cuda()
+
+        new_index = torch.vstack((torch.arange(data.num_nodes).to(x), data.batch + data.num_nodes))
+        new_index2 = torch.vstack((new_index[1], new_index[0]))
+        idx_tmp = torch.arange(data.num_nodes, data.num_nodes + len(data.ptr) - 1).to(data.batch)
+        new_index3 = torch.vstack((idx_tmp, idx_tmp))
+
+        # complete_edge_index = torch.cat((
+        #     complete_edge_index, new_index, new_index2, new_index3), dim=-1)
+
+        complete_edge_index = torch.cat((
+            new_index, new_index2, new_index3), dim=-1)
+
+        cls_tokens = einops.repeat(cls_token, '() d -> b d', b=len(data.ptr) - 1)
+
+        output = torch.cat((x, cls_tokens))
+
+
+
+
+
+        if data.edge_index is None:
+            edge_index = ptr_to_complete_edge_index(data.ptr)
+        else:
+            edge_index = data.edge_index
+
+        x = data.x
+
+        qk = self.to_qk(x).chunk(2, dim=-1)
+
+        v = self.to_v(x)
+
+        attn = None
+
+        out = self.propagate(edge_index, v=v, qk=qk, edge_attr=None, size=None,
+                             return_attn=return_attn)
+
+        out = rearrange(out, 'n h d -> n (h d)')
+
+        if return_attn:
+            attn = self._attn
+            self._attn = None
+            attn = torch.sparse_coo_tensor(
+                edge_index,
+                attn,
+            ).to_dense().transpose(0, 1)
+
+
+        return self.out_proj(out), attn
+
+    def message(self, v_j, qk_j, qk_i, edge_attr, index, ptr, size_i, return_attn):
+
+        qk_i = rearrange(qk_i, 'n (h d) -> n h d', h=self.num_heads)
+        qk_j = rearrange(qk_j, 'n (h d) -> n h d', h=self.num_heads)
+        v_j = rearrange(v_j, 'n (h d) -> n h d', h=self.num_heads)
+
+        attn = (qk_i * qk_j).sum(-1) * self.scale
+
+        attn = utils.softmax(attn, index, ptr, size_i)
+
+        if return_attn:
+            self._attn = attn
+
+        attn = self.attn_dropout(attn)
+
+        msg = v_j * attn.unsqueeze(-1)
+
+        return msg

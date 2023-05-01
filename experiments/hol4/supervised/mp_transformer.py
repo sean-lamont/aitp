@@ -1,4 +1,5 @@
 import traceback
+from torchtext.vocab import build_vocab_from_iterator
 
 from torch import nn
 import wandb
@@ -74,6 +75,14 @@ tokens = list(set([token.value for polished_goal in polished_goals for token in 
 tokens.append("VAR")
 tokens.append("VARFUNC")
 tokens.append("UNKNOWN")
+
+# todo use this and keep it constant somewhere
+# def build_vocab(l):
+#     for token in l:
+#         yield [token]
+#
+# vocab = build_vocab_from_iterator(build_vocab(tokens), specials=["<UNK>"], min_freq=0)
+# vocab.set_default_index(vocab["<UNK>"])
 
 
 
@@ -1073,7 +1082,10 @@ def ptr_to_complete_edge_index(ptr):
     return combined_complete_edge_index
 
 
-def to_batch(list_data, data_dict, directed_attention=False):
+'''
+Generate a batch of data for use with a message passing transformer implementation 
+'''
+def to_batch_transformer(list_data, data_dict, directed_attention=False):
     batch_list = []
     for (x1, x2, y) in list_data:
         # x1/x_t is conj, x2/x_s is stmt
