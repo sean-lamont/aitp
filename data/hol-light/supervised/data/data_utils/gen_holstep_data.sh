@@ -26,7 +26,7 @@ echo "Generating expression graphs from raw HOL Step data..."
 
 #mkdir ../graph_data/
 
-python3 -m generate_hol_dataset ../raw_data/raw_data 
+python3 -m generate_hol_dataset ../raw_data/raw_data && rm -r ../raw_data
 
 #python3 -m combine_data 
 

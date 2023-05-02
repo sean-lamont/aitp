@@ -61,8 +61,8 @@ gnn_encoder_set = list(set(unique_thms) - set(exp_thms))
 
 # print (len(set(exp_thms)), len(set(unique_thms)), len(gnn_encoder_set))
 
-train_thms = exp_thms[:int(0.8 * len(exp_thms))]
-test_thms = exp_thms[int(0.8 * len(exp_thms)):]
+# train_thms = exp_thms[:int(0.8 * len(exp_thms))]
+# test_thms = exp_thms[int(0.8 * len(exp_thms)):]
 
 #generate gnn data from valid set excluding goals for RL agent
 

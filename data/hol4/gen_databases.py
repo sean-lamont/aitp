@@ -1,7 +1,7 @@
 import json
 import os
 
-data_dir = "data/hol4/data/"
+data_dir = "data/"
 data_dir = os.path.join(os.getcwd(),data_dir)
 
 with open(data_dir + "hol_data.txt") as fp:
