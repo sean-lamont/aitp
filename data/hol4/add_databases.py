@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm import tqdm
 import json
 from pymongo import MongoClient
 import pickle
@@ -85,18 +86,20 @@ expression_graph_data = db[expression_graph_name]
 vocab = db[vocab_name]
 expression_info_data = db[info_name]
 
-print (f"Adding HOL4 standard library data up to and including \"probabilityTheory\" to database {db_name}")
+print (f"Adding HOL4 standard library data up to and including \"probabilityTheory\" to database {db_name}\n")
 
 
-print (f"Adding dependency data to collection {dep_name}")
-for k,v in dep_data.items():
+# print (f"Adding dependency data to collection {dep_name}\n")
+
+for k,v in tqdm(dep_data.items()):
     info = dependency_data.insert_one(
         {"_id": k,
          "dependencies": v})
 
-print (f"Adding expression graph data to collection {expression_graph_name}")
+# print (f"Adding expression graph data to collection {expression_graph_name}\n")
 
-for (k, v) in torch_graph_dict.items():
+
+for (k, v) in tqdm(torch_graph_dict.items()):
     test_graph = v
     tok_inds = list(test_graph.x.coalesce().indices().to_dense()[1].tolist())
     # print(tok_inds, test_graph.edge_index.tolist(), test_graph.edge_attr.long().tolist(), test_graph.labels)
@@ -104,36 +107,36 @@ for (k, v) in torch_graph_dict.items():
         {"_id": k,
          "graph": {"onehot": tok_inds, "edge_index":test_graph.edge_index.tolist(),"edge_attr":test_graph.edge_attr.long().tolist(), "labels": test_graph.labels}})
 
-print (f"Adding premise selection split data to collection {pretrain_name}")
+# print (f"Adding premise selection split data to collection {pretrain_name}\n")
 
 train, val, test, enc_nodes = train_test_data
 
-for conj, stmt, y in train:
+for conj, stmt, y in tqdm(train):
     info = pretrain_data.insert_one(
         {"split": "train", "conj":conj, "stmt":stmt, "y":y})
 
-for conj, stmt, y in val:
+for conj, stmt, y in tqdm(val):
     info = pretrain_data.insert_one(
         {"split": "val", "conj":conj, "stmt":stmt, "y":y})
 
-for conj, stmt, y in test:
+for conj, stmt, y in tqdm(test):
     info = pretrain_data.insert_one(
         {"split": "test", "conj":conj, "stmt":stmt, "y":y})
 
 
-print (f"Adding vocab data to collection {vocab_name}")
+# print (f"Adding vocab data to collection {vocab_name}\n")
 
 mapping = {i : v for i,v in enumerate(token_enc.categories_[0])}
 
-for k,v in mapping.items():
+for k,v in tqdm(mapping.items()):
     info = vocab.insert_one({"_id": k, "token":v})
 
-print (f"Adding expression metadata to collection {info_name}")
+# print (f"Adding expression metadata to collection {info_name}\n")
 
-for k,v in new_db.items():
+for k,v in tqdm(new_db.items()):
     info = expression_info_data.insert_one({"_id": k, "theory":v[0],"name":v[1], "dep_id":v[3], "type":v[4], "plain_expression":v[5]})
 
-print (f"Adding valid paper goals to collection {paper_name}")
+# print (f"Adding valid paper goals to collection {paper_name}\n")
 
 info = paper_split.insert_many([{"_id": g[0], "plain":g[1]} for g in valid_goals])
 
@@ -205,6 +208,7 @@ from tqdm import tqdm
 #         p_goal = env.get_polish(goal_new)
 #     except:
 #         print (f"error in new {goal_new}")
+
 #         new_errs.append(goal_new)
 #     try:
 #         p_goal = env.get_polish(goal_old)

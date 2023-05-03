@@ -170,7 +170,8 @@ class FormulaNet(nn.Module):
 
         self.num_iterations = num_iterations
 
-        self.initial_encoder = F_x_module_(input_shape, embedding_dim)
+        # self.initial_encoder = F_x_module_(input_shape, embedding_dim)
+        self.initial_encoder = nn.Embedding(input_shape, embedding_dim)
 
         self.parent_agg = Parent_Aggregation(embedding_dim, embedding_dim)
 

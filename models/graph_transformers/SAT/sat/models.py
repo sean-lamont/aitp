@@ -129,7 +129,8 @@ class GraphTransformer(nn.Module):
             subgraph_indicator_index = None
             subgraph_edge_attr = None
 
-        complete_edge_index = data.complete_edge_index if hasattr(data, 'complete_edge_index') else None
+        complete_edge_index = data.attention_edge_index if hasattr(data, 'attention_edge_index') else None
+
         abs_pe = data.abs_pe if hasattr(data, 'abs_pe') else None
         degree = data.degree if hasattr(data, 'degree') else None
 
@@ -138,6 +139,7 @@ class GraphTransformer(nn.Module):
         if self.abs_pe and abs_pe is not None:
             # abs_pe = self.embedding_abs_pe(abs_pe)
             output = output + abs_pe
+
         if self.use_edge_attr and edge_attr is not None:
             edge_attr = self.embedding_edge(edge_attr)
             if subgraph_edge_attr is not None:
@@ -301,38 +303,14 @@ class AMRTransformer(nn.Module):
 
         x, edge_index, edge_attr, softmax_idx = data.x, data.edge_index, data.edge_attr, data.softmax_idx
 
-
-
-        # from_ids = [edge_index[0][i] for i in torch.arange(edge_index.shape[1])]
-        # to_ids =  [edge_index[1][i] for i in torch.arange(edge_index.shape[1])]
-
-        # from_ids = torch.index_select(edge_index[0], 0, torch.arange(edge_index.shape[1]))
-        # to_ids = torch.index_select(edge_index[1], 0, torch.arange(edge_index.shape[1]))
         range_ids = torch.arange(edge_index.shape[1]).to(self.device)
 
         edge_index_source = torch.stack([range_ids,edge_index[0]], dim = 0)
         edge_index_target = torch.stack([range_ids,edge_index[1]], dim = 0)
 
-
-        # softmax_idx = []
-        # cur_idx = 0
-        #
-        # for ind in edge_index[0]:
-        #     if ind < data.ptr[cur_idx+1]:
-        #         softmax_idx.append(cur_idx)
-        #     else:
-        #         cur_idx += 1
-        #         softmax_idx.append(cur_idx)
-
-
-        # edge_index_source = torch.LongTensor([[i for i in torch.arange(edge_index.shape[1])], [edge_index[0][i] for i in torch.arange(edge_index.shape[1])]]).to(self.device)
-        # edge_index_target = torch.LongTensor([[i for i in torch.arange(edge_index.shape[1])], [edge_index[1][i] for i in torch.arange(edge_index.shape[1])]]).to(self.device)
-
         abs_pe = data.abs_pe if hasattr(data, 'abs_pe') else None
 
-
         output = self.embedding(x)
-
 
         if self.abs_pe and abs_pe is not None:
             abs_pe = self.embedding_abs_pe(abs_pe)
