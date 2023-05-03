@@ -56,6 +56,7 @@ class LinkData(Data):
 def binary_loss(preds, targets):
     return -1. * torch.sum(targets * torch.log(preds) + (1 - targets) * torch.log((1. - preds)))
 
+# redundant
 def ptr_to_complete_edge_index(ptr):
     from_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat_interleave(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
     to_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
@@ -74,9 +75,6 @@ def to_batch_mongo(batch, graph_collection, options):
     exprs = list(graph_collection.find({"_id": {"$in" : stmts}}))
 
     expr_dict = {expr["_id"]: expr["graph"] for expr in exprs}
-
-
-
 
 
     for sample in batch:
@@ -142,7 +140,6 @@ def to_batch_mongo(batch, graph_collection, options):
 
                 tmp_batch.attention_edge_index_s = torch.cartesian_prod(torch.arange(x2_mat.size(0)),
                                                     torch.arange(x2_mat.size(0))).transpose(0,1)
-
 
 
         #todo make data options have possible values i.e. options['softmax_idx'] == AMR, use edges, else directed attention etc.
@@ -299,7 +296,7 @@ def run_dual_encoders(config):
     graph_collection, split_collection = get_data(source_config)
 
     # train_cursor = split_collection.find({"split":"train"})
-    train_cursor = split_collection.aggregate([{"$match": {"split": "train"}}, {"$sample": {"size": 10000000}}])
+
     # val_cursor = split_collection.aggregate([{"$match": {"split": "valid"}}, {"$sample": {"size": 10000000}}])
     val_cursor = split_collection.find({"split":"valid"}).limit(val_size)
 
