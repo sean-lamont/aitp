@@ -1,5 +1,5 @@
 import wandb
-from data.utils.pretrain import run_dual_encoders, SeparateEncoderPremiseSelection
+from data.utils.pretrain import run_dual_encoders, SeparateEncoderPremiseSelection, MaskPretrain
 
 # HOL4 vocab
 VOCAB_SIZE = 1000
@@ -44,7 +44,7 @@ data_config = {
 
 # SAT data HOLStep
 data_config = {
-    "data_type": "standard_sequence",
+    "data_type": "graph",
 
     "source_config":{
         "data_source": "MongoDB",
@@ -52,8 +52,22 @@ data_config = {
         "graph_collection_name": "expression_graphs",
         "split_name": "train_val_test_data"
     },
-    'data_options' : []
+    'data_options' : ['edge_attr', 'edge_index', 'softmax_idx']
 }
+
+
+mask_config = {
+    "data_type": "mask",
+
+    "source_config":{
+        "data_source": "MongoDB",
+        "dbname": "hol_step",
+        "graph_collection_name": "expression_graphs",
+        "split_name": "train_val_test_data"
+    },
+    'data_options' : ['edge_attr', 'edge_index', 'softmax_idx']
+}
+
 
 sat_config = {
     "model_type": "sat",
@@ -82,6 +96,17 @@ transformer_config = {
     "dropout": 0.2
 }
 
+relation_config = {
+   "model_type": "transformer_relation",
+    "vocab_size": VOCAB_SIZE,
+    # "vocab_size": VOCAB_SIZE + 1,
+    "embedding_dim": 128,
+    "dim_feedforward": 512,
+    "num_heads": 8,
+    "num_layers": 4,
+    "dropout": 0.2
+}
+
 amr_config = {
     "model_type": "amr",
     "vocab_size": VOCAB_SIZE,
@@ -93,7 +118,7 @@ amr_config = {
     "abs_pe": False,
     "abs_pe_dim":2,
     "use_edge_attr": True,
-    "device": "cuda:1",
+    "device": "cuda:0",
     "dropout": 0.2,
 }
 
@@ -106,7 +131,7 @@ exp_config = {
     "val_size": 2048,
     "logging": False,
     "model_dir": "/home/sean/Documents/phd/aitp/experiments/hol4/supervised/model_checkpoints",
-    "device": "cuda:0",
+    "device": "cuda:1",
     # "device": "cpu",
     "max_errors": 1000,
     "val_frequency": 1000
@@ -146,10 +171,16 @@ import cProfile
 # import cProfile
 # cProfile.run('run_dual_encoders(config = {"model_config": sat_config, "exp_config": exp_config, "data_config": data_config})', sort='cumtime')
 
-transformer_experiment = SeparateEncoderPremiseSelection(config = {"model_config": transformer_config,
+transformer_experiment = SeparateEncoderPremiseSelection(config = {"model_config": relation_config,
                                                                    "exp_config": exp_config,
                                                                    "data_config": data_config})
 transformer_experiment.run_dual_encoders()
+
+# transformer_experiment = MaskPretrain(config = {"model_config": relation_config,
+#                                                                    "exp_config": exp_config,
+#                                                                    "data_config": mask_config})
+# transformer_experiment.run_mask_experiment()
+
 
 # run_dual_encoders(config = {"model_config": sat_config, "exp_config": exp_config, "data_config": data_config})
 

@@ -27,17 +27,27 @@ class PositionalEncoding(nn.Module):
 class TransformerEmbedding(nn.Module):
 
     def __init__(self, ntoken: int, d_model: int, nhead: int, d_hid: int,
-                 nlayers: int, dropout: float = 0.5):
+                 nlayers: int, dropout: float = 0.5, enc=True, in_embed=True, global_pool=True):
 
         super().__init__()
 
+        self.in_embed = in_embed
+        self.enc = enc
+        self.global_pool = global_pool
+
         self.model_type = 'Transformer'
-        self.pos_encoder = PositionalEncoding(d_model, dropout)
+
+        if self.enc:
+            self.pos_encoder = PositionalEncoding(d_model, dropout)
         encoder_layers = TransformerEncoderLayer(d_model, nhead, d_hid, dropout)
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
-        self.encoder = nn.Embedding(ntoken, d_model)
+
+        if self.in_embed:
+            self.encoder = nn.Embedding(ntoken, d_model)
+            self.init_weights()
+
         self.d_model = d_model
-        self.init_weights()
+
 
     def init_weights(self) -> None:
         initrange = 0.1
@@ -54,15 +64,21 @@ class TransformerEmbedding(nn.Module):
         """
         seq_len = src.size(0)
         # print (src.shape)
-        src = self.encoder(src) * math.sqrt(self.d_model)
-        src = self.pos_encoder(src)
+        if self.in_embed:
+            src = self.encoder(src) * math.sqrt(self.d_model)
+
+        if self.enc:
+            src = self.pos_encoder(src)
+
         output = self.transformer_encoder(src)
 
         output = torch.transpose(output, 0, 1)
         # print (output.shape)
 
-        #CLS token value
-        output = output[:, 0]
+        if self.global_pool:
+            #CLS token value
+            output = output[:, 0]
+            return output
 
         # print (output.shape)
         # gmp = nn.MaxPool1d(seq_len, stride=1)
