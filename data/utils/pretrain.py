@@ -1,7 +1,8 @@
 from torch_geometric.data import Data
+import itertools
 import random
 from torch.nn.utils.rnn import pad_sequence
-from utils.mongodb_utils import get_batches
+from utils.mongodb_utils import get_batches, get_all_batches
 from tqdm import tqdm
 from models.graph_transformers.SAT.sat.layers import AttentionRelations
 import traceback
@@ -473,7 +474,9 @@ def val_acc_dual_encoder(model_1, model_2, batch, fc, data_options, device):
 #  Then make dictionary from those values, and return dataloader to loop through. Should reduce overhead of
 # database querying, as well as creating dataloader for every batch atm
 
+#todo leave padding for model
 def to_batch_transformer(batch, graph_collection, options):
+
     stmts = list(set([sample['stmt'] for sample in batch]))
     conjs = list(set([sample['conj'] for sample in batch]))
 
@@ -490,8 +493,8 @@ def to_batch_transformer(batch, graph_collection, options):
     #todo try use relations (R matrix as done in AMR) as "sequence" and pass directly into transformer, and remove posencoding from transformer
 
     #start of sentence is CLS
-    conj_X = [torch.LongTensor([0] + expr_dict[sample['conj']]['onehot']) + 4 for sample in batch]
-    stmt_X = [torch.LongTensor([0] + expr_dict[sample['stmt']]['onehot']) + 4 for sample in batch]
+    conj_X = [torch.LongTensor([-3] + expr_dict[sample['conj']]['onehot']) + 4 for sample in batch]
+    stmt_X = [torch.LongTensor([-3] + expr_dict[sample['stmt']]['onehot']) + 4 for sample in batch]
 
     Y = torch.LongTensor([sample['y'] for sample in batch])
 
@@ -503,6 +506,87 @@ def to_batch_transformer(batch, graph_collection, options):
 
 
     return pad_sequence(conj_X), pad_sequence(stmt_X), Y
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import lightning.pytorch as pl
+
+class PremiseSelection(pl.LightningModule):
+    def __init__(self, embedding_model_goal, embedding_model_premise, classifier, lr=1e-4):
+        super().__init__()
+        self.embedding_model_goal = embedding_model_goal
+        self.embedding_model_premise = embedding_model_premise
+        self.classifier = classifier
+        self.eps = 1e-6
+        self.lr = lr
+        self.batch_size = 32
+
+    def forward(self, goal, premise):
+        embedding_goal = self.embedding_model_goal(goal)
+
+        embedding_premise = self.embedding_model_premise(premise)
+
+        preds = self.classifier(torch.cat([embedding_goal, embedding_premise], dim = 1))
+
+        preds = torch.clip(preds, self.eps, 1 - self.eps)
+
+        return torch.flatten(preds)
+
+    def training_step(self, batch, batch_idx):
+        goal, premise, y = batch
+
+        preds = self(goal, premise)
+
+        loss = torch.nn.functional.cross_entropy(preds, y.float())
+
+        self.log("loss", loss, batch_size=self.batch_size, prog_bar=True)
+
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        goal, premise, y = batch
+
+        preds =  self(goal, premise)
+
+        preds = (preds > 0.5)
+
+        acc = torch.sum(preds == y) / y.size(0)
+
+        self.log("acc", acc, batch_size=self.batch_size, prog_bar=True)
+
+        return
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.AdamW(self.parameters(), lr = self.lr)
+        return optimizer
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 class PremiseSelectionExperiment:
@@ -599,12 +683,88 @@ class PremiseSelectionExperiment:
         else:
             return None
 
+
+# def test_iter(batches, batch_fn, graph_collection, options):
+#     # todo add logic here for loading larger batch into memory, create dataloader from this then yield the next value in loader until done
+#     # todo this should reduce the required number of queries
+#
+#     for batch in batches:
+#         # print (batch[0])
+#
+#         # hack it as list for now
+#         batch = list(batch)
+#         # print (batch[0])
+#
+#         stmts = list(set([sample['stmt'] for sample in batch]))
+#         conjs = list(set([sample['conj'] for sample in batch]))
+#
+#         stmts.extend(conjs)
+#
+#         exprs = list(graph_collection.find({"_id": {"$in" : stmts}}))
+#
+#         expr_dict = {expr["_id"]: expr["graph"] for expr in exprs}
+#
+#         # print (len(expr_dict))
+#         # print (list(expr_dict.keys())[0])
+#
+#
+#         for i in range(0, len(batch), 32):
+#             if (i + 1) * 32 >= len(batch):
+#                 # print (f"fuck you cunt {i}")
+#                 break
+#             # print (batch_fn(batch[i * 32: (i + 1) * 32], graph_collection, options, expr_dict))
+#             # exit()
+#             yield batch_fn(batch[i * 32: (i + 1) * 32], graph_collection, options, expr_dict)
+
+
+
+def test_iter(batches, batch_fn, graph_collection, options):
+    for batch in batches:
+        yield batch_fn(batch, graph_collection, options)
+
+
+
+def val_iter(batches, batch_fn, graph_collection, options):
+    for batch in itertools.cycle(batches):
+        yield batch_fn(batch, graph_collection, options)
+
+
 '''
 Premise selection experiment with separate encoders for goal and premise
 '''
 class SeparateEncoderPremiseSelection(PremiseSelectionExperiment):
     def __int__(self, config):
         super(self, config)
+
+    def run_lightning(self):
+
+        torch.set_float32_matmul_precision('high')
+
+        ps = PremiseSelection(self.get_model(),self.get_model(), gnn_edge_labels.F_c_module_(self.embedding_dim * 2))
+
+        graph_collection, split_collection = get_data(self.source_config)
+
+        train_cursor = split_collection.aggregate([{"$match": {"split": "train"}}, {"$sample": {"size": 10000000}}])
+        val_cursor = split_collection.aggregate([{"$match": {"split": "valid"}}, {"$sample": {"size": self.val_size}}])
+
+        train_batches = get_batches(train_cursor, self.batch_size)
+        val_batches = get_all_batches(val_cursor, self.batch_size)
+
+        train_loader = test_iter(train_batches, self.get_batch, graph_collection, self.data_options)
+        val_loader = val_iter(val_batches, self.get_batch, graph_collection, self.data_options)
+
+        trainer = pl.Trainer(val_check_interval=1000,
+                             limit_val_batches=self.val_size // self.batch_size,
+                             max_steps=1000,
+                             enable_progress_bar=True,
+                             log_every_n_steps=500,
+                             # profiler='advanced',
+                             enable_checkpointing=False)
+
+        trainer.fit(model=ps, train_dataloaders=train_loader, val_dataloaders=val_loader)
+
+
+
 
     def run_dual_encoders(self):
         self.graph_net_1 = self.get_model().to(self.device)
@@ -1023,6 +1183,11 @@ class MaskPretrain(PremiseSelectionExperiment):
     #
     #     return torch.sum(preds == y.to(device)) / y.size(0)
     #
+
+
+
+
+
 
 
 

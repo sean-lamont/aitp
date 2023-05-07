@@ -42,8 +42,8 @@ data_config = {
 #     'data_options' : ['edge_attr', 'edge_index', 'attention_edge_index']
 # }
 
-# SAT data HOLStep
-data_config = {
+# amr data HOLStep
+data_graph_amr = {
     "data_type": "graph",
 
     "source_config":{
@@ -54,6 +54,21 @@ data_config = {
     },
     'data_options' : ['edge_attr', 'edge_index', 'softmax_idx']
 }
+
+
+# Transformer data HOLStep
+data_transformer_config = {
+    "data_type": "standard_sequence",
+
+    "source_config":{
+        "data_source": "MongoDB",
+        "dbname": "hol_step",
+        "graph_collection_name": "expression_graphs",
+        "split_name": "train_val_test_data"
+    },
+    'data_options' : []
+}
+
 
 
 mask_config = {
@@ -93,7 +108,7 @@ transformer_config = {
     "dim_feedforward": 512,
     "num_heads": 8,
     "num_layers": 4,
-    "dropout": 0.2
+    "dropout": 0.0
 }
 
 relation_config = {
@@ -131,7 +146,7 @@ exp_config = {
     "val_size": 2048,
     "logging": False,
     "model_dir": "/home/sean/Documents/phd/aitp/experiments/hol4/supervised/model_checkpoints",
-    "device": "cuda:1",
+    "device": "cuda:0",
     # "device": "cpu",
     "max_errors": 1000,
     "val_frequency": 1000
@@ -171,10 +186,18 @@ import cProfile
 # import cProfile
 # cProfile.run('run_dual_encoders(config = {"model_config": sat_config, "exp_config": exp_config, "data_config": data_config})', sort='cumtime')
 
-transformer_experiment = SeparateEncoderPremiseSelection(config = {"model_config": relation_config,
+# relation_att_exp = SeparateEncoderPremiseSelection(config = {"model_config": relation_config,
+#                                                                    "exp_config": exp_config,
+#                                                                    "data_config": data_graph_amr})
+
+transformer_experiment = SeparateEncoderPremiseSelection(config = {"model_config": transformer_config,
                                                                    "exp_config": exp_config,
-                                                                   "data_config": data_config})
+                                                                   "data_config": data_transformer_config})
 transformer_experiment.run_dual_encoders()
+
+
+# cProfile.run('transformer_experiment.run_dual_encoders()', sort ='cumtime')
+# cProfile.run('transformer_experiment.run_lightning()', sort='cumtime')
 
 # transformer_experiment = MaskPretrain(config = {"model_config": relation_config,
 #                                                                    "exp_config": exp_config,

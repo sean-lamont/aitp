@@ -31,6 +31,8 @@ class TransformerEmbedding(nn.Module):
 
         super().__init__()
 
+        print (f"dropout: {dropout}")
+
         self.in_embed = in_embed
         self.enc = enc
         self.global_pool = global_pool
@@ -38,8 +40,10 @@ class TransformerEmbedding(nn.Module):
         self.model_type = 'Transformer'
 
         if self.enc:
-            self.pos_encoder = PositionalEncoding(d_model, dropout)
+            self.pos_encoder = PositionalEncoding(d_model, dropout=0)
+
         encoder_layers = TransformerEncoderLayer(d_model, nhead, d_hid, dropout)
+
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
 
         if self.in_embed:
