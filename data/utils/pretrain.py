@@ -1,4 +1,5 @@
 from torch_geometric.data import Data
+import lightning.pytorch as pl
 import itertools
 import random
 from torch.nn.utils.rnn import pad_sequence
@@ -80,8 +81,6 @@ class LinkData(Data):
 
         return super().__inc__(key, value, *args, **kwargs)
 
-def binary_loss(preds, targets):
-    return -1. * torch.sum(targets * torch.log(preds) + (1 - targets) * torch.log((1. - preds)))
 
 # redundant
 def ptr_to_complete_edge_index(ptr):
@@ -112,11 +111,6 @@ def to_batch_graph(batch, graph_collection, options):
 
         conj_graph = expr_dict[conj]
         stmt_graph = expr_dict[stmt]
-
-        # todo compare speed with temporary dict vs fetching each item
-
-        # conj_graph = graph_collection.find_one({"_id": conj})['graph']
-        # stmt_graph = graph_collection.find_one({"_id": stmt})['graph']
 
         x1 = conj_graph['onehot']
         x1_mat = torch.LongTensor(x1)
@@ -189,55 +183,6 @@ def to_batch_graph(batch, graph_collection, options):
 
     return g,p,y
 
-def get_model(config):
-
-    if config['model_type'] == 'sat':
-        return GraphTransformer(in_size=config['vocab_size'],
-                                num_class=2,
-                                d_model=config['embedding_dim'],
-                                dim_feedforward=config['dim_feedforward'],
-                                num_heads=config['num_heads'],
-                                num_layers=config['num_layers'],
-                                in_embed=config['in_embed'],
-                                se=config['se'],
-                                abs_pe=config['abs_pe'],
-                                abs_pe_dim=config['abs_pe_dim'],
-                                use_edge_attr=config['use_edge_attr'],
-                                num_edge_features=200,
-                                dropout=config['dropout'],
-                                k_hop=config['gnn_layers'])
-
-    if config['model_type'] == 'amr':
-        return AMRTransformer(in_size=config['vocab_size'],
-                              d_model=config['embedding_dim'],
-                              dim_feedforward=config['dim_feedforward'],
-                              num_heads=config['num_heads'],
-                              num_layers=config['num_layers'],
-                              in_embed=config['in_embed'],
-                              abs_pe=config['abs_pe'],
-                              abs_pe_dim=config['abs_pe_dim'],
-                              use_edge_attr=config['use_edge_attr'],
-                              num_edge_features=200,
-                              dropout=config['dropout'],
-                              layer_norm=True,
-                              global_pool='cls',
-                              device=config['device']
-                              )
-
-    elif config['model_type'] == 'formula-net':
-        return inner_embedding_network.FormulaNet(config['vocab_size'], config['embedding_dim'], config['gnn_layers'])
-
-    elif config['model_type'] == 'formula-net-edges':
-        return gnn_edge_labels.message_passing_gnn_edges(config['vocab_size'], config['embedding_dim'], config['gnn_layers'])
-
-    elif config['model_type'] == 'digae':
-        return None
-
-    elif config['model_type'] == 'classifier':
-        return None
-
-    else:
-        return None
 
 def get_data(config):
     if config['data_source'] == "MongoDB":
@@ -274,207 +219,11 @@ def separate_link_batch(batch, options):
         data_1.attention_edge_index = batch.attention_edge_index_t
         data_2.attention_edge_index = batch.attention_edge_index_s
 
-    # todo
-    # if 'abs_pe' in options:
-
     return data_1, data_2, torch.LongTensor(batch.y)
 
 
-def run_dual_encoders(config):
-    model_config = config['model_config']
-    exp_config = config['exp_config']
-    data_options = config['data_config']['data_options']
-    source_config = config['data_config']['source_config']
 
-    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-
-
-    embedding_dim = model_config['embedding_dim']
-    lr = exp_config['learning_rate']
-    weight_decay = exp_config['weight_decay']
-    epochs = exp_config['epochs']
-    batch_size = exp_config['batch_size']
-    save = exp_config['model_save']
-    val_size = exp_config['val_size']
-    logging = exp_config['logging']
-    device = exp_config['device']
-    max_errors = exp_config['max_errors']
-    val_frequency = exp_config['val_frequency']
-
-    graph_net_1 = get_model(model_config).to(device)
-    graph_net_2 = get_model(model_config).to(device)
-
-    print("Model details:")
-
-    print(graph_net_1)
-
-    if logging:
-        wandb.log({"Num_model_params": sum([p.numel() for p in graph_net_1.parameters() if p.requires_grad])})
-
-    fc = gnn_edge_labels.F_c_module_(embedding_dim * 2).to(device)
-
-    op_g1 = torch.optim.AdamW(graph_net_1.parameters(), lr=lr, weight_decay=weight_decay)
-
-    op_g2 = torch.optim.AdamW(graph_net_2.parameters(), lr=lr, weight_decay=weight_decay)
-
-    op_fc = torch.optim.AdamW(fc.parameters(), lr=lr, weight_decay=weight_decay)
-
-    training_losses = []
-
-    val_losses = []
-    best_acc = 0.
-
-    graph_collection, split_collection = get_data(source_config)
-
-    # train_cursor = split_collection.find({"split":"train"})
-
-    # val_cursor = split_collection.aggregate([{"$match": {"split": "valid"}}, {"$sample": {"size": 10000000}}])
-    val_cursor = split_collection.find({"split":"valid"}).limit(val_size)
-
-    for j in range(epochs):
-        print(f"Epoch: {j}")
-        err_count = 0
-
-        # train_cursor.rewind()
-
-        train_cursor = split_collection.aggregate([{"$match": {"split": "train"}}, {"$sample": {"size": 10000000}}])
-        batches = get_batches(train_cursor, batch_size)
-
-        for i,db_batch in tqdm(enumerate(batches)):
-
-            try:
-                batch = to_batch_graph(db_batch, graph_collection, data_options)
-            except Exception as e:
-                print(f"Error in batch: {e}")
-                traceback.print_exc()
-                continue
-
-            op_g1.zero_grad()
-            op_g2.zero_grad()
-            op_fc.zero_grad()
-
-            data_1, data_2, y = separate_link_batch(batch, data_options)
-
-            # print (data_1.x)
-            # print (torch.sum(data_1.x))
-            # exit()
-
-
-            try:
-                graph_enc_1 = graph_net_1(data_1.to(device))
-
-                graph_enc_2 = graph_net_2(data_2.to(device))
-
-                preds = fc(torch.cat([graph_enc_1, graph_enc_2], axis=1))
-
-                eps = 1e-6
-
-                preds = torch.clip(preds, eps, 1 - eps)
-
-                loss = binary_loss(torch.flatten(preds), y)
-
-                loss.backward()
-
-                # op_enc.step()
-                op_g1.step()
-                op_g2.step()
-                op_fc.step()
-
-
-            except Exception as e:
-                err_count += 1
-                if err_count > max_errors:
-                    return Exception("Too many errors in training")
-                print(f"Error in training {e}")
-                traceback.print_exc()
-                continue
-
-            training_losses.append(loss.detach() / batch_size)
-
-            if i % val_frequency == 0:
-
-                graph_net_1.eval()
-                graph_net_2.eval()
-
-                val_count = []
-
-                val_cursor.rewind()
-
-                get_val_batches = get_batches(val_cursor, batch_size)
-
-                for db_val in get_val_batches:
-                    val_err_count = 0
-                    try:
-                        val_batch = to_batch_graph(db_val, graph_collection, data_options)
-
-                        validation_loss = val_acc_dual_encoder(graph_net_1, graph_net_2, val_batch,
-                                                               fc, data_options, device)
-
-                        val_count.append(validation_loss.detach())
-
-                    except Exception as e:
-                        print(f"Error {e}, batch: {val_batch}")
-                        val_err_count += 1
-                        traceback.print_exc()
-                        continue
-
-                validation_loss = (sum(val_count) / len(val_count)).detach()
-                val_losses.append((validation_loss, j, i))
-
-                print("Curr training loss avg: {}".format(sum(training_losses[-100:]) / len(training_losses[-100:])))
-
-                print("Val acc: {}".format(validation_loss.detach()))
-
-                print(f"Failed batches: {err_count}")
-
-                if logging:
-                    wandb.log({"acc": validation_loss.detach(),
-                               "train_loss_avg": sum(training_losses[-100:]) / len(training_losses[-100:]),
-                               "epoch": j})
-
-
-                if validation_loss > best_acc:
-                    best_acc = validation_loss
-                    print(f"New best validation accuracy: {best_acc}")
-                    # only save encoder if best accuracy so far
-
-                    if save == True:
-                        torch.save(graph_net_1, exp_config['model_dir'] + "/gnn_transformer_goal_hol4")
-                        torch.save(graph_net_2, exp_config['model_dir'] + "/gnn_transformer_premise_hol4")
-
-                graph_net_1.train()
-                graph_net_2.train()
-
-        if logging:
-            wandb.log({"failed_batches": err_count})
-
-    print(f"Best validation accuracy: {best_acc}")
-
-    return training_losses, val_losses
-
-
-def val_acc_dual_encoder(model_1, model_2, batch, fc, data_options, device):
-
-    data_1, data_2 = separate_link_batch(batch, data_options)
-
-    graph_enc_1 = model_1(data_1.to(device))
-
-    graph_enc_2 = model_2(data_2.to(device))
-
-    preds = fc(torch.cat([graph_enc_1, graph_enc_2], axis=1))
-
-    preds = torch.flatten(preds)
-
-    preds = (preds > 0.5).long()
-
-    return torch.sum(preds == torch.LongTensor(batch.y).to(device)) / len(batch.y)
-
-# todo "memory" batch, where we extract a large number (> 10000) samples from a single query.
-#  Then make dictionary from those values, and return dataloader to loop through. Should reduce overhead of
-# database querying, as well as creating dataloader for every batch atm
-
-#todo leave padding for model
+#todo leave padding and CLS etc for model
 def to_batch_transformer(batch, graph_collection, options):
 
     stmts = list(set([sample['stmt'] for sample in batch]))
@@ -490,7 +239,6 @@ def to_batch_transformer(batch, graph_collection, options):
     # just use CLS token as separate (add 4 to everything)
     word_dict = {0: '[PAD]', 1: '[CLS]', 2: '[SEP]', 3: '[MASK]'}
 
-    #todo try use relations (R matrix as done in AMR) as "sequence" and pass directly into transformer, and remove posencoding from transformer
 
     #start of sentence is CLS
     conj_X = [torch.LongTensor([-3] + expr_dict[sample['conj']]['onehot']) + 4 for sample in batch]
@@ -511,17 +259,6 @@ def to_batch_transformer(batch, graph_collection, options):
 
 
 
-
-
-
-
-
-
-
-
-
-
-import lightning.pytorch as pl
 
 class PremiseSelection(pl.LightningModule):
     def __init__(self, embedding_model_goal, embedding_model_premise, classifier, lr=1e-4):
@@ -571,22 +308,6 @@ class PremiseSelection(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr = self.lr)
         return optimizer
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 class PremiseSelectionExperiment:
@@ -684,38 +405,6 @@ class PremiseSelectionExperiment:
             return None
 
 
-# def test_iter(batches, batch_fn, graph_collection, options):
-#     # todo add logic here for loading larger batch into memory, create dataloader from this then yield the next value in loader until done
-#     # todo this should reduce the required number of queries
-#
-#     for batch in batches:
-#         # print (batch[0])
-#
-#         # hack it as list for now
-#         batch = list(batch)
-#         # print (batch[0])
-#
-#         stmts = list(set([sample['stmt'] for sample in batch]))
-#         conjs = list(set([sample['conj'] for sample in batch]))
-#
-#         stmts.extend(conjs)
-#
-#         exprs = list(graph_collection.find({"_id": {"$in" : stmts}}))
-#
-#         expr_dict = {expr["_id"]: expr["graph"] for expr in exprs}
-#
-#         # print (len(expr_dict))
-#         # print (list(expr_dict.keys())[0])
-#
-#
-#         for i in range(0, len(batch), 32):
-#             if (i + 1) * 32 >= len(batch):
-#                 # print (f"fuck you cunt {i}")
-#                 break
-#             # print (batch_fn(batch[i * 32: (i + 1) * 32], graph_collection, options, expr_dict))
-#             # exit()
-#             yield batch_fn(batch[i * 32: (i + 1) * 32], graph_collection, options, expr_dict)
-
 
 
 def test_iter(batches, batch_fn, graph_collection, options):
@@ -750,200 +439,25 @@ class SeparateEncoderPremiseSelection(PremiseSelectionExperiment):
         train_batches = get_batches(train_cursor, self.batch_size)
         val_batches = get_all_batches(val_cursor, self.batch_size)
 
+        # todo DataModule? also closing cursors cleaning up etc.
         train_loader = test_iter(train_batches, self.get_batch, graph_collection, self.data_options)
         val_loader = val_iter(val_batches, self.get_batch, graph_collection, self.data_options)
+
+        # todo logging/wandb integration, model checkpoints
 
         trainer = pl.Trainer(val_check_interval=1000,
                              limit_val_batches=self.val_size // self.batch_size,
                              max_steps=1000,
                              enable_progress_bar=True,
                              log_every_n_steps=500,
-                             # profiler='advanced',
+                             # profiler='pytorch',
                              enable_checkpointing=False)
 
+
+
+        # ps = torch.compile(ps)
+
         trainer.fit(model=ps, train_dataloaders=train_loader, val_dataloaders=val_loader)
-
-
-
-
-    def run_dual_encoders(self):
-        self.graph_net_1 = self.get_model().to(self.device)
-        self.graph_net_2 = self.get_model().to(self.device)
-
-        print("Model details:")
-
-        print(self.graph_net_1)
-
-        if self.logging:
-            wandb.log({"Num_model_params": sum([p.numel() for p in self.graph_net_1.parameters() if p.requires_grad])})
-
-        fc = gnn_edge_labels.F_c_module_(self.embedding_dim * 2).to(self.device)
-
-        op_g1 = torch.optim.AdamW(self.graph_net_1.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-
-        op_g2 = torch.optim.AdamW(self.graph_net_2.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-
-        op_fc = torch.optim.AdamW(fc.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-
-        training_losses = []
-
-        val_losses = []
-        best_acc = 0.
-
-        graph_collection, split_collection = get_data(self.source_config)
-
-        val_cursor = split_collection.find({"split":"valid"}).limit(self.val_size)
-
-        for j in range(self.epochs):
-            print(f"Epoch: {j}")
-            err_count = 0
-
-            # train_cursor.rewind()
-
-            train_cursor = split_collection.aggregate([{"$match": {"split": "train"}}, {"$sample": {"size": 10000000}}])
-            batches = get_batches(train_cursor, self.batch_size)
-
-            for i,db_batch in tqdm(enumerate(batches)):
-
-                try:
-                    # batch = to_batch_graph(db_batch, graph_collection, self.data_options)
-                    data_1, data_2, y = self.get_batch(db_batch, graph_collection, self.data_options)
-                except Exception as e:
-                    print(f"Error in batch: {e}")
-                    traceback.print_exc()
-                    continue
-
-                op_g1.zero_grad()
-                op_g2.zero_grad()
-                op_fc.zero_grad()
-
-                try:
-                    graph_enc_1 = self.graph_net_1(data_1.to(self.device))
-
-                    graph_enc_2 = self.graph_net_2(data_2.to(self.device))
-
-                    preds = fc(torch.cat([graph_enc_1, graph_enc_2], axis=1))
-
-                    eps = 1e-6
-
-                    preds = torch.clip(preds, eps, 1 - eps)
-
-                    loss = binary_loss(torch.flatten(preds), y.to(self.device))
-
-                    loss.backward()
-
-                    # op_enc.step()
-                    op_g1.step()
-                    op_g2.step()
-                    op_fc.step()
-
-
-                except Exception as e:
-                    err_count += 1
-                    if err_count > self.max_errors:
-                        return Exception("Too many errors in training")
-                    print(f"Error in training {e}")
-                    traceback.print_exc()
-                    continue
-
-                training_losses.append(loss.detach() / self.batch_size)
-
-                if i % self.val_frequency == 0:
-
-                    self.graph_net_1.eval()
-                    self.graph_net_2.eval()
-
-                    val_count = []
-
-                    val_cursor.rewind()
-
-                    get_val_batches = get_batches(val_cursor, self.batch_size)
-
-                    for db_val in get_val_batches:
-                        val_err_count = 0
-                        try:
-                            data_1, data_2, y = self.get_batch(db_val, graph_collection, self.data_options)
-
-                            validation_loss = self.val_acc_dual_encoder(self.graph_net_1, self.graph_net_2, data_1,data_2,y, fc, self.device)
-
-                            val_count.append(validation_loss.detach())
-
-                        except Exception as e:
-                            print(f"Error {e}, batch:")
-                            val_err_count += 1
-                            traceback.print_exc()
-                            continue
-
-                    validation_loss = (sum(val_count) / len(val_count)).detach()
-                    val_losses.append((validation_loss, j, i))
-
-                    print("Curr training loss avg: {}".format(sum(training_losses[-100:]) / len(training_losses[-100:])))
-
-                    print("Val acc: {}".format(validation_loss.detach()))
-
-                    print(f"Failed batches: {err_count}")
-
-                    if self.logging:
-                        wandb.log({"acc": validation_loss.detach(),
-                                   "train_loss_avg": sum(training_losses[-100:]) / len(training_losses[-100:]),
-                                   "epoch": j})
-
-
-                    if validation_loss > best_acc:
-                        best_acc = validation_loss
-                        print(f"New best validation accuracy: {best_acc}")
-                        # only save encoder if best accuracy so far
-
-                        if self.save == True:
-                            torch.save(self.graph_net_1, self.exp_config['model_dir'] + "/gnn_transformer_goal_hol4")
-                            torch.save(self.graph_net_2, self.exp_config['model_dir'] + "/gnn_transformer_premise_hol4")
-
-                    self.graph_net_1.train()
-                    self.graph_net_2.train()
-
-            if self.logging:
-                wandb.log({"failed_batches": err_count})
-
-        print(f"Best validation accuracy: {best_acc}")
-
-        return training_losses, val_losses
-
-
-    def val_acc_dual_encoder(self, model_1, model_2, data_1, data_2, y, fc, device ):
-
-        # data_1, data_2,y = self.get_batch(batch, data_options)
-
-        graph_enc_1 = model_1(data_1.to(device))
-
-        graph_enc_2 = model_2(data_2.to(device))
-
-        preds = fc(torch.cat([graph_enc_1, graph_enc_2], axis=1))
-
-        preds = torch.flatten(preds)
-
-        preds = (preds > 0.5).long()
-
-
-        return torch.sum(preds == y.to(device)) / y.size(0)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1020,179 +534,128 @@ def to_masked_batch_graph(graphs, options):
     return batch_
 
 
-criterion = torch.nn.CrossEntropyLoss()
 
 
-'''
-'''
-class MaskPretrain(PremiseSelectionExperiment):
-    def __int__(self, config):
-        super(self, config)
-
-    def run_mask_experiment(self):
-        self.graph_net = self.get_model().to(self.device)
-        print("Model details:")
-
-        print(self.graph_net)
-
-        if self.logging:
-            wandb.log({"Num_model_params": sum([p.numel() for p in self.graph_net.parameters() if p.requires_grad])})
-
-        fc = torch.nn.Sequential(torch.nn.Linear(self.model_config['embedding_dim'],self.model_config['embedding_dim']),
-                                            torch.nn.ReLU(),
-                                            torch.nn.LayerNorm(self.model_config['embedding_dim']),
-                                            torch.nn.Linear(self.model_config['embedding_dim'], self.model_config['vocab_size'])).to(self.device)
-
-        op_g = torch.optim.AdamW(self.graph_net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-
-        op_fc = torch.optim.AdamW(fc.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-
-        training_losses = []
-
-        val_losses = []
-        best_acc = 0.
-
-        graph_collection, split_collection = get_data(self.source_config)
-
-        val_cursor = split_collection.find({"split":"valid"}).limit(self.val_size)
-
-        for j in range(self.epochs):
-            print(f"Epoch: {j}")
-            err_count = 0
-
-            # train_cursor = split_collection.aggregate([{"$match": {"split": "train"}}, {"$sample": {"size": 10000000}}])
-            train_cursor = graph_collection.find()
-            batches = get_batches(train_cursor, self.batch_size)
-
-            for i,db_batch in tqdm(enumerate(batches)):
-                print (len(db_batch))
-                try:
-                    # batch = to_batch_graph(db_batch, graph_collection, self.data_options)
-                    batch = self.get_batch(db_batch, self.data_options)
-                except Exception as e:
-                    print(f"Error in batch: {e}")
-                    traceback.print_exc()
-                    continue
-
-                # print (batch)
-                op_g.zero_grad()
-                op_fc.zero_grad()
-
-                try:
-                    masked_encs = self.graph_net(batch.to(self.device))
-
-                    preds = fc(masked_encs)
-
-                    eps = 1e-6
-
-                    preds = torch.clip(preds, eps, 1 - eps)
-
-                    loss = criterion(torch.flatten(preds), batch.mask_idx.to(self.device))
-
-                    loss.backward()
-
-                    # op_enc.step()
-                    op_g.step()
-                    op_fc.step()
+# todo make this with lightning
 
 
-                except Exception as e:
-                    err_count += 1
-                    if err_count > self.max_errors:
-                        return Exception("Too many errors in training")
-                    print(f"Error in training {e}")
-                    traceback.print_exc()
-                    continue
-
-                training_losses.append(loss.detach() / self.batch_size)
-
-                if i % self.val_frequency == 0:
-                    print (sum(training_losses[-100:]) / len(training_losses[-100:]))
-        #
-        #             self.graph_net_1.eval()
-        #             val_count = []
-        #
-        #             val_cursor.rewind()
-        #
-        #             get_val_batches = get_batches(val_cursor, self.batch_size)
-        #
-        #             for db_val in get_val_batches:
-        #                 val_err_count = 0
-        #                 try:
-        #                     data_1, data_2, y = self.get_batch(db_val, graph_collection, self.data_options)
-        #
-        #                     validation_loss = self.val_acc_dual_encoder(self.graph_net_1, self.graph_net_2, data_1,data_2,y, fc, self.device)
-        #
-        #                     val_count.append(validation_loss.detach())
-        #
-        #                 except Exception as e:
-        #                     print(f"Error {e}, batch:")
-        #                     val_err_count += 1
-        #                     traceback.print_exc()
-        #                     continue
-        #
-        #             validation_loss = (sum(val_count) / len(val_count)).detach()
-        #             val_losses.append((validation_loss, j, i))
-        #
-        #             print("Curr training loss avg: {}".format(sum(training_losses[-100:]) / len(training_losses[-100:])))
-        #
-        #             print("Val acc: {}".format(validation_loss.detach()))
-        #
-        #             print(f"Failed batches: {err_count}")
-        #
-        #             if self.logging:
-        #                 wandb.log({"acc": validation_loss.detach(),
-        #                            "train_loss_avg": sum(training_losses[-100:]) / len(training_losses[-100:]),
-        #                            "epoch": j})
-        #
-        #
-        #             if validation_loss > best_acc:
-        #                 best_acc = validation_loss
-        #                 print(f"New best validation accuracy: {best_acc}")
-        #                 # only save encoder if best accuracy so far
-        #
-        #                 if self.save == True:
-        #                     torch.save(self.graph_net_1, self.exp_config['model_dir'] + "/gnn_transformer_goal_hol4")
-        #                     torch.save(self.graph_net_2, self.exp_config['model_dir'] + "/gnn_transformer_premise_hol4")
-        #
-        #             self.graph_net_1.train()
-        #             self.graph_net_2.train()
-        #
-        #     if self.logging:
-        #         wandb.log({"failed_batches": err_count})
-        #
-        # print(f"Best validation accuracy: {best_acc}")
-
-        return #training_losses, val_losses
-
-
-    # def val_acc_dual_encoder(self, model_1, model_2, data_1, data_2, y, fc, device ):
-    #
-    #     # data_1, data_2,y = self.get_batch(batch, data_options)
-    #
-    #     graph_enc_1 = model_1(data_1.to(device))
-    #
-    #     graph_enc_2 = model_2(data_2.to(device))
-    #
-    #     preds = fc(torch.cat([graph_enc_1, graph_enc_2], axis=1))
-    #
-    #     preds = torch.flatten(preds)
-    #
-    #     preds = (preds > 0.5).long()
-    #
-    #
-    #     return torch.sum(preds == y.to(device)) / y.size(0)
-    #
+# criterion = torch.nn.CrossEntropyLoss()
+# class MaskPretrain(PremiseSelectionExperiment):
+#     def __int__(self, config):
+#         super(self, config)
+#
+#     def run_mask_experiment(self):
+#         self.graph_net = self.get_model().to(self.device)
+#         print("Model details:")
+#
+#         print(self.graph_net)
+#
+#         if self.logging:
+#             wandb.log({"Num_model_params": sum([p.numel() for p in self.graph_net.parameters() if p.requires_grad])})
+#
+#         fc = torch.nn.Sequential(torch.nn.Linear(self.model_config['embedding_dim'],self.model_config['embedding_dim']),
+#                                             torch.nn.ReLU(),
+#                                             torch.nn.LayerNorm(self.model_config['embedding_dim']),
+#                                             torch.nn.Linear(self.model_config['embedding_dim'], self.model_config['vocab_size'])).to(self.device)
+#
+#         op_g = torch.optim.AdamW(self.graph_net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+#
+#         op_fc = torch.optim.AdamW(fc.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+#
+#         training_losses = []
+#
+#         val_losses = []
+#         best_acc = 0.
+#
+#         graph_collection, split_collection = get_data(self.source_config)
+#
+#         val_cursor = split_collection.find({"split":"valid"}).limit(self.val_size)
+#
+#         for j in range(self.epochs):
+#             print(f"Epoch: {j}")
+#             err_count = 0
+#
+#             # train_cursor = split_collection.aggregate([{"$match": {"split": "train"}}, {"$sample": {"size": 10000000}}])
+#             train_cursor = graph_collection.find()
+#             batches = get_batches(train_cursor, self.batch_size)
+#
+#             for i,db_batch in tqdm(enumerate(batches)):
+#                 print (len(db_batch))
+#                 try:
+#                     # batch = to_batch_graph(db_batch, graph_collection, self.data_options)
+#                     batch = self.get_batch(db_batch, self.data_options)
+#                 except Exception as e:
+#                     print(f"Error in batch: {e}")
+#                     traceback.print_exc()
+#                     continue
+#
+#                 # print (batch)
+#                 op_g.zero_grad()
+#                 op_fc.zero_grad()
+#
+#                 try:
+#                     masked_encs = self.graph_net(batch.to(self.device))
+#
+#                     preds = fc(masked_encs)
+#
+#                     eps = 1e-6
+#
+#                     preds = torch.clip(preds, eps, 1 - eps)
+#
+#                     loss = criterion(torch.flatten(preds), batch.mask_idx.to(self.device))
+#
+#                     loss.backward()
+#
+#                     # op_enc.step()
+#                     op_g.step()
+#                     op_fc.step()
+#
+#
+#                 except Exception as e:
+#                     err_count += 1
+#                     if err_count > self.max_errors:
+#                         return Exception("Too many errors in training")
+#                     print(f"Error in training {e}")
+#                     traceback.print_exc()
+#                     continue
+#
+#                 training_losses.append(loss.detach() / self.batch_size)
+#
+#                 if i % self.val_frequency == 0:
+#                     print (sum(training_losses[-100:]) / len(training_losses[-100:]))
+#
 
 
 
-
-
-
-
-
-
-
-
-
+# todo add logic here for loading larger batch into memory, create dataloader from this then yield the next value in loader until done
+# todo this should reduce the required number of queries
+# def test_iter(batches, batch_fn, graph_collection, options):
+#
+#     for batch in batches:
+#         # print (batch[0])
+#
+#         # hack it as list for now
+#         batch = list(batch)
+#         # print (batch[0])
+#
+#         stmts = list(set([sample['stmt'] for sample in batch]))
+#         conjs = list(set([sample['conj'] for sample in batch]))
+#
+#         stmts.extend(conjs)
+#
+#         exprs = list(graph_collection.find({"_id": {"$in" : stmts}}))
+#
+#         expr_dict = {expr["_id"]: expr["graph"] for expr in exprs}
+#
+#         # print (len(expr_dict))
+#         # print (list(expr_dict.keys())[0])
+#
+#
+#         for i in range(0, len(batch), 32):
+#             if (i + 1) * 32 >= len(batch):
+#                 # print (f"fuck you cunt {i}")
+#                 break
+#             # print (batch_fn(batch[i * 32: (i + 1) * 32], graph_collection, options, expr_dict))
+#             # exit()
+#             yield batch_fn(batch[i * 32: (i + 1) * 32], graph_collection, options, expr_dict)
 

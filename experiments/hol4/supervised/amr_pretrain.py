@@ -1,5 +1,6 @@
 import wandb
-from data.utils.pretrain import run_dual_encoders, SeparateEncoderPremiseSelection, MaskPretrain
+import cProfile
+from data.utils.pretrain import  SeparateEncoderPremiseSelection
 
 # HOL4 vocab
 VOCAB_SIZE = 1000
@@ -160,31 +161,25 @@ formula_net_config = {
 }
 
 
-def main():
-    wandb.init(
-        project="hol4_premise_selection",
-
-        name="Directed Attention Sweep Separate Encoder",
-        # track model and experiment configurations
-        config={
-            "exp_config": exp_config,
-            "model_config": amr_config,
-            "data_config": data_config
-        }
-    )
-
-    wandb.define_metric("acc", summary="max")
-
-    run_dual_encoders(wandb.config)
-
-    return
-
-
-import cProfile
-# cProfile.run('run_dual_encoders(config = {"model_config": amr, "exp_config": exp_config})', sort='cumtime')
-
-# import cProfile
-# cProfile.run('run_dual_encoders(config = {"model_config": sat_config, "exp_config": exp_config, "data_config": data_config})', sort='cumtime')
+# def main():
+#     wandb.init(
+#         project="hol4_premise_selection",
+#
+#         name="Directed Attention Sweep Separate Encoder",
+#         # track model and experiment configurations
+#         config={
+#             "exp_config": exp_config,
+#             "model_config": amr_config,
+#             "data_config": data_config
+#         }
+#     )
+#
+#     wandb.define_metric("acc", summary="max")
+#
+#     run_dual_encoders(wandb.config)
+#
+#     return
+#
 
 # relation_att_exp = SeparateEncoderPremiseSelection(config = {"model_config": relation_config,
 #                                                                    "exp_config": exp_config,
@@ -193,7 +188,14 @@ import cProfile
 transformer_experiment = SeparateEncoderPremiseSelection(config = {"model_config": transformer_config,
                                                                    "exp_config": exp_config,
                                                                    "data_config": data_transformer_config})
-transformer_experiment.run_dual_encoders()
+
+transformer_experiment.run_lightning()
+
+
+
+
+
+
 
 
 # cProfile.run('transformer_experiment.run_dual_encoders()', sort ='cumtime')
