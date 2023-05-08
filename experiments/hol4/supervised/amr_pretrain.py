@@ -185,11 +185,11 @@ formula_net_config = {
 #                                                                    "exp_config": exp_config,
 #                                                                    "data_config": data_graph_amr})
 
-transformer_experiment = SeparateEncoderPremiseSelection(config = {"model_config": transformer_config,
+transformer_experiment = SeparateEncoderPremiseSelection(config = {"model_config": relation_config,
                                                                    "exp_config": exp_config,
-                                                                   "data_config": data_transformer_config})
+                                                                   "data_config": data_graph_amr})
 
-transformer_experiment.run_lightning()
+cProfile.run('transformer_experiment.run_lightning()', sort='cumtime')
 
 
 

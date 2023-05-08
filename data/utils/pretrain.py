@@ -1,4 +1,4 @@
-from torch_geometric.data import Data
+from torch_geometric.data import Data, Batch
 import lightning.pytorch as pl
 import itertools
 import random
@@ -195,31 +195,28 @@ def get_data(config):
         return NotImplementedError
 
 
-def separate_link_batch(batch, options):
+def separate_link_batch(batch):
     # assume data will always have at least x variable
     data_1 = Data(x=batch.x_t, batch=batch.x_t_batch, ptr=batch.x_t_ptr)
     data_2 = Data(x=batch.x_s, batch=batch.x_s_batch, ptr=batch.x_s_ptr)
 
-    if 'edge_index' in options:
+    if hasattr(batch, 'edge_index_t'):
         data_1.edge_index = batch.edge_index_t
         data_2.edge_index = batch.edge_index_s
 
-    if 'softmax_idx' in options:
-        # data_1.softmax_idx = torch.cat([torch.tensor([0]), batch.softmax_idx_t])
-        # data_2.softmax_idx = torch.cat([torch.tensor([0]), batch.softmax_idx_s])
-
+    if hasattr(batch,'softmax_idx_t'):
         data_1.softmax_idx =  batch.softmax_idx_t
         data_2.softmax_idx =  batch.softmax_idx_s
 
-    if 'edge_attr' in options:
+    if hasattr(batch, 'edge_attr_t'):
         data_1.edge_attr = batch.edge_attr_t.long()
         data_2.edge_attr = batch.edge_attr_s.long()
 
-    if 'attention_edge_index' in options:
+    if hasattr(batch, 'attention_edge_index_t'):
         data_1.attention_edge_index = batch.attention_edge_index_t
         data_2.attention_edge_index = batch.attention_edge_index_s
 
-    return data_1, data_2, torch.LongTensor(batch.y)
+    return data_1, data_2, batch.y
 
 
 
@@ -254,6 +251,171 @@ def to_batch_transformer(batch, graph_collection, options):
 
 
     return pad_sequence(conj_X), pad_sequence(stmt_X), Y
+
+
+
+
+
+class MongoDataset(torch.utils.data.IterableDataset):
+    def __init__(self, cursor, buf_size):
+        super(MongoDataset).__init__()
+        self.cursor = cursor
+        self.batches = get_batches(self.cursor, batch_size=buf_size)
+        self.curr_batches = next(self.batches)
+        self.remaining = len(self.curr_batches)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.remaining == 0:
+            self.curr_batches = next(self.batches)
+            self.remaining = len(self.curr_batches)
+
+        self.remaining -= 1
+
+        if self.remaining >= 0:
+            return self.curr_batches.pop()
+        else:
+            raise StopIteration
+
+
+class PremiseSelectionSeparateGraphs(pl.LightningDataModule):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+
+        client = MongoClient()
+        self.db = client[self.config['db_name']]
+        self.collection = self.db[self.config['collection_name']]
+        self.batch_size = self.config['batch_size']
+        self.options = config['options']
+
+    def sample_to_link(self, sample):
+        options = self.options
+        stmt_graph = sample['stmt_graph']
+        conj_graph = sample['conj_graph']
+        y = sample['y']
+
+        x1 = conj_graph['onehot']
+        x1_mat = torch.LongTensor(x1)
+
+        x2 = stmt_graph['onehot']
+        x2_mat = torch.LongTensor(x2)
+
+        ret = LinkData(x_s=x2_mat, x_t=x1_mat, y=torch.tensor(y))
+
+        if 'edge_index' in options:
+            if 'edge_index' in conj_graph and 'edge_index' in stmt_graph:
+                x1_edge_index = conj_graph['edge_index']
+                x1_edge_index = torch.LongTensor(x1_edge_index)
+
+                x2_edge_index = stmt_graph['edge_index']
+                x2_edge_index = torch.LongTensor(x2_edge_index)
+
+                ret.edge_index_t = x1_edge_index
+                ret.edge_index_s = x2_edge_index
+            else:
+                raise NotImplementedError
+
+        if 'edge_attr' in options:
+            if 'edge_attr' in conj_graph and 'edge_attr' in stmt_graph:
+                x1_edge_attr = conj_graph['edge_attr']
+                x1_edge_attr = torch.LongTensor(x1_edge_attr)
+
+                x2_edge_attr = stmt_graph['edge_attr']
+                x2_edge_attr = torch.LongTensor(x2_edge_attr)
+
+                ret.edge_attr_t = x1_edge_attr
+                ret.edge_attr_s = x2_edge_attr
+            else:
+                raise NotImplementedError
+
+        # Edge index used to determine where attention is propagated in Message Passing Attention schemes
+
+        if 'attention_edge_index' in options:
+            if 'attention_edge_index' in conj_graph and 'attention_edge_index' in stmt_graph:
+                ret.attention_edge_index_t = conj_graph['attention_edge_index']
+                ret.attention_edge_index_s = stmt_graph['attention_edge_index']
+            else:
+                pass
+                # Default is global attention
+                # ret.attention_edge_index_t = torch.cartesian_prod(torch.arange(x1_mat.size(0)),
+                #                                                   torch.arange(x1_mat.size(0))).transpose(0, 1)
+
+                # ret.attention_edge_index_s = torch.cartesian_prod(torch.arange(x2_mat.size(0)),
+                #                                                   torch.arange(x2_mat.size(0))).transpose(0, 1)
+
+        # todo make data options have possible values i.e. options['softmax_idx'] == AMR, use edges, else directed attention etc.
+        if 'softmax_idx' in options:
+            ret.softmax_idx_t = x1_edge_index.size(1)
+            ret.softmax_idx_s = x2_edge_index.size(1)
+
+        return ret
+
+    ###################################################################################################################
+    ###################################################################################################################
+    ###################################################################################################################
+    # todo, one other option for faster training could be to use prepare method here, then write to disk from MongoDB, then tidy up after
+    # todo also need to change transformer model to deal with geometric batch
+    ###################################################################################################################
+    ###################################################################################################################
+    ###################################################################################################################
+
+    def custom_collate(self, data):
+        data_list = [self.sample_to_link(d) for d in data]
+        batch = Batch.from_data_list(data_list, follow_batch=['x_s', 'x_t'])
+        return separate_link_batch(batch)
+        # return [self.sample_to_link(d) for d in data]
+
+    def setup(self, stage: str):
+        if stage == "fit":
+            self.train_cursor = self.collection.find({"split": "train"}).sort("rand_idx", 1)
+            self.train_data = MongoDataset(self.train_cursor, self.config['buf_size'])
+
+            self.val_cursor = self.collection.find({"split": "valid"}).sort("rand_idx",1)
+            self.val_data = MongoDataset(self.val_cursor, self.config['buf_size'])
+
+        if stage == "test":
+            self.test_cursor = self.collection.find({"split": "test"}).sort("rand_idx", 1)
+            self.test_data = MongoDataset(self.test_cursor, self.config['buf_size'])
+
+        # if stage == "predict":
+
+    def train_dataloader(self):
+        return torch.utils.data.DataLoader(self.train_data, batch_size=self.batch_size, shuffle=False, collate_fn=self.custom_collate)
+
+
+    def val_dataloader(self):
+        return torch.utils.data.DataLoader(self.val_data, batch_size=self.batch_size, shuffle=False, collate_fn=self.custom_collate)
+
+    def test_dataloader(self):
+        return torch.utils.data.DataLoader(self.test_data, batch_size=self.batch_size, shuffle=False, collate_fn=self.custom_collate)
+
+    # def teardown(self, stage: str):
+    #
+    # def predict_dataloader(self):
+
+
+
+# pg = PremiseSelectionSeparateGraphs(config = {'buf_size': 128, 'batch_size': 32, 'db_name': 'hol_step','collection_name': 'pretrain_graphs', 'options': ['edge_attr', 'edge_index', 'softmax_idx']})
+# pg.setup("fit")
+# dl = pg.train_dataloader()
+# next(iter(dl))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -418,6 +580,33 @@ def val_iter(batches, batch_fn, graph_collection, options):
         yield batch_fn(batch, graph_collection, options)
 
 
+class MyIterableDataset(torch.utils.data.IterableDataset):
+    def __init__(self, cursor, buf_size):
+        super(MyIterableDataset).__init__()
+        # self.cursor = collection.find()
+        self.batches = get_batches(self.cursor, batch_size=buf_size)
+        self.curr_batches = next(self.batches)
+        self.remaining = len(self.curr_batches)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.remaining == 0:
+            self.curr_batches = next(self.batches)
+            self.remaining = len(self.curr_batches)
+
+        self.remaining -= 1
+
+        if self.remaining >= 0:
+            return self.curr_batches.pop()
+        else:
+            raise StopIteration
+
+
+
+
+
 '''
 Premise selection experiment with separate encoders for goal and premise
 '''
@@ -431,17 +620,20 @@ class SeparateEncoderPremiseSelection(PremiseSelectionExperiment):
 
         ps = PremiseSelection(self.get_model(),self.get_model(), gnn_edge_labels.F_c_module_(self.embedding_dim * 2))
 
-        graph_collection, split_collection = get_data(self.source_config)
+        # graph_collection, split_collection = get_data(self.source_config)
 
-        train_cursor = split_collection.aggregate([{"$match": {"split": "train"}}, {"$sample": {"size": 10000000}}])
-        val_cursor = split_collection.aggregate([{"$match": {"split": "valid"}}, {"$sample": {"size": self.val_size}}])
+        # train_cursor = split_collection.aggregate([{"$match": {"split": "train"}}, {"$sample": {"size": 10000000}}])
+        # val_cursor = split_collection.aggregate([{"$match": {"split": "valid"}}, {"$sample": {"size": self.val_size}}])
 
-        train_batches = get_batches(train_cursor, self.batch_size)
-        val_batches = get_all_batches(val_cursor, self.batch_size)
+        # train_batches = get_batches(train_cursor, self.batch_size)
+        # val_batches = get_all_batches(val_cursor, self.batch_size)
 
         # todo DataModule? also closing cursors cleaning up etc.
-        train_loader = test_iter(train_batches, self.get_batch, graph_collection, self.data_options)
-        val_loader = val_iter(val_batches, self.get_batch, graph_collection, self.data_options)
+        # train_loader = test_iter(train_batches, self.get_batch, graph_collection, self.data_options)
+        # val_loader = val_iter(val_batches, self.get_batch, graph_collection, self.data_options)
+
+        data_module = PremiseSelectionSeparateGraphs(config={'buf_size': 128, 'batch_size': 32, 'db_name': 'hol_step',
+                                                             'collection_name': 'pretrain_graphs', 'options': ['edge_attr', 'edge_index', 'softmax_idx']})
 
         # todo logging/wandb integration, model checkpoints
 
@@ -453,14 +645,10 @@ class SeparateEncoderPremiseSelection(PremiseSelectionExperiment):
                              # profiler='pytorch',
                              enable_checkpointing=False)
 
-
-
         # ps = torch.compile(ps)
 
-        trainer.fit(model=ps, train_dataloaders=train_loader, val_dataloaders=val_loader)
-
-
-
+        # trainer.fit(model=ps, train_dataloaders=train_loader, val_dataloaders=val_loader)
+        trainer.fit(model=ps, datamodule=data_module)
 
 
 # assume passed in set of expressions
