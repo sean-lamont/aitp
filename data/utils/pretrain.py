@@ -421,7 +421,6 @@ class PremiseSelectionSeparateGraphs(pl.LightningDataModule):
 
 
 
-
 class PremiseSelection(pl.LightningModule):
     def __init__(self, embedding_model_goal, embedding_model_premise, classifier, lr=1e-4):
         super().__init__()
@@ -846,4 +845,67 @@ def to_masked_batch_graph(graphs, options):
 #             # print (batch_fn(batch[i * 32: (i + 1) * 32], graph_collection, options, expr_dict))
 #             # exit()
 #             yield batch_fn(batch[i * 32: (i + 1) * 32], graph_collection, options, expr_dict)
+
+
+data_module = PremiseSelectionSeparateGraphs(config={'buf_size': 128, 'batch_size': 32, 'db_name': 'hol_step',
+                                                     'collection_name': 'pretrain_graphs',
+                                                     'options': ['edge_attr', 'edge_index', 'softmax_idx']})
+
+data_module.setup('fit')
+data_module.setup('test')
+
+train_loader = iter(data_module.train_dataloader())
+val_loader = iter(data_module.val_dataloader())
+test_loader = iter(data_module.test_dataloader())
+
+from data.utils.hd5_utils import to_hdf5, PremiseSelectionDataset
+import h5py
+
+
+data_list = []
+for i in range(10):
+    data_list.append(next(train_loader))
+    print (i, data_list[-1])
+
+with h5py.File('test_dataset.h5', 'w') as f:
+    to_hdf5(data_list, f, 'test_dataset')
+
+loaded_list = []
+
+with h5py.File('test_dataset.h5', 'r') as h5file:
+    x1 = torch.from_numpy(h5file['test_dataset/x1'][:])
+    edge_index1 = torch.from_numpy(h5file['test_dataset/edge_index1'][:])
+    edge_attr1 = torch.from_numpy(h5file['test_dataset/edge_attr1'][:])
+    batch1 = torch.from_numpy(h5file['test_dataset/batch1'][:])
+    ptr1 = torch.from_numpy(h5file['test_dataset/ptr1'][:])
+
+    x2 = torch.from_numpy(h5file['test_dataset/x2'][:])
+    edge_index2 = torch.from_numpy(h5file['test_dataset/edge_index2'][:])
+    edge_attr2 = torch.from_numpy(h5file['test_dataset/edge_attr2'][:])
+    batch2 = torch.from_numpy(h5file['test_dataset/batch2'][:])
+    ptr2 = torch.from_numpy(h5file['test_dataset/ptr2'][:])
+
+    y = torch.from_numpy(h5file['test_dataset/y'][:])
+
+print (x1.nonzero())
+
+
+data_1 = Data(x=x1[0], edge_index=edge_index1[0], edge_attr=edge_attr1[0], batch=batch1[0], ptr=ptr1[0])
+data_2 = Data(x=x2[0], edge_index=edge_index2[0], edge_attr=edge_attr2[0], batch=batch2[0], ptr=ptr2[0])
+loaded_list = [(Data(x=x1[i], edge_index=edge_index1[i], edge_attr=edge_attr1[i], batch=batch1[i], ptr=ptr1[i]),
+               Data(x=x2[i], edge_index=edge_index2[i], edge_attr=edge_attr2[i], batch=batch2[i], ptr=ptr2[i]), y[i]) for i in range(len(x1))]
+
+dataset = PremiseSelectionDataset(loaded_list)
+
+def collate(data):
+    print (data, len(data))
+    return
+
+
+
+loader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=collate)
+for i, batch in enumerate(loader):
+    # do something with the batch
+    print (i, batch[0].x[0])
+
 

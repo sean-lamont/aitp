@@ -44,7 +44,7 @@ db.train_val_test_data.aggregate([
 db.pretrain_graphs.updateMany(
     {rand_idx: {$exists: false} },
     [{$set:
-            {rand: {
+            {rand_idx: {
                 $function: {
                     body: function() {return Math.random();},
                     args: [],
@@ -55,5 +55,5 @@ db.pretrain_graphs.updateMany(
     )
 
 // Speedup from ~30s to 0.1s
-db.pretrain_graphs.createIndex({rand : 1})
+db.pretrain_graphs.createIndex({rand_idx : 1})
 
