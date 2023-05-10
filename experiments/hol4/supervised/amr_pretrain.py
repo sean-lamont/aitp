@@ -166,6 +166,7 @@ formula_net_config = {
 #         project="hol4_premise_selection",
 #
 #         name="Directed Attention Sweep Separate Encoder",
+
 #         # track model and experiment configurations
 #         config={
 #             "exp_config": exp_config,
@@ -181,15 +182,16 @@ formula_net_config = {
 #     return
 #
 
-# relation_att_exp = SeparateEncoderPremiseSelection(config = {"model_config": relation_config,
-#                                                                    "exp_config": exp_config,
-#                                                                    "data_config": data_graph_amr})
-
-transformer_experiment = SeparateEncoderPremiseSelection(config = {"model_config": relation_config,
+relation_att_exp = SeparateEncoderPremiseSelection(config = {"model_config": relation_config,
                                                                    "exp_config": exp_config,
                                                                    "data_config": data_graph_amr})
 
-cProfile.run('transformer_experiment.run_lightning()', sort='cumtime')
+transformer_experiment = SeparateEncoderPremiseSelection(config = {"model_config": transformer_config,
+                                                                   "exp_config": exp_config,
+                                                                   "data_config": data_transformer_config})
+
+cProfile.run('relation_att_exp.run_dual_encoders()', sort='cumtime')
+
 
 
 

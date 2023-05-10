@@ -57,7 +57,7 @@ class TransformerEmbedding(nn.Module):
         initrange = 0.1
         self.encoder.weight.data.uniform_(-initrange, initrange)
 
-    def forward(self, src: Tensor) -> Tensor:
+    def forward(self, src) -> Tensor:
         """
         Args:
             src: Tensor, shape [seq_len, batch_size]
@@ -66,7 +66,8 @@ class TransformerEmbedding(nn.Module):
         Returns:
             output Tensor of shape [seq_len, batch_size, d_model]
         """
-        seq_len = src.size(0)
+
+        # print (src.shape)
         # print (src.shape)
         if self.in_embed:
             src = self.encoder(src) * math.sqrt(self.d_model)

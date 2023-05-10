@@ -1,3 +1,4 @@
+from data.utils.dataset import H5DataModule, MongoDataModule
 from torch_geometric.data import Data, Batch
 import lightning.pytorch as pl
 import itertools
@@ -40,46 +41,6 @@ class MaskData(Data):
         return super().__inc__(key, value, *args, **kwargs)
 
 
-class LinkData(Data):
-    def __init__(self, edge_index_s=None,
-                 x_s=None, edge_index_t=None,
-                 x_t=None, edge_attr_s=None,
-                 edge_attr_t=None,
-                 softmax_idx_s=None,
-                 softmax_idx_t=None,
-                 y=None):
-
-        super().__init__()
-
-        self.edge_index_s = edge_index_s
-        self.x_s = x_s
-
-        self.edge_index_t = edge_index_t
-        self.x_t = x_t
-
-        self.edge_attr_s = edge_attr_s
-        self.edge_attr_t = edge_attr_t
-
-        # softmax index used for AMR model
-        self.softmax_idx_s = softmax_idx_s
-        self.softmax_idx_t = softmax_idx_t
-
-        self.y = y
-
-    def __inc__(self, key, value, *args, **kwargs):
-        if key == 'edge_index_s' or key == 'attention_edge_index_s':
-            return self.x_s.size(0)
-
-        elif key == 'edge_index_t' or key == 'attention_edge_index_t':
-            return self.x_t.size(0)
-
-        elif key == 'softmax_idx_s':
-            return self.softmax_idx_s
-
-        elif key == 'softmax_idx_t':
-            return self.softmax_idx_t
-
-        return super().__inc__(key, value, *args, **kwargs)
 
 
 # redundant
@@ -195,28 +156,6 @@ def get_data(config):
         return NotImplementedError
 
 
-def separate_link_batch(batch):
-    # assume data will always have at least x variable
-    data_1 = Data(x=batch.x_t, batch=batch.x_t_batch, ptr=batch.x_t_ptr)
-    data_2 = Data(x=batch.x_s, batch=batch.x_s_batch, ptr=batch.x_s_ptr)
-
-    if hasattr(batch, 'edge_index_t'):
-        data_1.edge_index = batch.edge_index_t
-        data_2.edge_index = batch.edge_index_s
-
-    if hasattr(batch,'softmax_idx_t'):
-        data_1.softmax_idx =  batch.softmax_idx_t
-        data_2.softmax_idx =  batch.softmax_idx_s
-
-    if hasattr(batch, 'edge_attr_t'):
-        data_1.edge_attr = batch.edge_attr_t.long()
-        data_2.edge_attr = batch.edge_attr_s.long()
-
-    if hasattr(batch, 'attention_edge_index_t'):
-        data_1.attention_edge_index = batch.attention_edge_index_t
-        data_2.attention_edge_index = batch.attention_edge_index_s
-
-    return data_1, data_2, batch.y
 
 
 
@@ -253,155 +192,6 @@ def to_batch_transformer(batch, graph_collection, options):
     return pad_sequence(conj_X), pad_sequence(stmt_X), Y
 
 
-
-
-
-class MongoDataset(torch.utils.data.IterableDataset):
-    def __init__(self, cursor, buf_size):
-        super(MongoDataset).__init__()
-        self.cursor = cursor
-        self.batches = get_batches(self.cursor, batch_size=buf_size)
-        self.curr_batches = next(self.batches)
-        self.remaining = len(self.curr_batches)
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.remaining == 0:
-            self.curr_batches = next(self.batches)
-            self.remaining = len(self.curr_batches)
-
-        self.remaining -= 1
-
-        if self.remaining >= 0:
-            return self.curr_batches.pop()
-        else:
-            raise StopIteration
-
-
-class PremiseSelectionSeparateGraphs(pl.LightningDataModule):
-    def __init__(self, config):
-        super().__init__()
-        self.config = config
-
-        client = MongoClient()
-        self.db = client[self.config['db_name']]
-        self.collection = self.db[self.config['collection_name']]
-        self.batch_size = self.config['batch_size']
-        self.options = config['options']
-
-    def sample_to_link(self, sample):
-        options = self.options
-        stmt_graph = sample['stmt_graph']
-        conj_graph = sample['conj_graph']
-        y = sample['y']
-
-        x1 = conj_graph['onehot']
-        x1_mat = torch.LongTensor(x1)
-
-        x2 = stmt_graph['onehot']
-        x2_mat = torch.LongTensor(x2)
-
-        ret = LinkData(x_s=x2_mat, x_t=x1_mat, y=torch.tensor(y))
-
-        if 'edge_index' in options:
-            if 'edge_index' in conj_graph and 'edge_index' in stmt_graph:
-                x1_edge_index = conj_graph['edge_index']
-                x1_edge_index = torch.LongTensor(x1_edge_index)
-
-                x2_edge_index = stmt_graph['edge_index']
-                x2_edge_index = torch.LongTensor(x2_edge_index)
-
-                ret.edge_index_t = x1_edge_index
-                ret.edge_index_s = x2_edge_index
-            else:
-                raise NotImplementedError
-
-        if 'edge_attr' in options:
-            if 'edge_attr' in conj_graph and 'edge_attr' in stmt_graph:
-                x1_edge_attr = conj_graph['edge_attr']
-                x1_edge_attr = torch.LongTensor(x1_edge_attr)
-
-                x2_edge_attr = stmt_graph['edge_attr']
-                x2_edge_attr = torch.LongTensor(x2_edge_attr)
-
-                ret.edge_attr_t = x1_edge_attr
-                ret.edge_attr_s = x2_edge_attr
-            else:
-                raise NotImplementedError
-
-        # Edge index used to determine where attention is propagated in Message Passing Attention schemes
-
-        if 'attention_edge_index' in options:
-            if 'attention_edge_index' in conj_graph and 'attention_edge_index' in stmt_graph:
-                ret.attention_edge_index_t = conj_graph['attention_edge_index']
-                ret.attention_edge_index_s = stmt_graph['attention_edge_index']
-            else:
-                pass
-                # Default is global attention
-                # ret.attention_edge_index_t = torch.cartesian_prod(torch.arange(x1_mat.size(0)),
-                #                                                   torch.arange(x1_mat.size(0))).transpose(0, 1)
-
-                # ret.attention_edge_index_s = torch.cartesian_prod(torch.arange(x2_mat.size(0)),
-                #                                                   torch.arange(x2_mat.size(0))).transpose(0, 1)
-
-        # todo make data options have possible values i.e. options['softmax_idx'] == AMR, use edges, else directed attention etc.
-        if 'softmax_idx' in options:
-            ret.softmax_idx_t = x1_edge_index.size(1)
-            ret.softmax_idx_s = x2_edge_index.size(1)
-
-        return ret
-
-    ###################################################################################################################
-    ###################################################################################################################
-    ###################################################################################################################
-    # todo, one other option for faster training could be to use prepare method here, then write to disk from MongoDB, then tidy up after
-    # todo also need to change transformer model to deal with geometric batch
-    ###################################################################################################################
-    ###################################################################################################################
-    ###################################################################################################################
-
-    def custom_collate(self, data):
-        data_list = [self.sample_to_link(d) for d in data]
-        batch = Batch.from_data_list(data_list, follow_batch=['x_s', 'x_t'])
-        return separate_link_batch(batch)
-        # return [self.sample_to_link(d) for d in data]
-
-    def setup(self, stage: str):
-        if stage == "fit":
-            self.train_cursor = self.collection.find({"split": "train"}).sort("rand_idx", 1)
-            self.train_data = MongoDataset(self.train_cursor, self.config['buf_size'])
-
-            self.val_cursor = self.collection.find({"split": "valid"}).sort("rand_idx",1)
-            self.val_data = MongoDataset(self.val_cursor, self.config['buf_size'])
-
-        if stage == "test":
-            self.test_cursor = self.collection.find({"split": "test"}).sort("rand_idx", 1)
-            self.test_data = MongoDataset(self.test_cursor, self.config['buf_size'])
-
-        # if stage == "predict":
-
-    def train_dataloader(self):
-        return torch.utils.data.DataLoader(self.train_data, batch_size=self.batch_size, shuffle=False, collate_fn=self.custom_collate)
-
-
-    def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.val_data, batch_size=self.batch_size, shuffle=False, collate_fn=self.custom_collate)
-
-    def test_dataloader(self):
-        return torch.utils.data.DataLoader(self.test_data, batch_size=self.batch_size, shuffle=False, collate_fn=self.custom_collate)
-
-    # def teardown(self, stage: str):
-    #
-    # def predict_dataloader(self):
-
-
-
-# pg = PremiseSelectionSeparateGraphs(config = {'buf_size': 128, 'batch_size': 32, 'db_name': 'hol_step','collection_name': 'pretrain_graphs', 'options': ['edge_attr', 'edge_index', 'softmax_idx']})
-# pg.setup("fit")
-# dl = pg.train_dataloader()
-# next(iter(dl))
 
 
 
@@ -443,18 +233,21 @@ class PremiseSelection(pl.LightningModule):
         return torch.flatten(preds)
 
     def training_step(self, batch, batch_idx):
+        # goal, premise, y = batch[0] #batch[0][0], batch[0][1], batch[0][2]
+
         goal, premise, y = batch
 
         preds = self(goal, premise)
 
         loss = torch.nn.functional.cross_entropy(preds, y.float())
 
-        self.log("loss", loss, batch_size=self.batch_size, prog_bar=True)
+        self.log("loss", loss, batch_size=self.batch_size, prog_bar=False)
 
         return loss
 
     def validation_step(self, batch, batch_idx):
         goal, premise, y = batch
+        # goal, premise, y = batch[0]#batch[0][0] batch[0][1], batch[0][2]
 
         preds =  self(goal, premise)
 
@@ -619,20 +412,15 @@ class SeparateEncoderPremiseSelection(PremiseSelectionExperiment):
 
         ps = PremiseSelection(self.get_model(),self.get_model(), gnn_edge_labels.F_c_module_(self.embedding_dim * 2))
 
-        # graph_collection, split_collection = get_data(self.source_config)
 
-        # train_cursor = split_collection.aggregate([{"$match": {"split": "train"}}, {"$sample": {"size": 10000000}}])
-        # val_cursor = split_collection.aggregate([{"$match": {"split": "valid"}}, {"$sample": {"size": self.val_size}}])
+        data_module = H5DataModule(config = {})
 
-        # train_batches = get_batches(train_cursor, self.batch_size)
-        # val_batches = get_all_batches(val_cursor, self.batch_size)
+        # data_module.setup('fit')
 
-        # todo DataModule? also closing cursors cleaning up etc.
-        # train_loader = test_iter(train_batches, self.get_batch, graph_collection, self.data_options)
-        # val_loader = val_iter(val_batches, self.get_batch, graph_collection, self.data_options)
-
-        data_module = PremiseSelectionSeparateGraphs(config={'buf_size': 128, 'batch_size': 32, 'db_name': 'hol_step',
-                                                             'collection_name': 'pretrain_graphs', 'options': ['edge_attr', 'edge_index', 'softmax_idx']})
+        # config = {'buf_size': 128, 'batch_size': 32, 'db_name': 'hol_step',
+        #           'collection_name': 'pretrain_graphs', 'options': ['edge_attr', 'edge_index', 'softmax_idx']}
+        #
+        # data_module = MongoDataModule(config)
 
         # todo logging/wandb integration, model checkpoints
 
@@ -648,6 +436,160 @@ class SeparateEncoderPremiseSelection(PremiseSelectionExperiment):
 
         # trainer.fit(model=ps, train_dataloaders=train_loader, val_dataloaders=val_loader)
         trainer.fit(model=ps, datamodule=data_module)
+
+    def run_dual_encoders(self):
+        self.graph_net_1 = self.get_model().to(self.device)
+        self.graph_net_2 = self.get_model().to(self.device)
+
+        print("Model details:")
+
+        print(self.graph_net_1)
+
+        if self.logging:
+            wandb.log({"Num_model_params": sum([p.numel() for p in self.graph_net_1.parameters() if p.requires_grad])})
+
+        fc = gnn_edge_labels.F_c_module_(self.embedding_dim * 2).to(self.device)
+
+        op_g1 = torch.optim.AdamW(self.graph_net_1.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+
+        op_g2 = torch.optim.AdamW(self.graph_net_2.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+
+        op_fc = torch.optim.AdamW(fc.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+
+        training_losses = []
+
+        data_module = H5DataModule(config={})
+
+        data_module.setup('fit')
+
+        loader = data_module.train_dataloader()
+
+
+        for i, batch in tqdm(enumerate(loader)):
+            # print(f"Epoch: {j}")
+
+            data_1, data_2, y = batch[0]
+            # print (data_1)
+
+            # data_1 = [d.to(self.device) for d in data_1]
+            # data_2 = [d.to(self.device) for d in data_2]
+
+            err_count = 0
+
+            op_g1.zero_grad()
+            op_g2.zero_grad()
+            op_fc.zero_grad()
+
+            try:
+                # graph_enc_1 = self.graph_net_1(data_1.to(self.device))
+                # graph_enc_2 = self.graph_net_2(data_2.to(self.device))
+
+                graph_enc_1 = self.graph_net_1(data_1.to(self.device))
+                graph_enc_2 = self.graph_net_2(data_2.to(self.device))
+
+                preds = fc(torch.cat([graph_enc_1, graph_enc_2], axis=1))
+
+                eps = 1e-6
+
+                preds = torch.clip(preds, eps, 1 - eps)
+
+                loss = torch.nn.functional.cross_entropy(torch.flatten(preds), y.to(self.device).float())
+
+                loss.backward()
+
+                # op_enc.step()
+                op_g1.step()
+                op_g2.step()
+                op_fc.step()
+
+
+            except Exception as e:
+                err_count += 1
+                if err_count > self.max_errors:
+                    return Exception("Too many errors in training")
+                print(f"Error in training {e}")
+                traceback.print_exc()
+                continue
+
+            training_losses.append(loss.detach() / self.batch_size)
+
+            if i % 1000 == 0:
+                print("Curr training loss avg: {}".format(sum(training_losses[-100:]) / len(training_losses[-100:])))
+
+            #
+            #         self.graph_net_1.eval()
+            #         self.graph_net_2.eval()
+            #
+            #         val_count = []
+            #
+            #         val_cursor.rewind()
+            #
+            #         get_val_batches = get_batches(val_cursor, self.batch_size)
+            #
+            #         for db_val in get_val_batches:
+            #             val_err_count = 0
+            #             try:
+            #                 data_1, data_2, y = self.get_batch(db_val, graph_collection, self.data_options)
+            #
+            #                 validation_loss = self.val_acc_dual_encoder(self.graph_net_1, self.graph_net_2, data_1,
+            #                                                             data_2, y, fc, self.device)
+            #
+            #                 val_count.append(validation_loss.detach())
+            #
+            #             except Exception as e:
+            #                 print(f"Error {e}, batch:")
+            #                 val_err_count += 1
+            #                 traceback.print_exc()
+            #                 continue
+            #
+            #         validation_loss = (sum(val_count) / len(val_count)).detach()
+            #         val_losses.append((validation_loss, j, i))
+            #
+            #         print(
+            #             "Curr training loss avg: {}".format(sum(training_losses[-100:]) / len(training_losses[-100:])))
+            #
+            #         print("Val acc: {}".format(validation_loss.detach()))
+            #
+            #         print(f"Failed batches: {err_count}")
+            #
+            #         if self.logging:
+            #             wandb.log({"acc": validation_loss.detach(),
+            #                        "train_loss_avg": sum(training_losses[-100:]) / len(training_losses[-100:]),
+            #                        "epoch": j})
+            #
+            #         if validation_loss > best_acc:
+            #             best_acc = validation_loss
+            #             print(f"New best validation accuracy: {best_acc}")
+            #             # only save encoder if best accuracy so far
+            #
+            #             if self.save == True:
+            #                 torch.save(self.graph_net_1, self.exp_config['model_dir'] + "/gnn_transformer_goal_hol4")
+            #                 torch.save(self.graph_net_2, self.exp_config['model_dir'] + "/gnn_transformer_premise_hol4")
+            #
+            #         self.graph_net_1.train()
+            #         self.graph_net_2.train()
+            #
+            # if self.logging:
+            #     wandb.log({"failed_batches": err_count})
+
+        return
+
+
+    def val_acc_dual_encoder(self, model_1, model_2, data_1, data_2, y, fc, device):
+
+        # data_1, data_2,y = self.get_batch(batch, data_options)
+
+        graph_enc_1 = model_1(data_1.to(device))
+
+        graph_enc_2 = model_2(data_2.to(device))
+
+        preds = fc(torch.cat([graph_enc_1, graph_enc_2], axis=1))
+
+        preds = torch.flatten(preds)
+
+        preds = (preds > 0.5).long()
+
+        return torch.sum(preds == y.to(device)) / y.size(0)
 
 
 # assume passed in set of expressions
@@ -667,6 +609,7 @@ def to_masked_batch_graph(graphs, options):
 
         #add 1 for mask
         x = x + 1
+
 
         mask = torch.rand(x.size(0)).ge(masking_rate)
 
@@ -846,66 +789,5 @@ def to_masked_batch_graph(graphs, options):
 #             # exit()
 #             yield batch_fn(batch[i * 32: (i + 1) * 32], graph_collection, options, expr_dict)
 
-
-data_module = PremiseSelectionSeparateGraphs(config={'buf_size': 128, 'batch_size': 32, 'db_name': 'hol_step',
-                                                     'collection_name': 'pretrain_graphs',
-                                                     'options': ['edge_attr', 'edge_index', 'softmax_idx']})
-
-data_module.setup('fit')
-data_module.setup('test')
-
-train_loader = iter(data_module.train_dataloader())
-val_loader = iter(data_module.val_dataloader())
-test_loader = iter(data_module.test_dataloader())
-
-from data.utils.hd5_utils import to_hdf5, PremiseSelectionDataset
-import h5py
-
-
-data_list = []
-for i in range(10):
-    data_list.append(next(train_loader))
-    print (i, data_list[-1])
-
-with h5py.File('test_dataset.h5', 'w') as f:
-    to_hdf5(data_list, f, 'test_dataset')
-
-loaded_list = []
-
-with h5py.File('test_dataset.h5', 'r') as h5file:
-    x1 = torch.from_numpy(h5file['test_dataset/x1'][:])
-    edge_index1 = torch.from_numpy(h5file['test_dataset/edge_index1'][:])
-    edge_attr1 = torch.from_numpy(h5file['test_dataset/edge_attr1'][:])
-    batch1 = torch.from_numpy(h5file['test_dataset/batch1'][:])
-    ptr1 = torch.from_numpy(h5file['test_dataset/ptr1'][:])
-
-    x2 = torch.from_numpy(h5file['test_dataset/x2'][:])
-    edge_index2 = torch.from_numpy(h5file['test_dataset/edge_index2'][:])
-    edge_attr2 = torch.from_numpy(h5file['test_dataset/edge_attr2'][:])
-    batch2 = torch.from_numpy(h5file['test_dataset/batch2'][:])
-    ptr2 = torch.from_numpy(h5file['test_dataset/ptr2'][:])
-
-    y = torch.from_numpy(h5file['test_dataset/y'][:])
-
-print (x1.nonzero())
-
-
-data_1 = Data(x=x1[0], edge_index=edge_index1[0], edge_attr=edge_attr1[0], batch=batch1[0], ptr=ptr1[0])
-data_2 = Data(x=x2[0], edge_index=edge_index2[0], edge_attr=edge_attr2[0], batch=batch2[0], ptr=ptr2[0])
-loaded_list = [(Data(x=x1[i], edge_index=edge_index1[i], edge_attr=edge_attr1[i], batch=batch1[i], ptr=ptr1[i]),
-               Data(x=x2[i], edge_index=edge_index2[i], edge_attr=edge_attr2[i], batch=batch2[i], ptr=ptr2[i]), y[i]) for i in range(len(x1))]
-
-dataset = PremiseSelectionDataset(loaded_list)
-
-def collate(data):
-    print (data, len(data))
-    return
-
-
-
-loader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=collate)
-for i, batch in enumerate(loader):
-    # do something with the batch
-    print (i, batch[0].x[0])
 
 
