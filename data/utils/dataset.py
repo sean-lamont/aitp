@@ -1,4 +1,5 @@
 import torchdata
+import os
 import pickle
 from torch_geometric.data import Data, Batch
 from torch.utils.data import Dataset
@@ -10,7 +11,6 @@ from tqdm import tqdm
 from pymongo import MongoClient
 import torch
 
-
 class LinkData(Data):
     def __init__(self, edge_index_s=None,
                  x_s=None, edge_index_t=None,
@@ -21,37 +21,27 @@ class LinkData(Data):
                  y=None):
 
         super().__init__()
-
         self.edge_index_s = edge_index_s
         self.x_s = x_s
-
         self.edge_index_t = edge_index_t
         self.x_t = x_t
-
         self.edge_attr_s = edge_attr_s
         self.edge_attr_t = edge_attr_t
-
         # softmax index used for AMR model
         self.softmax_idx_s = softmax_idx_s
         self.softmax_idx_t = softmax_idx_t
-
         self.y = y
 
     def __inc__(self, key, value, *args, **kwargs):
         if key == 'edge_index_s' or key == 'attention_edge_index_s':
             return self.x_s.size(0)
-
         elif key == 'edge_index_t' or key == 'attention_edge_index_t':
             return self.x_t.size(0)
-
         elif key == 'softmax_idx_s':
             return self.softmax_idx_s
-
         elif key == 'softmax_idx_t':
             return self.softmax_idx_t
-
         return super().__inc__(key, value, *args, **kwargs)
-
 
 class MongoDataset(torch.utils.data.IterableDataset):
     def __init__(self, cursor, buf_size):
@@ -68,20 +58,16 @@ class MongoDataset(torch.utils.data.IterableDataset):
         if self.remaining == 0:
             self.curr_batches = next(self.batches)
             self.remaining = len(self.curr_batches)
-
         self.remaining -= 1
-
         if self.remaining >= 0:
             return self.curr_batches.pop()
         else:
             raise StopIteration
 
-
 class MongoDataModule(pl.LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
-
         client = MongoClient()
         self.db = client[self.config['db_name']]
         self.collection = self.db[self.config['collection_name']]
@@ -137,7 +123,6 @@ class MongoDataModule(pl.LightningDataModule):
             else:
                 raise NotImplementedError
 
-
         if 'softmax_idx' in options:
             ret.softmax_idx_t = x1_edge_index.size(1)
             ret.softmax_idx_s = x2_edge_index.size(1)
@@ -149,6 +134,22 @@ class MongoDataModule(pl.LightningDataModule):
         batch = Batch.from_data_list(data_list, follow_batch=['x_s', 'x_t'])
         return separate_link_batch(batch)
 
+    def transfer_batch_to_device(self, batch, device, dataloader_idx):
+        # batch = batch[0]
+        data_1, data_2, y = batch
+
+        data_1.x = data_1.x.to(device)
+        data_2.x = data_2.x.to(device)
+
+        data_1.edge_index = data_1.edge_index.to(device)
+        data_2.edge_index = data_2.edge_index.to(device)
+
+        data_1.edge_attr = data_1.edge_attr.to(device)
+        data_2.edge_attr = data_2.edge_attr.to(device)
+
+        y = y.to(device)
+        # batch.edge_index = batch.edge_index.to(device)
+        return data_1, data_2, y
 
     def setup(self, stage: str):
         if stage == "fit":
@@ -165,14 +166,21 @@ class MongoDataModule(pl.LightningDataModule):
         # if stage == "predict":
 
     def train_dataloader(self):
-        return torch.utils.data.DataLoader(self.train_data, batch_size=self.batch_size, shuffle=False, collate_fn=self.custom_collate)
-
-
+        return torch.utils.data.DataLoader(self.train_data,
+                                           batch_size=self.batch_size,
+                                           shuffle=False,
+                                           collate_fn=self.custom_collate,
+                                           num_workers=0)
     def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.val_data, batch_size=self.batch_size, shuffle=False, collate_fn=self.custom_collate)
-
+        return torch.utils.data.DataLoader(self.val_data,
+                                           batch_size=self.batch_size,
+                                           shuffle=False,
+                                           collate_fn=self.custom_collate)
     def test_dataloader(self):
-        return torch.utils.data.DataLoader(self.test_data, batch_size=self.batch_size, shuffle=False, collate_fn=self.custom_collate)
+        return torch.utils.data.DataLoader(self.test_data,
+                                           batch_size=self.batch_size,
+                                           shuffle=False,
+                                           collate_fn=self.custom_collate)
 
 
 def separate_link_batch(batch):
@@ -199,8 +207,7 @@ def separate_link_batch(batch):
     return data_1, data_2, batch.y
 
 
-
-data_dir = '/home/sean/Documents/phd/aitp/data/utils/processed_data'
+data_dir = '/home/sean/Documents/phd/repo/aitp/data/utils/processed_data'
 
 # save preprocessed graph data in batches to files. Prevents need for recomputing batch level attributes,
 # such as ptr, batch idx etc.
@@ -215,7 +222,6 @@ def write_mongo_to_h5():
     train_loader = iter(data_module.train_dataloader())
     val_loader = iter(data_module.val_dataloader())
     test_loader = iter(data_module.test_dataloader())
-
 
     BATCHES_PER_FILE = 512
 
@@ -239,8 +245,11 @@ def write_mongo_to_h5():
 
 @torchdata.datapipes.functional_datapipe("load_h5_data")
 class H5DataLoader(torchdata.datapipes.iter.IterDataPipe):
-    def __init__(self, source_datapipe, **kwargs) -> None:
-        self.source_datapipe = source_datapipe
+    def __init__(self, source_datapipe, cycle=False,**kwargs) -> None:
+        if cycle:
+            self.source_datapipe = source_datapipe.cycle()
+        else:
+            self.source_datapipe = source_datapipe
         # self.transform = kwargs['transform']
     # def file_to_data(self, h5file):
 
@@ -252,7 +261,7 @@ class H5DataLoader(torchdata.datapipes.iter.IterDataPipe):
                 edge_attr1 = torch.from_numpy(h5file['data/edge_attr1'][:])
                 batch1 = torch.from_numpy(h5file['data/batch1'][:])
                 ptr1 = torch.from_numpy(h5file['data/ptr1'][:])
-                edge_ptr1 = torch.from_numpy(h5file['data/edge_ptr1'][:])#.tolist()
+                edge_ptr1 = torch.from_numpy(h5file['data/edge_ptr1'][:]).tolist()
                 # edge_ptr1 = torch.from_numpy(h5file['data/edge_ptr1'][:]).tolist()
 
                 x2 = torch.from_numpy(h5file['data/x2'][:])
@@ -261,9 +270,9 @@ class H5DataLoader(torchdata.datapipes.iter.IterDataPipe):
                 batch2 = torch.from_numpy(h5file['data/batch2'][:])
                 ptr2 = torch.from_numpy(h5file['data/ptr2'][:])
                 # edge_ptr2 = torch.from_numpy(h5file['data/edge_ptr2'][:]).tolist()
-                edge_ptr2 = torch.from_numpy(h5file['data/edge_ptr2'][:])#.tolist()
+                edge_ptr2 = torch.from_numpy(h5file['data/edge_ptr2'][:]).tolist()
 
-                y = torch.from_numpy(h5file['data/y'][:])
+                y = torch.from_numpy(h5file['data/y'][:]).long()
 
                 data_len_1 = torch.from_numpy(h5file['data/x1_len'][:])
                 data_len_2 = torch.from_numpy(h5file['data/x2_len'][:])
@@ -309,7 +318,7 @@ class H5DataLoader(torchdata.datapipes.iter.IterDataPipe):
                                ptr=ptr1[i],
                                softmax_idx=edge_ptr1[i])
 
-                    data_1.pin_memory()
+                    # data_1.pin_memory()
 
                     data_2 = Data(x=x2[i, :num_nodes2],
                              edge_index=edge_index2[i, :, :num_edges2],
@@ -318,37 +327,35 @@ class H5DataLoader(torchdata.datapipes.iter.IterDataPipe):
                              ptr=ptr2[i],
                              softmax_idx=edge_ptr2[i])
 
-                    data_2.pin_memory()
+                    # data_2.pin_memory()
 
                     y_i = y[i]
 
                     yield data_1, data_2, y_i
 
-
-def build_h5_datapipe(masks) -> torchdata.datapipes.iter.IterDataPipe:
+def build_h5_datapipe(masks, cycle=False):
     datapipe = torchdata.datapipes.iter.FileLister(data_dir, masks=masks)
     datapipe = datapipe.shuffle()
     datapipe = datapipe.sharding_filter()
     # datapipe = datapipe.load_pickle_data(transform=cfg.transform)
-    datapipe = datapipe.load_h5_data()
+    datapipe = datapipe.load_h5_data(cycle=cycle)
     return datapipe
-
 
 class H5DataModule(pl.LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        self.data_dir = config['data_dir']
 
     def prepare_data(self):
-        # todo
-        if False:
+        if not os.path.isdir(self.data_dir):
+            os.mkdir(self.data_dir)
             write_mongo_to_h5()
 
     def setup(self, stage: str):
         if stage == "fit":
             self.train_pipe = build_h5_datapipe("train*")
-            self.val_pipe = build_h5_datapipe("val*")
-
+            self.val_pipe = build_h5_datapipe("val*",cycle=True)
         if stage == "test":
             self.test_pipe = build_h5_datapipe("test*")
 
@@ -362,6 +369,7 @@ class H5DataModule(pl.LightningDataModule):
             num_workers=0, collate_fn=lambda x: x)
 
     def val_dataloader(self):
+        # cycle through
         return torch.utils.data.DataLoader(
             dataset=self.val_pipe,
             batch_size=1,
@@ -370,13 +378,34 @@ class H5DataModule(pl.LightningDataModule):
             num_workers=0, collate_fn=lambda x: x)
 
     def test_dataloader(self):
-
         return torch.utils.data.DataLoader(
-            dataset=self.test_pipe,
+            dataset=self.test_pipe.cycle(),
             batch_size=1,
             # shuffle=True,
             # drop_last=True,
             num_workers=0, collate_fn=lambda x: x)
+
+    # only transfer relevant properties to device
+    def transfer_batch_to_device(self, batch, device, dataloader_idx):
+        batch = batch[0]
+        data_1, data_2, y = batch
+
+        data_1.x = data_1.x.to(device)
+        data_2.x = data_2.x.to(device)
+
+        data_1.edge_index = data_1.edge_index.to(device)
+        data_2.edge_index = data_2.edge_index.to(device)
+
+        data_1.edge_attr = data_1.edge_attr.to(device)
+        data_2.edge_attr = data_2.edge_attr.to(device)
+
+        y = y.to(device)
+        # batch.edge_index = batch.edge_index.to(device)
+        return data_1, data_2, y
+
+
+
+
 
 
 
@@ -421,25 +450,6 @@ class H5DataModule(pl.LightningDataModule):
 # print (tmp)
 
 # mongo: ~6m
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -493,3 +503,255 @@ class H5DataModule(pl.LightningDataModule):
 #     datapipe = datapipe.load_pickle_data()
 #     return datapipe
 
+# class MaskData(Data):
+#     def __init__(self,x,edge_index=None,edge_attr=None,softmax_idx=None,mask_idx=None,mask_raw=None):
+#         super().__init__()
+#         self.x = x
+#         self.edge_index = edge_index
+#         self.edge_attr = edge_attr
+#         self.sofmax_idx = softmax_idx
+#         self.mask_idx = mask_idx
+#         self.mask_raw = mask_raw
+#
+#     def __inc__(self, key, value, *args, **kwargs):
+#         if key == 'edge_index':
+#             return self.x.size(0)
+#         elif key == 'softmax_idx':
+#             return self.softmax_idx
+#         elif key == 'mask_idx':
+#             return self.x.size(0)
+#
+#         return super().__inc__(key, value, *args, **kwargs)
+#
+#
+# redundant
+# def ptr_to_complete_edge_index(ptr):
+#     from_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat_interleave(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
+#     to_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
+#     combined_complete_edge_index = torch.vstack((torch.cat(from_lists, dim=0), torch.cat(to_lists, dim=0)))
+#     return combined_complete_edge_index
+
+
+
+
+
+# def to_batch_graph(batch, graph_collection, options):
+#     batch_list = []
+#
+#
+#     stmts = list(set([sample['stmt'] for sample in batch]))
+#     conjs = list(set([sample['conj'] for sample in batch]))
+#
+#     stmts.extend(conjs)
+#
+#     exprs = list(graph_collection.find({"_id": {"$in" : stmts}}))
+#
+#     expr_dict = {expr["_id"]: expr["graph"] for expr in exprs}
+#
+#
+#     for sample in batch:
+#
+#         stmt = sample['stmt']
+#         conj = sample['conj']
+#         y = sample['y']
+#
+#         conj_graph = expr_dict[conj]
+#         stmt_graph = expr_dict[stmt]
+#
+#         x1 = conj_graph['onehot']
+#         x1_mat = torch.LongTensor(x1)
+#
+#         x2 = stmt_graph['onehot']
+#         x2_mat = torch.LongTensor(x2)
+#
+#         tmp_batch = LinkData(x_s=x2_mat, x_t=x1_mat, y=torch.tensor(y))
+#
+#
+#         if 'edge_index' in options:
+#             if 'edge_index' in conj_graph and 'edge_index' in stmt_graph:
+#                 x1_edge_index = conj_graph['edge_index']
+#                 x1_edge_index = torch.LongTensor(x1_edge_index)
+#
+#                 x2_edge_index = stmt_graph['edge_index']
+#                 x2_edge_index = torch.LongTensor(x2_edge_index)
+#
+#                 tmp_batch.edge_index_t = x1_edge_index
+#                 tmp_batch.edge_index_s = x2_edge_index
+#             else:
+#                 raise NotImplementedError
+#
+#
+#         if 'edge_attr' in options:
+#             if 'edge_attr' in conj_graph and 'edge_attr' in stmt_graph:
+#                 x1_edge_attr = conj_graph['edge_attr']
+#                 x1_edge_attr = torch.LongTensor(x1_edge_attr)
+#
+#                 x2_edge_attr = stmt_graph['edge_attr']
+#                 x2_edge_attr = torch.LongTensor(x2_edge_attr)
+#
+#                 tmp_batch.edge_attr_t = x1_edge_attr
+#                 tmp_batch.edge_attr_s = x2_edge_attr
+#             else:
+#                 raise NotImplementedError
+#
+#         # Edge index used to determine where attention is propagated in Message Passing Attention schemes
+#
+#         if 'attention_edge_index' in options:
+#             if 'attention_edge_index' in conj_graph and 'attention_edge_index' in stmt_graph:
+#                 tmp_batch.attention_edge_index_t = conj_graph['attention_edge_index']
+#                 tmp_batch.attention_edge_index_s = stmt_graph['attention_edge_index']
+#             else:
+#                 # Default is global attention
+#                 tmp_batch.attention_edge_index_t = torch.cartesian_prod(torch.arange(x1_mat.size(0)),
+#                                                                         torch.arange(x1_mat.size(0))).transpose(0,1)
+#
+#                 tmp_batch.attention_edge_index_s = torch.cartesian_prod(torch.arange(x2_mat.size(0)),
+#                                                                         torch.arange(x2_mat.size(0))).transpose(0,1)
+#
+#
+#         #todo make data options have possible values i.e. options['softmax_idx'] == AMR, use edges, else directed attention etc.
+#         if 'softmax_idx' in options:
+#             tmp_batch.softmax_idx_t = x1_edge_index.size(1)
+#             tmp_batch.softmax_idx_s = x2_edge_index.size(1)
+#
+#
+#         # todo positional encoding including with depth
+#
+#
+#         batch_list.append(tmp_batch)
+#
+#
+#     loader = iter(DataLoader(batch_list, batch_size=len(batch_list), follow_batch=['x_s', 'x_t']))
+#
+#     batch_ = next(iter(loader))
+#
+#     g,p,y = separate_link_batch(batch_, options)
+#
+#     return g,p,y
+
+
+
+# def to_batch_transformer(batch, graph_collection, options):
+#
+#     stmts = list(set([sample['stmt'] for sample in batch]))
+#     conjs = list(set([sample['conj'] for sample in batch]))
+#
+#     stmts.extend(conjs)
+#
+#     exprs = list(graph_collection.find({"_id": {"$in" : stmts}}))
+#
+#     expr_dict = {expr["_id"]: expr["graph"] for expr in exprs}
+#
+#     # just use CLS token as separate (add 4 to everything)
+#     word_dict = {0: '[PAD]', 1: '[CLS]', 2: '[SEP]', 3: '[MASK]'}
+#
+#     #start of sentence is CLS
+#     conj_X = [torch.LongTensor([-3] + expr_dict[sample['conj']]['onehot']) + 4 for sample in batch]
+#     stmt_X = [torch.LongTensor([-3] + expr_dict[sample['stmt']]['onehot']) + 4 for sample in batch]
+#
+#     Y = torch.LongTensor([sample['y'] for sample in batch])
+#
+#     # batch_list = pad_sequence(conj_X), pad_sequence(stmt_X), Y
+#
+#     # loader = iter(StandardLoader(batch_list), batch_size = len(batch))
+#
+#     # batch_ = next(iter(loader))
+#
+#
+#     return pad_sequence(conj_X), pad_sequence(stmt_X), Y
+#
+#
+#
+#
+#
+#
+# def test_iter(batches, batch_fn, graph_collection, options):
+#     for batch in batches:
+#         yield batch_fn(batch, graph_collection, options)
+#
+#
+# def val_iter(batches, batch_fn, graph_collection, options):
+#     for batch in itertools.cycle(batches):
+#         yield batch_fn(batch, graph_collection, options)
+#
+
+
+# def to_masked_batch_graph(graphs, options):
+#     batch_list = []
+#
+#     for graph in graphs:
+#         graph = graph['graph']
+#         x =  graph['onehot']
+#
+#         # todo mask edges as well
+#         # mask some tokens
+#
+#         masking_rate = 0.15
+#
+#         x = torch.LongTensor(x)
+#
+#         #add 1 for mask
+#         x = x + 1
+#
+#
+#         mask = torch.rand(x.size(0)).ge(masking_rate)
+#
+#         y = torch.index_select(x, (x * mask == 0).nonzero().flatten())
+#
+#         x = x * mask
+#         mask_inds = (x == 0).nonzero().flatten()
+#
+#         #need to set y as the values
+#
+#         tmp_batch = MaskData(x = x)
+#
+#         tmp_batch.y = y
+#
+#         if 'edge_index' in options:
+#             if 'edge_index' in graph:
+#                 tmp_batch.edge_index = torch.LongTensor(graph['edge_index'])
+#             else:
+#                 raise NotImplementedError
+#
+#         if 'edge_attr' in options:
+#             if 'edge_attr' in graph:
+#                 tmp_batch.edge_attr = torch.LongTensor(graph['edge_attr'])
+#             else:
+#                 raise NotImplementedError
+#
+#         if 'attention_edge_index' in options:
+#             if 'attention_edge_index' in graph:
+#                 tmp_batch.attention_edge_index = graph['attention_edge_index']
+#             else:
+#                 # Default is global attention
+#                 tmp_batch.attention_edge_index = torch.cartesian_prod(torch.arange(x.size(0)),
+#                                                                       torch.arange(x.size(0))).transpose(0,1)
+#
+#
+#         #todo make data options have possible values i.e. options['softmax_idx'] == AMR, use edges, else directed attention etc.
+#         if 'softmax_idx' in options:
+#             tmp_batch.softmax_idx = len(graph['edge_index'][0])
+#
+#         tmp_batch.mask_idx = mask_inds
+#         tmp_batch.mask_raw = mask_inds
+#         # todo positional encoding including with depth
+#
+#         batch_list.append(tmp_batch)
+#
+#
+#     loader = iter(DataLoader(batch_list, batch_size=len(batch_list)))
+#
+#     batch_ = next(iter(loader))
+#     print (batch_.softmax_idx.size(0))
+#
+#     return batch_
+
+# def get_data(config):
+#     if config['data_source'] == "MongoDB":
+#         client = MongoClient()
+#         db = client[config['dbname']]
+#         graph_collection = db[config['graph_collection_name']]
+#         split_collection = db[config['split_name']]
+#         return graph_collection, split_collection
+#     else:
+#         return NotImplementedError

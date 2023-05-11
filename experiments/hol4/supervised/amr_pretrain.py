@@ -161,36 +161,19 @@ formula_net_config = {
 }
 
 
-# def main():
-#     wandb.init(
-#         project="hol4_premise_selection",
-#
-#         name="Directed Attention Sweep Separate Encoder",
-
-#         # track model and experiment configurations
-#         config={
-#             "exp_config": exp_config,
-#             "model_config": amr_config,
-#             "data_config": data_config
-#         }
-#     )
-#
-#     wandb.define_metric("acc", summary="max")
-#
-#     run_dual_encoders(wandb.config)
-#
-#     return
-#
-
 relation_att_exp = SeparateEncoderPremiseSelection(config = {"model_config": relation_config,
                                                                    "exp_config": exp_config,
-                                                                   "data_config": data_graph_amr})
+                                                                   "data_config": data_graph_amr,
+                                                                   "project":"test_project",
+                                                                   "name":"test"})
 
 transformer_experiment = SeparateEncoderPremiseSelection(config = {"model_config": transformer_config,
                                                                    "exp_config": exp_config,
                                                                    "data_config": data_transformer_config})
 
-cProfile.run('relation_att_exp.run_dual_encoders()', sort='cumtime')
+# cProfile.run('relation_att_exp.run_lightning()', sort='cumtime')
+
+relation_att_exp.run_lightning()
 
 
 
@@ -241,3 +224,24 @@ cProfile.run('relation_att_exp.run_dual_encoders()', sort='cumtime')
 # #
 # wandb.agent(sweep_id,function=main)
 #
+# def main():
+#     wandb.init(
+#         project="hol4_premise_selection",
+#
+#         name="Directed Attention Sweep Separate Encoder",
+
+#         # track model and experiment configurations
+#         config={
+#             "exp_config": exp_config,
+#             "model_config": amr_config,
+#             "data_config": data_config
+#         }
+#     )
+#
+#     wandb.define_metric("acc", summary="max")
+#
+#     run_dual_encoders(wandb.config)
+#
+#     return
+#
+
