@@ -363,9 +363,9 @@ class H5DataModule(pl.LightningDataModule):
          return torch.utils.data.DataLoader(
             dataset=self.train_pipe,
             batch_size=1,
-            # shuffle=True,
+            shuffle=False,
             # drop_last=True,
-            pin_memory=True,
+            # pin_memory=True,
             num_workers=0, collate_fn=lambda x: x)
 
     def val_dataloader(self):
@@ -373,7 +373,7 @@ class H5DataModule(pl.LightningDataModule):
         return torch.utils.data.DataLoader(
             dataset=self.val_pipe,
             batch_size=1,
-            # shuffle=True,
+            shuffle=False,
             # drop_last=True,
             num_workers=0, collate_fn=lambda x: x)
 

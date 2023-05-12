@@ -1,6 +1,7 @@
 import wandb
 import cProfile
 from data.utils.pretrain import SeparateEncoderPremiseSelection
+from lightning import LightningApp
 
 # HOL4 vocab
 VOCAB_SIZE = 1000
@@ -138,13 +139,13 @@ exp_config = {
     "weight_decay": 1e-6,
     "batch_size": 32,
     "model_save": False,
-    "val_size": 2048,
+    "val_size": 4096,
     "logging": False,
-    "model_dir": "/home/sean/Documents/phd/aitp/experiments/hol4/supervised/model_checkpoints",
+    "checkpoint_dir": "/home/sean/Documents/phd/aitp/repo/experiments/hol4/supervised/model_checkpoints",
     "device": "cuda:0",
     # "device": "cpu",
     "max_errors": 1000,
-    "val_frequency": 1000
+    "val_frequency": 2048
 }
 
 formula_net_config = {
@@ -154,8 +155,8 @@ formula_net_config = {
     "gnn_layers": 4,
 }
 
-h5_data_config = {"data_dir": "/home/sean/Documents/phd/repo/aitp/data/utils/processed_data"}
 
+h5_data_config = {"data_dir": "/home/sean/Documents/phd/repo/aitp/data/utils/processed_data"}
 relation_att_exp = SeparateEncoderPremiseSelection(config={"model_config": relation_config,
                                                            "exp_config": exp_config,
                                                            "data_config": h5_data_config,
@@ -169,6 +170,8 @@ transformer_experiment = SeparateEncoderPremiseSelection(config={"model_config":
 # cProfile.run('relation_att_exp.run_lightning()', sort='cumtime')
 
 relation_att_exp.run_lightning()
+
+
 
 # cProfile.run('transformer_experiment.run_dual_encoders()', sort ='cumtime')
 # cProfile.run('transformer_experiment.run_lightning()', sort='cumtime')
