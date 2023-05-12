@@ -24,17 +24,23 @@ def binary_loss(preds, targets):
     return -1. * torch.sum(targets * torch.log(preds) + (1 - targets) * torch.log((1. - preds)))
 
 
-# todo Better way for softmax_idx, combined graph setup, positonal encoding, model saving/versioning, parametrised classifier, DAGLSTM?
-
+# todo init takes in config file with model and exp details
 class PremiseSelection(pl.LightningModule):
-    def __init__(self, embedding_model_goal, embedding_model_premise, classifier, lr=1e-4):
+    def __init__(self,
+                 embedding_model_goal,
+                 embedding_model_premise,
+                 classifier,
+                 batch_size=32,
+                 lr=1e-4):
+
         super().__init__()
+
         self.embedding_model_goal = embedding_model_goal
         self.embedding_model_premise = embedding_model_premise
         self.classifier = classifier
         self.eps = 1e-6
         self.lr = lr
-        self.batch_size = 32
+        self.batch_size = batch_size
 
     def forward(self, goal, premise):
         embedding_goal = self.embedding_model_goal(goal)
@@ -44,24 +50,15 @@ class PremiseSelection(pl.LightningModule):
         return torch.flatten(preds)
 
     def training_step(self, batch, batch_idx):
-        # goal, premise, y = batch[0] #batch[0][0], batch[0][1], batch[0][2]
-        goal, premise, y = batch #batch[0][0], batch[0][1], batch[0][2]
-        # goal, premise, y = batch
+        goal, premise, y = batch
         preds = self(goal, premise)
-        # print (preds.shape, y.shape)
-        # exit()
         loss = binary_loss(preds, y)
         # loss = torch.nn.functional.cross_entropy(preds, y)
         self.log("loss", loss, batch_size = self.batch_size)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # if self.global_step == 0:
-            # self.logger.define_metric('val_accuracy', summary='max')
-
-        # goal, premise, y = batch
-        # goal, premise, y = batch[0]#batch[0][0] batch[0][1], batch[0][2]
-        goal, premise, y = batch #batch[0][0], batch[0][1], batch[0][2]
+        goal, premise, y = batch
         preds =  self(goal, premise)
         preds = (preds > 0.5)
         acc = torch.sum(preds == y) / y.size(0)
@@ -79,19 +76,8 @@ class PremiseSelectionExperiment:
         self.data_config = config['data_config']
         self.exp_config = config['exp_config']
 
-        self.data_options = self.data_config['data_options']
-        self.source_config = self.data_config['source_config']
-        self.embedding_dim = self.model_config['embedding_dim']
-        self.lr = self.exp_config['learning_rate']
-        self.weight_decay = self.exp_config['weight_decay']
-        self.epochs = self.exp_config['epochs']
-        self.batch_size = self.exp_config['batch_size']
-        self.save = self.exp_config['model_save']
-        self.val_size = self.exp_config['val_size']
-        self.logging = self.exp_config['logging']
-        self.device = self.exp_config['device']
-        self.max_errors = self.exp_config['max_errors']
-        self.val_frequency = self.exp_config['val_frequency']
+# todo combine into one experiment class, which generates experiment and data from config i.e. get_exp, get_data
+# todo analogous to get_model
 
 '''
 Premise selection experiment with separate encoders for goal and premise
@@ -103,32 +89,37 @@ class SeparateEncoderPremiseSelection(PremiseSelectionExperiment):
 
     def run_lightning(self):
         torch.set_float32_matmul_precision('high')
-        ps = PremiseSelection(get_model(self.model_config), get_model(self.model_config), gnn_edge_labels.F_c_module_(self.embedding_dim * 2))
 
-        data_module = H5DataModule(config = {'data_dir': '/home/sean/Documents/phd/repo/aitp/data/utils/processed_data'})
+        ps = PremiseSelection(get_model(self.model_config),
+                              get_model(self.model_config),
+                              gnn_edge_labels.F_c_module_(self.model_config['embedding_dim'] * 2),
+                              lr=self.exp_config['learning_rate'],
+                              batch_size=self.exp_config['batch_size'])
+
+        data_module = H5DataModule(config = self.data_config)
 
         # config = {'buf_size': 128, 'batch_size': 32, 'db_name': 'hol_step',
         #           'collection_name': 'pretrain_graphs', 'options': ['edge_attr', 'edge_index', 'softmax_idx']}
+
         # data_module = MongoDataModule(config)
 
-        # todo logging/wandb integration, model checkpoints
+        logger = WandbLogger(project = self.config['project'],
+                             name = self.config['name'], config=self.config)
 
-        logger = WandbLogger(project=self.config['project'],
-                             name=self.config['name'],
-                             )
 
-        trainer = pl.Trainer(val_check_interval=1000,
-                             limit_val_batches=self.val_size // self.batch_size,
+        trainer = pl.Trainer(val_check_interval=self.exp_config['val_frequency'],
+                             limit_val_batches=self.exp_config['val_size'] // self.exp_config['batch_size'],
                              # max_steps=1000,
                              logger=logger,
                              enable_progress_bar=True,
                              log_every_n_steps=500,
-                             accelerator='gpu',
-                             devices=2,
+                             # accelerator='gpu',
+                             # devices=2,
                              strategy='ddp',
                              # profiler='pytorch',
-                             enable_checkpointing=False)
+                             enable_checkpointing=True)
 
+        # trainer.logger.watch(ps, log_freq=500)
 
         trainer.fit(model=ps, datamodule=data_module)
 
@@ -402,3 +393,43 @@ class SeparateEncoderPremiseSelection(PremiseSelectionExperiment):
 #
 #     return torch.sum(preds == y.to(device)) / y.size(0)
 #
+
+
+
+
+
+#################################################################################
+# optuna example # 
+#################################################################################
+
+
+
+# def objective(trial: optuna.trial.Trial) -> float:
+#     # We optimize the number of layers, hidden units in each layer and dropouts.
+#     n_layers = trial.suggest_int("n_layers", 1, 3)
+#     dropout = trial.suggest_float("dropout", 0.2, 0.5)
+#     output_dims = [
+#         trial.suggest_int("n_units_l{}".format(i), 4, 128, log=True) for i in range(n_layers)
+#     ]
+#
+#     model = LightningNet(dropout, output_dims)
+#     datamodule = FashionMNISTDataModule(data_dir=DIR, batch_size=BATCHSIZE)
+#     callback = PyTorchLightningPruningCallback(trial, monitor="val_acc")
+#
+#     trainer = pl.Trainer(
+#         logger=True,
+#         limit_val_batches=PERCENT_VALID_EXAMPLES,
+#         enable_checkpointing=False,
+#         max_epochs=EPOCHS,
+#         accelerator="auto" if torch.cuda.is_available() else "cpu",
+#         devices=2,
+#         callbacks=[callback],
+#         strategy="ddp_spawn",
+#     )
+#     hyperparameters = dict(n_layers=n_layers, dropout=dropout, output_dims=output_dims)
+#     trainer.logger.log_hyperparams(hyperparameters)
+#     trainer.fit(model, datamodule=datamodule)
+#
+#     callback.check_pruned()
+#
+#     return trainer.callback_metrics["val_acc"].item()

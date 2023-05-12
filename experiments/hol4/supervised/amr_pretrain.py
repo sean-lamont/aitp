@@ -1,6 +1,6 @@
 import wandb
 import cProfile
-from data.utils.pretrain import  SeparateEncoderPremiseSelection
+from data.utils.pretrain import SeparateEncoderPremiseSelection
 
 # HOL4 vocab
 VOCAB_SIZE = 1000
@@ -8,28 +8,26 @@ VOCAB_SIZE = 1000
 # HOLStep vocab
 VOCAB_SIZE = 1909 + 4
 
-
-
 # AMR data HOL4
 data_config = {
-    "source_config":{
-    "data_source": "MongoDB",
-    "dbname": "hol4_tactic_zero",
-    "graph_collection_name": "expression_graph_data",
-    "split_name": "pretrain_data"
+    "source_config": {
+        "data_source": "MongoDB",
+        "dbname": "hol4_tactic_zero",
+        "graph_collection_name": "expression_graph_data",
+        "split_name": "pretrain_data"
     },
-    'data_options' : ['softmax_idx', 'edge_attr', 'edge_index']
+    'data_options': ['softmax_idx', 'edge_attr', 'edge_index']
 }
 
 # AMR data HOLStep
 data_config = {
-    "source_config":{
+    "source_config": {
         "data_source": "MongoDB",
         "dbname": "hol_step",
         "graph_collection_name": "expression_graphs",
         "split_name": "train_val_test_data"
     },
-    'data_options' : ['softmax_idx', 'edge_attr', 'edge_index']
+    'data_options': ['softmax_idx', 'edge_attr', 'edge_index']
 }
 
 # SAT data HOL4
@@ -47,43 +45,39 @@ data_config = {
 data_graph_amr = {
     "data_type": "graph",
 
-    "source_config":{
+    "source_config": {
         "data_source": "MongoDB",
         "dbname": "hol_step",
         "graph_collection_name": "expression_graphs",
         "split_name": "train_val_test_data"
     },
-    'data_options' : ['edge_attr', 'edge_index', 'softmax_idx']
+    'data_options': ['edge_attr', 'edge_index', 'softmax_idx']
 }
-
 
 # Transformer data HOLStep
 data_transformer_config = {
     "data_type": "standard_sequence",
 
-    "source_config":{
+    "source_config": {
         "data_source": "MongoDB",
         "dbname": "hol_step",
         "graph_collection_name": "expression_graphs",
         "split_name": "train_val_test_data"
     },
-    'data_options' : []
+    'data_options': []
 }
-
-
 
 mask_config = {
     "data_type": "mask",
 
-    "source_config":{
+    "source_config": {
         "data_source": "MongoDB",
         "dbname": "hol_step",
         "graph_collection_name": "expression_graphs",
         "split_name": "train_val_test_data"
     },
-    'data_options' : ['edge_attr', 'edge_index', 'softmax_idx']
+    'data_options': ['edge_attr', 'edge_index', 'softmax_idx']
 }
-
 
 sat_config = {
     "model_type": "sat",
@@ -113,7 +107,7 @@ transformer_config = {
 }
 
 relation_config = {
-   "model_type": "transformer_relation",
+    "model_type": "transformer_relation",
     "vocab_size": VOCAB_SIZE,
     # "vocab_size": VOCAB_SIZE + 1,
     "embedding_dim": 128,
@@ -132,7 +126,7 @@ amr_config = {
     "num_layers": 4,
     "in_embed": True,
     "abs_pe": False,
-    "abs_pe_dim":2,
+    "abs_pe_dim": 2,
     "use_edge_attr": True,
     "device": "cuda:0",
     "dropout": 0.2,
@@ -160,28 +154,21 @@ formula_net_config = {
     "gnn_layers": 4,
 }
 
+h5_data_config = {"data_dir": "/home/sean/Documents/phd/repo/aitp/data/utils/processed_data"}
 
-relation_att_exp = SeparateEncoderPremiseSelection(config = {"model_config": relation_config,
-                                                                   "exp_config": exp_config,
-                                                                   "data_config": data_graph_amr,
-                                                                   "project":"test_project",
-                                                                   "name":"test"})
+relation_att_exp = SeparateEncoderPremiseSelection(config={"model_config": relation_config,
+                                                           "exp_config": exp_config,
+                                                           "data_config": h5_data_config,
+                                                           "project": "test_project",
+                                                           "name": "test"})
 
-transformer_experiment = SeparateEncoderPremiseSelection(config = {"model_config": transformer_config,
-                                                                   "exp_config": exp_config,
-                                                                   "data_config": data_transformer_config})
+transformer_experiment = SeparateEncoderPremiseSelection(config={"model_config": transformer_config,
+                                                                 "exp_config": exp_config,
+                                                                 "data_config": h5_data_config})
 
 # cProfile.run('relation_att_exp.run_lightning()', sort='cumtime')
 
 relation_att_exp.run_lightning()
-
-
-
-
-
-
-
-
 
 # cProfile.run('transformer_experiment.run_dual_encoders()', sort ='cumtime')
 # cProfile.run('transformer_experiment.run_lightning()', sort='cumtime')
@@ -244,4 +231,3 @@ relation_att_exp.run_lightning()
 #
 #     return
 #
-
