@@ -1,9 +1,6 @@
 import json
-
 import traceback
-
 import torch
-
 from data.hol4.ast_def import graph_to_torch_labelled
 from torch.distributions import Categorical
 import torch.nn.functional as F
@@ -16,11 +13,7 @@ from models import utp_model, inner_embedding_network
 import time
 from environments.hol4.new_env import *
 import numpy as np
-
 #import batch_gnn
-
-
-
 
 MORE_TACTICS = True
 if not MORE_TACTICS:
@@ -35,48 +28,6 @@ else:
     no_arg_tactic = ["strip_tac", "EQ_TAC"]
     
 tactic_pool = thms_tactic + thm_tactic + term_tactic + no_arg_tactic
-
-#TODO Move to another file 
-#
-
-# def get_polish(raw_goal):
-#         goal = construct_goal(raw_goal)
-#         process.sendline(goal.encode("utf-8"))
-#         process.expect("\r\n>")
-#         process.sendline("val _ = set_term_printer (HOLPP.add_string o pt);".encode("utf-8"))
-#         process.expect("\r\n>")
-#         process.sendline("top_goals();".encode("utf-8"))
-#         process.expect("val it =")
-#         process.expect([": goal list", ":\r\n +goal list"])
-#
-#         polished_raw = process.before.decode("utf-8")
-#         polished_subgoals = re.sub("“|”","\"", polished_raw)
-#         polished_subgoals = re.sub("\r\n +"," ", polished_subgoals)
-#
-#         pd = eval(polished_subgoals)
-#
-#         process.expect("\r\n>")
-#         process.sendline("drop();".encode("utf-8"))
-#         process.expect("\r\n>")
-#         process.sendline("val _ = set_term_printer default_pt;".encode("utf-8"))
-#         process.expect("\r\n>")
-#
-#         data = [{"polished":{"assumptions": e[0][0], "goal":e[0][1]},
-#                  "plain":{"assumptions": e[1][0], "goal":e[1][1]}}
-#                 for e in zip(pd, [([], raw_goal)])]
-#         return data
-#
-# def construct_goal(goal):
-#     s = "g " + "`" + goal + "`;"
-#     return s
-#
-#
-# def parse_theory(pg):
-#     theories = re.findall(r'C\$(\w+)\$ ', pg)
-#     theories = set(theories)
-#     for th in EXCLUDED_THEORIES:
-#         theories.discard(th)
-#     return list(theories)
 
 def revert_with_polish(context):
     target = context["polished"]
