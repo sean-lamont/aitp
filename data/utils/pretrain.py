@@ -1,4 +1,6 @@
 from data.utils.dataset import H5DataModule
+import wandb
+import os
 import warnings
 warnings.filterwarnings('ignore')
 import lightning.pytorch as pl
@@ -77,6 +79,7 @@ class SeparateEncoderPremiseSelection(PremiseSelectionExperiment):
         ps = PremiseSelection(get_model(self.model_config),
                               get_model(self.model_config),
                               gnn_edge_labels.F_c_module_(self.model_config['embedding_dim'] * 2),
+                              # gnn_edge_labels.F_c_module_(self.model_config['embedding_dim'] * 4),
                               lr=self.exp_config['learning_rate'],
                               batch_size=self.exp_config['batch_size'])
 
@@ -85,7 +88,7 @@ class SeparateEncoderPremiseSelection(PremiseSelectionExperiment):
         logger = WandbLogger(project=self.config['project'],
                              name=self.config['name'],
                              config=self.config,
-                             offline=False)
+                             offline=True)
 
         trainer = pl.Trainer(
                             max_epochs=self.exp_config['epochs'],
@@ -95,7 +98,8 @@ class SeparateEncoderPremiseSelection(PremiseSelectionExperiment):
                              enable_progress_bar=True,
                              log_every_n_steps=500,
                              # accelerator='gpu',
-                             # devices=2,
+                             # devices=1,
+                             strategy='ddp_find_unused_parameters_true',
                             # todo figure out why, e.g. https://github.com/Lightning-AI/lightning/issues/11242
                              # hack to fix ddp hanging error..
                              limit_train_batches=28000,
@@ -104,3 +108,134 @@ class SeparateEncoderPremiseSelection(PremiseSelectionExperiment):
 
         # trainer.logger.watch(ps, log_freq=500)
         trainer.fit(model=ps, datamodule=data_module)
+#
+    # def objective(self, trial):
+    #     torch.set_float32_matmul_precision('high')
+    #
+    #     self.exp_config['learning_rate'] = trial.suggest_loguniform('learning_rate', 1e-5, 1e-2)
+    #
+    #     checkpoint_callback = pl.callbacks.ModelCheckpoint(
+    #         os.path.join(self.exp_config['checkpoint_dir'], "trial_{}".format(trial.number)), monitor="acc"
+    #     )
+    #
+    #
+    #     ps = PremiseSelection(get_model(self.model_config),
+    #                           get_model(self.model_config),
+    #                           gnn_edge_labels.F_c_module_(self.model_config['embedding_dim'] * 2),
+    #                           lr=self.exp_config['learning_rate'],
+    #                           batch_size=self.exp_config['batch_size'])
+    #
+    #     data_module = H5DataModule(config=self.data_config)
+    #
+    #     logger = WandbLogger(project=self.config['project'],
+    #                          name=self.config['name'], config=self.exp_config)
+    #
+    #     trainer = pl.Trainer(
+    #         max_epochs=self.exp_config['epochs'],
+    #         val_check_interval=self.exp_config['val_frequency'],
+    #         limit_val_batches=self.exp_config['val_size'] // self.exp_config['batch_size'],
+    #         logger=logger,
+    #         callbacks=[checkpoint_callback],
+    #         max_steps=100,
+    #         enable_progress_bar=True,
+    #         log_every_n_steps=500,
+    #         accelerator='gpu',
+    #         devices=1,
+    #         # todo figure out why, e.g. https://github.com/Lightning-AI/lightning/issues/11242
+    #         # hack to fix ddp hanging error..
+    #         # limit_train_batches=28000,
+    #         # profiler='pytorch',
+    #         enable_checkpointing=True)
+    #
+    #     trainer.fit(model=ps, datamodule=data_module)
+    #
+    #     logger.experiment.finish()
+    #
+    #     # early_stopping_callback.check_pruned()
+    #
+    #     return trainer.callback_metrics["acc"].item()
+    #
+
+
+#
+#
+# model_config = {
+#     "model_type": "transformer_relation",
+#     "vocab_size": 1909,
+#     # "vocab_size": VOCAB_SIZE + 1,
+#     "embedding_dim": 128,
+#     "dim_feedforward": 512,
+#     "num_heads": 8,
+#     "num_layers": 4,
+#     "dropout": 0.2
+# }
+#
+# exp_config = {
+#     "learning_rate": 1e-4,
+#     "epochs": 20,
+#     "weight_decay": 1e-6,
+#     "batch_size": 32,
+#     "model_save": False,
+#     "val_size": 4096,
+#     "logging": False,
+#     "checkpoint_dir": "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints",
+#     "device": "cuda:0",
+#     # "device": "cpu",
+#     "max_errors": 1000,
+#     "val_frequency": 100
+# }
+#
+# data_config = {"data_dir": "/home/sean/Documents/phd/repo/aitp/data/utils/processed_data"}
+# #
+#
+# def run_exp(config, trial_num):
+#     model_config = config['model_config']
+#     exp_config = config['exp_config']
+#     data_config = config['data_config']
+#
+#     checkpoint_callback = pl.callbacks.ModelCheckpoint(
+#         os.path.join(exp_config['checkpoint_dir'], "trial_{}".format(trial_num)), monitor="acc"
+#     )
+#
+#     ps = PremiseSelection(get_model(model_config),
+#                           get_model(model_config),
+#                           gnn_edge_labels.F_c_module_(model_config['embedding_dim'] * 2),
+#                           lr=exp_config['learning_rate'],
+#                           batch_size=exp_config['batch_size'])
+#
+#     data_module = H5DataModule(config=data_config)
+#
+#     logger = WandbLogger(project='test_project',
+#                          name='test', config=exp_config)
+#
+#     trainer = pl.Trainer(
+#         max_epochs=exp_config['epochs'],
+#         val_check_interval=exp_config['val_frequency'],
+#         limit_val_batches=exp_config['val_size'] // exp_config['batch_size'],
+#         logger=logger,
+#         callbacks=[checkpoint_callback],
+#         # max_steps=100,
+#         enable_progress_bar=True,
+#         log_every_n_steps=500,
+#         accelerator='gpu',
+#         devices=1,
+#         # todo figure out why, e.g. https://github.com/Lightning-AI/lightning/issues/11242
+#         # hack to fix ddp hanging error..
+#         # limit_train_batches=28000,
+#         # profiler='pytorch',
+#         enable_checkpointing=True)
+#
+#     trainer.fit(model=ps, datamodule=data_module)
+#     logger.experiment.finish()
+#
+#     # early_stopping_callback.check_pruned()
+#
+#     return trainer.callback_metrics["acc"].item()
+#
+# def objective(trial):
+#     torch.set_float32_matmul_precision('high')
+#
+#     exp_config['learning_rate'] = trial.suggest_loguniform('learning_rate', 1e-5, 1e-2)
+#     exp_config['learning_rate'] = trial.suggest_loguniform('learning_rate', 1e-5, 1e-2)
+#
+#     return run_exp(config= {"model_config": model_config, "exp_config": exp_config, "data_config":data_config}, trial_num=trial.number)

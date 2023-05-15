@@ -21,7 +21,7 @@ class GraphTransformerEncoder(nn.TransformerEncoder):
     def forward(self, x, edge_index, complete_edge_index,
             subgraph_node_index=None, subgraph_edge_index=None,
             subgraph_edge_attr=None, subgraph_indicator_index=None, edge_attr=None, degree=None,
-            ptr=None, return_attn=False):
+            ptr=None, return_attn=False, device="cpu"):
 
         output = x
 
@@ -56,6 +56,8 @@ class GraphTransformer(nn.Module):
         if abs_pe and abs_pe_dim > 0:
             self.embedding_abs_pe = nn.Embedding(abs_pe_dim, d_model)
             self.embedding_abs_pe = nn.Linear(abs_pe_dim, d_model)
+
+
         if in_embed:
             if isinstance(in_size, int):
                 self.embedding = nn.Embedding(in_size, d_model)
@@ -130,6 +132,9 @@ class GraphTransformer(nn.Module):
             subgraph_edge_attr = None
 
         complete_edge_index = data.attention_edge_index if hasattr(data, 'attention_edge_index') else None
+
+        self.register_buffer("complete_edge_index", complete_edge_index)
+        complete_edge_index = self.complete_edge_index
 
         abs_pe = data.abs_pe if hasattr(data, 'abs_pe') else None
         degree = data.degree if hasattr(data, 'degree') else None

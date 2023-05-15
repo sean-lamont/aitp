@@ -1,46 +1,43 @@
 # -*- coding: utf-8 -*-
 import math
-import copy
-
 import einops
 import torch
-import numpy as np
 from torch import nn
 from torch_scatter import scatter_add, scatter_mean, scatter_max
 import torch_geometric.nn as gnn
 import torch_geometric.utils as utils
 from einops import rearrange
-
 from models.transformer_encoder_model import TransformerEmbedding
 from models import inner_embedding_network
 from .utils import pad_batch, unpad_batch
 from .gnn_layers import get_simple_gnn_layer, EDGE_GNN_TYPES
 from models.digae_layers import DirectedGCNConvEncoder
 import torch.nn.functional as F
+from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
 
-def ptr_to_complete_edge_index(ptr):
-    # print (ptr)
-    from_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat_interleave(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
-    to_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
-    combined_complete_edge_index = torch.vstack((torch.cat(from_lists, dim=0), torch.cat(to_lists, dim=0)))
-    return combined_complete_edge_index
-
-
-class DigaeSE(torch.nn.Module):
-    def __init__(self,  embedding_dim, hidden_dim, out_dim, encoder=None, decoder=None):
-        super(DigaeSE, self).__init__()
+class DigaeEmbedding(torch.nn.Module):
+    def __init__(self, in_size, embedding_dim, hidden_dim, out_dim, encoder=None, decoder=None):
+        super(DigaeEmbedding, self).__init__()
         self.encoder = DirectedGCNConvEncoder(embedding_dim, hidden_dim, out_dim, alpha=0.2, beta=0.8,
                                             self_loops=True,
                                             adaptive=False) if encoder is None else encoder
 
-    def forward(self, x, edge_index, edge_attr):
+        self.embed = torch.nn.Embedding(in_size, embedding_dim)
+
+    def forward(self, data):
+        x = data.x
+        edge_index = data.edge_index
+        batch = data.batch
+
+        x = self.embed(x)
         u = x.clone()
         v = x.clone()
-
         s,t = self.encoder(u,v,edge_index)
 
-        return torch.cat([s, t], dim = 1)
+        nodes = torch.cat([s, t], dim = 1)
 
+        return gmp(nodes,batch)
+        # return torch.cat([s, t], dim = 1)
 
 class Attention(gnn.MessagePassing):
     """Multi-head Structure-Aware attention using PyG interface
@@ -142,9 +139,8 @@ class Attention(gnn.MessagePassing):
 
         assert ptr is not None
 
-        if complete_edge_index is None:
+        # if complete_edge_index is None:
             # print (f"ptr: {ptr}")
-            complete_edge_index = ptr_to_complete_edge_index(ptr.cpu()).cuda()
 
         # compute r matrix
 
@@ -259,6 +255,32 @@ class Attention(gnn.MessagePassing):
             return out, dots
         return out, None
 
+    def self_attn_2(self, qk, v, ptr, return_attn=False):
+        """ Self attention which can return the attn """
+
+        # print ([q.shape for q in qk], v.shape)
+
+        qk, mask = pad_batch(qk, ptr, return_mask=True)
+        k, q = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=self.num_heads), qk)
+        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+
+        dots = dots.masked_fill(
+            mask.unsqueeze(1).unsqueeze(2),
+            float('-inf'),
+        )
+
+        dots = self.attend(dots)
+        dots = self.attn_dropout(dots)
+
+        v = pad_batch(v, ptr)
+        v = rearrange(v, 'b n (h d) -> b h n d', h=self.num_heads)
+        out = torch.matmul(dots, v)
+        out = rearrange(out, 'b h n d -> b n (h d)')
+        out = unpad_batch(out, ptr)
+
+        if return_attn:
+            return out, dots
+        return out, None
 
 class StructureExtractor(nn.Module):
     r""" K-subtree structure extractor. Computes the structure-aware node embeddings using the
@@ -1145,13 +1167,16 @@ class MPTransformer(nn.Module):
         return output
 
 
-
-
-
-
 class AttentionRelations(nn.Module):
-    #todo why does dropout increase memory??
-    def __init__(self, ntoken, embed_dim, edge_dim = 200, num_heads=8, dropout=0., num_layers = 4, bias=False,global_pool=True,**kwargs):
+    def __init__(self, ntoken,
+                 embed_dim,
+                 edge_dim = 200,
+                 num_heads=8,
+                 dropout=0.,
+                 num_layers = 4,
+                 bias=False,
+                 global_pool=True,
+                 **kwargs):
 
         super().__init__()
 
@@ -1191,25 +1216,12 @@ class AttentionRelations(nn.Module):
 
     def forward(self,
                 batch,
-                edge_attr=None,
-                ptr=None,
                 return_attn=False):
 
         x = batch.x
         edge_index = batch.edge_index
         edge_attr = batch.edge_attr
         softmax_idx = batch.softmax_idx
-
-
-        # print (len(batch))
-
-        # x = batch[0]
-        # edge_index = batch[1]
-        # edge_attr = batch[2]
-        # softmax_idx = batch[5]
-
-        # print (x, edge_index, edge_attr, batch, ptr, softmax_idx)
-
 
         x = self.embedding(x)
 
@@ -1225,25 +1237,13 @@ class AttentionRelations(nn.Module):
 
         R = self.r_proj(R)
 
-        # print (R.shape)
-
         cls_tokens = einops.repeat(self.cls_token, '() d -> 1 b d', b=len(softmax_idx)- 1)
-
-        # cls_tokens = einops.repeat(self.cls_token, '() d -> 1 b d', b=len(softmax_idx))
 
         #split R according to softmax_idx (i.e. how many edges per sequence in batch)
         R = torch.tensor_split(R, softmax_idx[1:-1])
 
-        # R = torch.tensor_split(R, softmax_idx[:-1])
-
-        # print ("cls")
-        # print (cls_tokens.shape)
-        #
         R = torch.nn.utils.rnn.pad_sequence(R)
-        # print ("R")
-        # print (R.shape)
 
-        #todo check correct dim
         R = torch.cat([R, cls_tokens], dim = 0)
 
         enc = self.transformer_embedding(R)

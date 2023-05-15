@@ -14,11 +14,11 @@ import numpy as np
 # F_o summed over children
 class Child_Aggregation(MessagePassing):
 
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, dropout=0.2):
         super().__init__(aggr='sum', flow='target_to_source')
 
-        self.mlp = Seq(Linear(2 * in_channels, out_channels),
-                       ReLU(),
+        self.mlp = Seq(Dropout(dropout), Linear(2 * in_channels, out_channels),
+                       ReLU(), Dropout(dropout),
                        Linear(out_channels, out_channels))
 
         # self.mlp = Seq(Linear(2 * in_channels, out_channels),
@@ -42,11 +42,11 @@ class Child_Aggregation(MessagePassing):
 
 # F_i summed over parents
 class Parent_Aggregation(MessagePassing):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, dropout=0.2):
         super().__init__(aggr='sum', flow='source_to_target')
 
-        self.mlp = Seq(Dropout(), Linear(2 * in_channels, out_channels),
-                       ReLU(), Dropout(),
+        self.mlp = Seq(Dropout(dropout), Linear(2 * in_channels, out_channels),
+                       ReLU(), Dropout(dropout),
                        Linear(out_channels, out_channels))
 
         # self.mlp = Seq(Linear(2 * in_channels, out_channels),
