@@ -171,7 +171,7 @@ relation_att_exp = SeparateEncoderPremiseSelection(config={"model_config": relat
                                                            "data_config": h5_data_config,
                                                            "project": "test_project",
                                                            "name": "relation attention large"})
-#
+# todo with original sequence for positional encoding
 transformer_experiment = SeparateEncoderPremiseSelection(config={"model_config": transformer_config,
                                                                  "exp_config": exp_config,
                                                                  "data_config": h5_data_config,

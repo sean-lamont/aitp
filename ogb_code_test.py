@@ -17,11 +17,8 @@ valid_loader = DataLoader(dataset[split_idx["valid"]], batch_size=32, shuffle=Fa
 test_loader = DataLoader(dataset[split_idx["test"]], batch_size=32, shuffle=False)
 
 batch = next(iter(train_loader))
-print (batch)
-print (batch.x)
-print (batch.y)
-print (batch.node_is_attributed)
-print (batch.nod)
+
+# todo use SAT preprocessing instead
 
 
 #
