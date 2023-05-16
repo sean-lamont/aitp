@@ -113,10 +113,10 @@ relation_config = {
     "model_type": "transformer_relation",
     "vocab_size": VOCAB_SIZE,
     # "vocab_size": VOCAB_SIZE + 1,
-    "embedding_dim": 256,
+    "embedding_dim": 512,
     "dim_feedforward": 512,
-    "num_heads": 8,
-    "num_layers": 4,
+    "num_heads": 16,
+    "num_layers": 8,
     "dropout": 0.0
 }
 
@@ -170,7 +170,7 @@ relation_att_exp = SeparateEncoderPremiseSelection(config={"model_config": relat
                                                            "exp_config": exp_config,
                                                            "data_config": h5_data_config,
                                                            "project": "test_project",
-                                                           "name": "relation attention"})
+                                                           "name": "relation attention large"})
 #
 transformer_experiment = SeparateEncoderPremiseSelection(config={"model_config": transformer_config,
                                                                  "exp_config": exp_config,
@@ -189,7 +189,7 @@ formula_net_exp = SeparateEncoderPremiseSelection(config={"model_config": formul
                                                            "exp_config": exp_config,
                                                            "data_config": h5_data_config,
                                                            "project": "test_project",
-                                                           "name": "formula_net_edges"})
+                                                           "name": "formula_net_batch_norm_edges"})
 
 digae_exp = SeparateEncoderPremiseSelection(config={"model_config": digae_config,
                                                           "exp_config": exp_config,
@@ -207,7 +207,7 @@ amr_exp = SeparateEncoderPremiseSelection(config={"model_config": amr_config,
 # amr_exp.run_lightning()
 # sat_exp.run_lightning()
 # relation_att_exp.run_lightning()
-# formula_net_exp.run_lightning()
+formula_net_exp.run_lightning()
 # transformer_experiment.run_lightning()
 # digae_exp.run_lightning()
 

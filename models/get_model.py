@@ -67,7 +67,9 @@ def get_model(model_config):
 
     elif model_config['model_type'] == 'transformer_relation':
         return AttentionRelations(ntoken=model_config['vocab_size'],
-                                  # global_pool=False,
+                                  dropout=model_config['dropout'],
+                                  num_heads=model_config['num_heads'],
+                                  num_layers=model_config['num_layers'],
                                   embed_dim=model_config['embedding_dim'])
 
     elif model_config['model_type'] == 'classifier':

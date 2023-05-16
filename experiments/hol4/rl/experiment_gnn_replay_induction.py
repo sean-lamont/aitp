@@ -34,10 +34,8 @@ def revert_with_polish(context):
     assumptions = target["assumptions"]
     goal = target["goal"]
     for i in reversed(assumptions): 
-        #goal = "@ @ D$min$==> {} {}".format(i, goal)
         goal = "@ @ C$min$ ==> {} {}".format(i, goal)
-
-    return goal 
+    return goal
 
 def split_by_fringe(goal_set, goal_scores, fringe_sizes):
     # group the scores by fringe
@@ -74,22 +72,16 @@ class Agent:
     def update_params(self):
         pass
 
-
-
 with open("data/hol4/data/torch_graph_dict.pk", "rb") as f:
     torch_graph_dict = pickle.load(f)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-
 with open("data/hol4/data/graph_token_encoder.pk", "rb") as f:
     token_enc = pickle.load(f)
 
-
-
 encoded_graph_db = []
 with open('data/hol4/data/adjusted_db.json') as f:
-# with open('data/hol4/data/include_probability.json') as f:
     compat_db = json.load(f)
     
 reverse_database = {(value[0], value[1]) : key for key, value in compat_db.items()}
@@ -109,7 +101,6 @@ with open("data/hol4/data/valid_goals_shuffled.pk", "rb") as f:
 train_goals = valid_goals[:int(0.8 * len(valid_goals))]
 test_goals = valid_goals[int(0.8 * len(valid_goals)):]
 
-
 def gather_encoded_content_gnn(history, encoder):
     fringe_sizes = []
     contexts = []
@@ -122,7 +113,6 @@ def gather_encoded_content_gnn(history, encoder):
         g = revert_with_polish(e)
         reverted.append(g)
 
-#    graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch(ast_def.goal_to_graph(t)) for t in reverted]
     graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
 
     loader = DataLoader(graphs, batch_size = len(reverted))
@@ -130,12 +120,6 @@ def gather_encoded_content_gnn(history, encoder):
     batch = next(iter(loader))
 
     batch.edge_attr = batch.edge_attr.long()#torch.LongTensor(batch.edge_attr)
-
-    # print (batch)
-    # print (batch.edge_attr)
-    # representations = torch.unsqueeze(encoder.forward(batch.x.to(device), batch.edge_indegraph_pow_defdevice), batch.batch.to(device)), 1)
-    #encode_and_pool for digae model
-    # representations = torch.unsqueeze(encoder.encode_and_pool(batch.x.to(device), batch.x.to(device), batch.edge_index.to(device), batch.batch.to(device)), 1)
 
     representations = torch.unsqueeze(encoder(batch.to(device)), 1)
 
@@ -192,6 +176,7 @@ class GNNVanilla(Agent):
         self.encoder_goal = torch.load("/home/sean/Documents/phd/aitp/experiments/hol4/supervised/model_checkpoints/gnn_transformer_goal_hol4")
         return
 
+    #todo should be a single line with lightning
     def save(self):
         torch.save(self.context_net, "../model_checkpoints/gnn_induct_context")
         torch.save(self.tac_net, "../model_checkpoints/gnn_induct_tac")
@@ -201,8 +186,6 @@ class GNNVanilla(Agent):
         torch.save(self.encoder_premise, "../model_checkpoints/gnn_encoder_premise_e2e")
         torch.save(self.encoder_goal, "../model_checkpoints/gnn_encoder_goal_e2e")
 
-        
-    
     def load(self):
         self.context_net = torch.load("model_checkpoints/gnn_induct_context")
         self.tac_net = torch.load("model_checkpoints/gnn_induct_tac")
@@ -252,10 +235,7 @@ class GNNVanilla(Agent):
                 print (traceback.print_exc())
                 return ("Encoder error", str(e))
 
-
             encoded_fact_pool = self.encoder_premise(allowed_fact_batch.to(device))
-
-            #representations = torch.stack([i.to(self.device) for i in representations])
 
             context_scores = self.context_net(representations)
             contexts_by_fringe, scores_by_fringe = split_by_fringe(context_set, context_scores, fringe_sizes)
@@ -265,7 +245,6 @@ class GNNVanilla(Agent):
                 fringe_score = torch.sum(s)
                 fringe_scores.append(fringe_score)
             fringe_scores = torch.stack(fringe_scores)
-
 
             fringe_probs = F.softmax(fringe_scores, dim=0)
             fringe_m = Categorical(fringe_probs)
@@ -283,8 +262,6 @@ class GNNVanilla(Agent):
 
             tac_input = target_representation#.unsqueeze(0)
             tac_input = tac_input.to(self.device)
-
-
 
             # print (tac_input, tac_input.shape)
             tac_probs = self.tac_net(tac_input)

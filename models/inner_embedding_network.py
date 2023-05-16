@@ -14,18 +14,20 @@ import numpy as np
 # F_o summed over children
 class Child_Aggregation(MessagePassing):
 
-    def __init__(self, in_channels, out_channels, dropout=0.2):
+    def __init__(self, in_channels, out_channels, dropout=0.0):
         super().__init__(aggr='sum', flow='target_to_source')
 
-        self.mlp = Seq(Dropout(dropout), Linear(2 * in_channels, out_channels),
-                       ReLU(), Dropout(dropout),
-                       Linear(out_channels, out_channels))
+        # self.mlp = Seq(Dropout(dropout), Linear(2 * in_channels, out_channels),
+        #                ReLU(), Dropout(dropout),
+        #                Linear(out_channels, out_channels))
 
-        # self.mlp = Seq(Linear(2 * in_channels, out_channels),
-        #                nn.BatchNorm1d(out_channels),
-        #                ReLU(),
-        #                Linear(out_channels, out_channels),
-        #                nn.BatchNorm1d(out_channels))
+        self.mlp = Seq(Linear(2 * in_channels, out_channels),
+                       nn.BatchNorm1d(out_channels),
+                       ReLU(),
+                       Linear(out_channels, out_channels),
+                       nn.BatchNorm1d(out_channels),
+                       ReLU())
+
     def message(self, x_i, x_j):
         tmp = torch.cat([x_i, x_j], dim=1)  # tmp has shape [E, 2 * in_channels]
         return self.mlp(tmp)
@@ -42,18 +44,19 @@ class Child_Aggregation(MessagePassing):
 
 # F_i summed over parents
 class Parent_Aggregation(MessagePassing):
-    def __init__(self, in_channels, out_channels, dropout=0.2):
+    def __init__(self, in_channels, out_channels, dropout=0.0):
         super().__init__(aggr='sum', flow='source_to_target')
 
-        self.mlp = Seq(Dropout(dropout), Linear(2 * in_channels, out_channels),
-                       ReLU(), Dropout(dropout),
-                       Linear(out_channels, out_channels))
+        # self.mlp = Seq(Dropout(dropout), Linear(2 * in_channels, out_channels),
+        #                ReLU(), Dropout(dropout),
+        #                Linear(out_channels, out_channels))
 
-        # self.mlp = Seq(Linear(2 * in_channels, out_channels),
-        #                nn.BatchNorm1d(out_channels),
-        #                ReLU(),
-        #                Linear(out_channels, out_channels),
-        #                nn.BatchNorm1d(out_channels))
+        self.mlp = Seq(Linear(2 * in_channels, out_channels),
+                       nn.BatchNorm1d(out_channels),
+                       ReLU(),
+                       Linear(out_channels, out_channels),
+                       nn.BatchNorm1d(out_channels),
+                       ReLU())
 
 
     def message(self, x_i, x_j):
@@ -92,25 +95,18 @@ class Final_Agg_induct(nn.Module):
 class Final_Agg(nn.Module):
     def __init__(self, embedding_dim):
         super(Final_Agg, self).__init__()
-
-        # self.fc = nn.Linear(embedding_dim * 3, embedding_dim * 2)
-        #
-        # self.fc2 = nn.Linear(embedding_dim * 2, embedding_dim)
-
         self.fc = nn.Linear(embedding_dim, embedding_dim)
+        self.bn = nn.BatchNorm1d(embedding_dim)
 
     def forward(self, x):
-        # x = self.fc2(dropout(torch.relu(self.fc(dropout(x)))))
-        x = torch.relu(self.fc(dropout(x)))
+        x = torch.relu(self.bn(self.fc(x)))
         return x
 
 
 class F_x_module_(nn.Module):
     def __init__(self, input_shape, embedding_dim):
         super(F_x_module_, self).__init__()
-
         self.fc1 = nn.Linear(input_shape, embedding_dim)
-
     def forward(self, x):
         return self.fc1(x)
 
@@ -118,68 +114,39 @@ class F_x_module_(nn.Module):
 class F_c_module_(nn.Module):
     def __init__(self, input_shape):
         super(F_c_module_, self).__init__()
-
         self.fc1 = nn.Linear(input_shape, input_shape)
-
         self.fc2 = nn.Linear(input_shape, 1)
-
         self.bn = nn.BatchNorm1d(input_shape)
 
     def forward(self, x):
         x = F.relu(self.bn(self.fc1(x)))
-
         return torch.sigmoid(self.fc2(x))
 
 class message_passing_gnn_sat(nn.Module):
-
     def __init__(self, embedding_dim, num_iterations):
         super(message_passing_gnn_sat, self).__init__()
-
         self.num_iterations = num_iterations
-
         self.parent_agg = Parent_Aggregation(embedding_dim, embedding_dim)
-
         self.child_agg = Child_Aggregation(embedding_dim, embedding_dim)
-
         self.final_agg = Final_Agg(embedding_dim)
 
     def forward(self, nodes, edges, batch=None):
-
         for t in range(self.num_iterations):
             fi_sum = self.parent_agg(nodes, edges)
-
             fo_sum = self.child_agg(nodes, edges)
-
             node_update = self.final_agg(nodes + fi_sum + fo_sum)
-
             nodes = nodes + node_update
-
         return nodes
-        # return gmp(nodes,batch)
-#
-
-
-
-
-
 
 class FormulaNet(nn.Module):
-
     def __init__(self, input_shape, embedding_dim, num_iterations):
         super(FormulaNet, self).__init__()
-
         self.num_iterations = num_iterations
-
-        # self.initial_encoder = F_x_module_(input_shape, embedding_dim)
         self.initial_encoder = nn.Embedding(input_shape, embedding_dim)
-
         self.parent_agg = Parent_Aggregation(embedding_dim, embedding_dim)
-
         self.child_agg = Child_Aggregation(embedding_dim, embedding_dim)
-
         self.final_agg = Final_Agg(embedding_dim)
 
-    # def forward(self, nodes, edges, batch=None):
     def forward(self, data):
         nodes = data.x
         edges = data.edge_index
@@ -187,14 +154,10 @@ class FormulaNet(nn.Module):
 
         nodes = self.initial_encoder(nodes)
 
-
         for t in range(self.num_iterations):
             fi_sum = self.parent_agg(nodes, edges)
-
             fo_sum = self.child_agg(nodes, edges)
-
             node_update = self.final_agg(nodes + fi_sum + fo_sum)
-
             nodes = nodes + node_update
 
         return gmp(nodes,batch)

@@ -20,9 +20,17 @@ class Child_Aggregation_edges(MessagePassing):
     def __init__(self, in_channels, out_channels):
         super().__init__(aggr='sum', flow='target_to_source')
 
-        self.mlp = Seq(Dropout(), Linear(2 * in_channels + 32, out_channels),
-                       ReLU(), Dropout(),
-                       Linear(out_channels, out_channels))
+        # self.mlp = Seq(Dropout(), Linear(2 * in_channels + 32, out_channels),
+        #                ReLU(), Dropout(),
+        #                Linear(out_channels, out_channels))
+        #
+
+        self.mlp = Seq(Linear(2 * in_channels + 32, out_channels),
+                       nn.BatchNorm1d(out_channels),
+                       ReLU(),
+                       Linear(out_channels, out_channels),
+                       nn.BatchNorm1d(out_channels),
+                       ReLU())
 
     def message(self, x_i, x_j, edge_attr):
         tmp = torch.cat([x_i, x_j, edge_attr], dim=1)
@@ -39,9 +47,18 @@ class Child_Aggregation_edges(MessagePassing):
 class Parent_Aggregation_edges(MessagePassing):
     def __init__(self, in_channels, out_channels):
         super().__init__(aggr='sum', flow='source_to_target')
-        self.mlp = Seq(Dropout(), Linear(2 * in_channels + 32, out_channels),
-                       ReLU(), Dropout(),
-                       Linear(out_channels, out_channels))
+
+        # self.mlp = Seq(Dropout(), Linear(2 * in_channels + 32, out_channels),
+        #                ReLU(), Dropout(),
+        #                Linear(out_channels, out_channels))
+
+        self.mlp = Seq(Linear(2 * in_channels + 32, out_channels),
+                       nn.BatchNorm1d(out_channels),
+                       ReLU(),
+                       Linear(out_channels, out_channels),
+                       nn.BatchNorm1d(out_channels),
+                       ReLU())
+
 
     def message(self, x_i, x_j, edge_attr):
         tmp = torch.cat([x_i, x_j, edge_attr], dim=1)
@@ -53,17 +70,15 @@ class Parent_Aggregation_edges(MessagePassing):
         deg_inv[deg_inv == float('inf')] = 0
         return deg_inv.view(-1, 1) * self.propagate(edge_index, x=x, edge_attr=edge_attr)
 
-
 class Final_Agg_edges(nn.Module):
     def __init__(self, embedding_dim):
         super(Final_Agg_edges, self).__init__()
-        # self.fc = nn.Linear(embedding_dim * 3, embedding_dim * 2)
-        # self.fc2 = nn.Linear(embedding_dim * 2, embedding_dim)
         self.fc = nn.Linear(embedding_dim, embedding_dim)
-    def forward(self, x):
-        x = torch.relu(self.fc(dropout(x)))
-        return x
+        self.bn = nn.BatchNorm1d(embedding_dim)
 
+    def forward(self, x):
+        x = torch.relu(self.bn(self.fc(x)))
+        return x
 
 class F_x_module_(nn.Module):
     def __init__(self, input_shape, embedding_dim):
@@ -76,16 +91,34 @@ class F_x_module_(nn.Module):
 class F_c_module_(nn.Module):
     def __init__(self, input_shape):
         super(F_c_module_, self).__init__()
-
-        self.fc1 = nn.Linear(input_shape, input_shape // 2)
-
-        self.fc2 = nn.Linear(input_shape // 2, 1)
+        self.fc1 = nn.Linear(input_shape, input_shape)
+        self.fc2 = nn.Linear(input_shape, 1)
+        self.bn = nn.BatchNorm1d(input_shape)
 
     def forward(self, x):
-        x = F.relu(self.fc1(dropout(x)))
+        x = F.relu(self.bn(self.fc1(x)))
+        return torch.sigmoid(self.fc2(x))
 
-        return torch.sigmoid(self.fc2(dropout(x)))
+class RegressionMLP(nn.Module):
+    def __init__(self, input_shape):
+        super(RegressionMLP, self).__init__()
+        self.fc1 = nn.Linear(input_shape, input_shape)
+        self.fc2 = nn.Linear(input_shape, 1)
+        self.bn = nn.BatchNorm1d(input_shape)
 
+    def forward(self, x):
+        x = F.relu(self.bn(self.fc1(x)))
+        return self.fc2(x)
+# class F_c_module_(nn.Module):
+#     def __init__(self, input_shape):
+#         super(F_c_module_, self).__init__()
+#         self.fc1 = nn.Linear(input_shape, input_shape // 2)
+#         self.fc2 = nn.Linear(input_shape // 2, 1)
+#
+#     def forward(self, x):
+#         x = F.relu(self.fc1(dropout(x)))
+#         return torch.sigmoid(self.fc2(dropout(x)))
+#
 
 class message_passing_gnn_edges(nn.Module):
     def __init__(self, input_shape, embedding_dim, num_iterations):

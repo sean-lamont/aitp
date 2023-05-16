@@ -1223,6 +1223,7 @@ class AttentionRelations(nn.Module):
         edge_attr = batch.edge_attr
         softmax_idx = batch.softmax_idx
 
+
         x = self.embedding(x)
 
         first = torch.index_select(x, 0, edge_index[0])
@@ -1238,6 +1239,7 @@ class AttentionRelations(nn.Module):
         R = self.r_proj(R)
 
         cls_tokens = einops.repeat(self.cls_token, '() d -> 1 b d', b=len(softmax_idx)- 1)
+        # cls_tokens = einops.repeat(self.cls_token, '() d -> 1 b d', b=len(softmax_idx))
 
         #split R according to softmax_idx (i.e. how many edges per sequence in batch)
         R = torch.tensor_split(R, softmax_idx[1:-1])

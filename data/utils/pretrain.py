@@ -49,7 +49,7 @@ class PremiseSelection(pl.LightningModule):
         preds = self(goal, premise)
         preds = (preds > 0.5)
         acc = torch.sum(preds == y) / y.size(0)
-        self.log("acc", acc, batch_size=self.batch_size)
+        self.log("acc", acc, batch_size=self.batch_size, prog_bar=True)
         return
 
     def configure_optimizers(self):
@@ -88,7 +88,7 @@ class SeparateEncoderPremiseSelection(PremiseSelectionExperiment):
         logger = WandbLogger(project=self.config['project'],
                              name=self.config['name'],
                              config=self.config,
-                             offline=True)
+                             offline=False)
 
         trainer = pl.Trainer(
                             max_epochs=self.exp_config['epochs'],
@@ -99,7 +99,7 @@ class SeparateEncoderPremiseSelection(PremiseSelectionExperiment):
                              log_every_n_steps=500,
                              # accelerator='gpu',
                              # devices=1,
-                             strategy='ddp_find_unused_parameters_true',
+                             # strategy='ddp_find_unused_parameters_true',
                             # todo figure out why, e.g. https://github.com/Lightning-AI/lightning/issues/11242
                              # hack to fix ddp hanging error..
                              limit_train_batches=28000,
@@ -141,8 +141,6 @@ class SeparateEncoderPremiseSelection(PremiseSelectionExperiment):
     #         log_every_n_steps=500,
     #         accelerator='gpu',
     #         devices=1,
-    #         # todo figure out why, e.g. https://github.com/Lightning-AI/lightning/issues/11242
-    #         # hack to fix ddp hanging error..
     #         # limit_train_batches=28000,
     #         # profiler='pytorch',
     #         enable_checkpointing=True)
