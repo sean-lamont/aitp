@@ -2,7 +2,7 @@ from datetime import datetime
 from data.hol4 import ast_def
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
-from models import utp_model
+from models.tactic_zero import policy_models
 import time
 from environments.hol4.new_env import *
 import numpy as np

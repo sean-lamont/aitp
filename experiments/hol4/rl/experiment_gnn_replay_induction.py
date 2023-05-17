@@ -1,15 +1,14 @@
-import json
 import traceback
-import torch
+import lightning.pytorch as pl
 from data.hol4.ast_def import graph_to_torch_labelled
 from torch.distributions import Categorical
 import torch.nn.functional as F
 from datetime import datetime
 import pickle
 from data.hol4 import ast_def
-from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
-from models import utp_model, inner_embedding_network
+from models.tactic_zero import policy_models
+from models.gnn.formula_net import formula_net
 import time
 from environments.hol4.new_env import *
 import numpy as np
@@ -126,6 +125,13 @@ def gather_encoded_content_gnn(history, encoder):
     return representations, contexts, fringe_sizes
 
 
+
+
+
+
+
+
+
 '''
 
 Torch implementation of TacticZero with GNN encoder and random Induct term selection 
@@ -155,7 +161,6 @@ class GNNVanilla(Agent):
 
         self.induct_gnn = inner_embedding_network.message_passing_gnn_induct(1000, self.embedding_dim // 2, num_iterations=2, device=self.device)
         self.optimizer_induct = torch.optim.RMSprop(list(self.induct_gnn.parameters()), lr = self.term_rate)
-        
         self.optimizer_context = torch.optim.RMSprop(list(self.context_net.parameters()), lr=self.context_rate)
         self.optimizer_tac = torch.optim.RMSprop(list(self.tac_net.parameters()), lr=self.tac_rate)
         self.optimizer_arg = torch.optim.RMSprop(list(self.arg_net.parameters()), lr=self.arg_rate)
@@ -518,6 +523,7 @@ class GNNVanilla(Agent):
         # Discount reward
         print("Updating parameters ... ")
         running_add = 0
+
         for i in reversed(range(step_count)):
             if reward_pool[i] == 0:
                 running_add = 0

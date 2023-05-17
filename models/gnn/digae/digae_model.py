@@ -1,14 +1,8 @@
 from sklearn.metrics import roc_auc_score, average_precision_score
-
 import torch
 from torch_geometric.utils import negative_sampling, remove_self_loops, add_self_loops
-from models.digae_layers import InnerProductDecoder, DirectedInnerProductDecoder, DirectedGCNConvEncoder
-
-# import inner_embedding_network
-
-
+from models.gnn.digae.digae_layers import InnerProductDecoder, DirectedInnerProductDecoder, DirectedGCNConvEncoder
 from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
-from torch_geometric.nn import global_sort_pool
 from torch_geometric.nn.aggr import GraphMultisetTransformer
 
 EPS = 1e-15
@@ -125,7 +119,6 @@ class DirectedGAE(torch.nn.Module):
         return pos_loss + neg_loss
 
     def test(self, s, t, pos_edge_index, neg_edge_index):
-        # XXX
         pos_y = s.new_ones(pos_edge_index.size(1))
         neg_y = s.new_zeros(neg_edge_index.size(1))
         y = torch.cat([pos_y, neg_y], dim=0)
@@ -138,12 +131,13 @@ class DirectedGAE(torch.nn.Module):
 
         return roc_auc_score(y, pred), average_precision_score(y, pred)
 
+
 class DigaeSE(torch.nn.Module):
     def __init__(self, initial_encoder, embedding_dim, hidden_dim, out_dim, encoder=None, decoder=None):
         super(DigaeSE, self).__init__()
         self.encoder = DirectedGCNConvEncoder(embedding_dim, hidden_dim, out_dim, alpha=0.2, beta=0.8,
-                                            self_loops=True,
-                                            adaptive=False) if encoder is None else encoder
+                                              self_loops=True,
+                                              adaptive=False) if encoder is None else encoder
         self.decoder = DirectedInnerProductDecoder() if decoder is None else decoder
         self.initial_encoder = initial_encoder
 
@@ -154,35 +148,39 @@ class DigaeSE(torch.nn.Module):
         u = self.initial_encoder(u)
         v = self.initial_encoder(v)
 
-        s,t = self.encoder(u,v,edge_index)
+        s, t = self.encoder(u, v, edge_index)
 
-        #s_pool = gmp(s, batch)
-
-        #t_pool = gmp(t, batch)
-
-        # s_pool = torch.cat([gmp(s, batch), gap(s, batch)], dim=1)
-        # t_pool = torch.cat([gmp(t, batch), gap(t, batch)], dim=1)
-
-        # s_pool = global_sort_pool(s, batch, k=3)
-        # t_pool = global_sort_pool(t, batch, k=3)
+        return torch.cat([s, t], dim=1)
 
 
+class DigaeEmbedding(torch.nn.Module):
+    def __init__(self, in_size, embedding_dim, hidden_dim, out_dim, encoder=None, decoder=None):
+        super(DigaeEmbedding, self).__init__()
 
-        return torch.cat([s, t], dim = 1)
+        self.embed = torch.nn.Embedding(in_size, embedding_dim)
+        self.se = DigaeSE(self.embed, embedding_dim, hidden_dim, out_dim, encoder=None,
+                          decoder=None)
 
+    def forward(self, data):
+        x = data.x
+        edge_index = data.edge_index
+        batch = data.batch
+
+        nodes = self.se(x, edge_index)
+
+        return gmp(nodes, batch)
 
 
 class OneHotDirectedGAE(torch.nn.Module):
     def __init__(self, initial_encoder, embedding_dim, hidden_dim, out_dim, encoder=None, decoder=None):
         super(OneHotDirectedGAE, self).__init__()
         self.encoder = DirectedGCNConvEncoder(embedding_dim, hidden_dim, out_dim, alpha=0.2, beta=0.8,
-                                            self_loops=True,
-                                            adaptive=False) if encoder is None else encoder
+                                              self_loops=True,
+                                              adaptive=False) if encoder is None else encoder
         self.decoder = DirectedInnerProductDecoder() if decoder is None else decoder
         self.initial_encoder = initial_encoder
 
     def forward(self, data):
-        #x, edge_index, edge_weight = data.x, data.edge_index, data.edge_weight
 
         x, edge_index = data.x, data.edge_index
 
@@ -192,35 +190,25 @@ class OneHotDirectedGAE(torch.nn.Module):
         adj_pred = self.decoder.forward_all(s, t)
         return adj_pred
 
-    def encode(self, u,v, edge_index):
-
+    def encode(self, u, v, edge_index):
         u = self.initial_encoder(u)
         v = self.initial_encoder(v)
 
-        return self.encoder(u,v, edge_index)
+        return self.encoder(u, v, edge_index)
 
     def decode(self, *args, **kwargs):
         return self.decoder(*args, **kwargs)
 
-    def encode_and_pool(self, u,v, edge_index, batch):
+    def encode_and_pool(self, u, v, edge_index, batch):
         u = self.initial_encoder(u)
         v = self.initial_encoder(v)
 
-        s,t = self.encoder(u,v,edge_index)
-
-        #s_pool = gmp(s, batch)
-
-        #t_pool = gmp(t, batch)
+        s, t = self.encoder(u, v, edge_index)
 
         s_pool = torch.cat([gmp(s, batch), gap(s, batch)], dim=1)
         t_pool = torch.cat([gmp(t, batch), gap(t, batch)], dim=1)
 
-        # s_pool = global_sort_pool(s, batch, k=3)
-        # t_pool = global_sort_pool(t, batch, k=3)
-
-
-
-        return torch.cat([s_pool, t_pool], dim = 1)
+        return torch.cat([s_pool, t_pool], dim=1)
 
     def encode_and_pool_single(self, x, edge_index, batch):
         u = x.clone()
@@ -229,25 +217,12 @@ class OneHotDirectedGAE(torch.nn.Module):
         u = self.initial_encoder(u)
         v = self.initial_encoder(v)
 
-        s,t = self.encoder(u,v,edge_index)
-
-        #s_pool = gmp(s, batch)
-
-        #t_pool = gmp(t, batch)
+        s, t = self.encoder(u, v, edge_index)
 
         s_pool = torch.cat([gmp(s, batch), gap(s, batch)], dim=1)
         t_pool = torch.cat([gmp(t, batch), gap(t, batch)], dim=1)
 
-        # s_pool = global_sort_pool(s, batch, k=3)
-        # t_pool = global_sort_pool(t, batch, k=3)
-
-
-
-        return torch.cat([s_pool, t_pool], dim = 1)
-
-
-
-
+        return torch.cat([s_pool, t_pool], dim=1)
 
     def recon_loss(self, s, t, pos_edge_index, neg_edge_index=None):
         pos_loss = -torch.log(
@@ -265,7 +240,6 @@ class OneHotDirectedGAE(torch.nn.Module):
         return pos_loss + neg_loss
 
     def test(self, s, t, pos_edge_index, neg_edge_index):
-        # XXX
         pos_y = s.new_ones(pos_edge_index.size(1))
         neg_y = s.new_zeros(neg_edge_index.size(1))
         y = torch.cat([pos_y, neg_y], dim=0)
@@ -285,12 +259,10 @@ class AttentionDIGAE(torch.nn.Module):
         self.encoder = encoder
         self.decoder = DirectedInnerProductDecoder() if decoder is None else decoder
         self.initial_encoder = initial_encoder
-        self.GMT_pool_layer_s = GraphMultisetTransformer(256, 128, 256, num_nodes = 15)#, pool_sequences = ['SelfAtt'])
-        self.GMT_pool_layer_t = GraphMultisetTransformer(256, 128, 256, num_nodes = 15)#, pool_sequences = ['SelfAtt'])
+        self.GMT_pool_layer_s = GraphMultisetTransformer(256, 128, 256, num_nodes=15)  # , pool_sequences = ['SelfAtt'])
+        self.GMT_pool_layer_t = GraphMultisetTransformer(256, 128, 256, num_nodes=15)  # , pool_sequences = ['SelfAtt'])
 
     def forward(self, data):
-        #x, edge_index, edge_weight = data.x, data.edge_index, data.edge_weight
-
         x, edge_index = data.x, data.edge_index
 
         x = self.initial_encoder(x)
@@ -299,35 +271,26 @@ class AttentionDIGAE(torch.nn.Module):
         adj_pred = self.decoder.forward_all(s, t)
         return adj_pred
 
-    def encode(self, u,v, edge_index):
-
+    def encode(self, u, v, edge_index):
         u = self.initial_encoder(u)
         v = self.initial_encoder(v)
 
-        return self.encoder(u,v, edge_index)
+        return self.encoder(u, v, edge_index)
 
     def decode(self, *args, **kwargs):
         return self.decoder(*args, **kwargs)
 
-    def encode_and_pool(self, u,v, edge_index, batch):
+    def encode_and_pool(self, u, v, edge_index, batch):
         u = self.initial_encoder(u)
         v = self.initial_encoder(v)
 
-        s,t = self.encoder(u,v,edge_index)
+        s, t = self.encoder(u, v, edge_index)
 
-        #
-        #
-        # s_pool = torch.cat([gmp(s, batch), gap(s, batch)], dim=1)
-        # t_pool = torch.cat([gmp(t, batch), gap(t, batch)], dim=1)
+        s_pool = self.GMT_pool_layer_s(s, index=batch, edge_index=edge_index)
+        t_pool = self.GMT_pool_layer_t(t, index=batch, edge_index=edge_index)
 
-        s_pool = self.GMT_pool_layer_s(s, index = batch, edge_index=edge_index)
-        t_pool = self.GMT_pool_layer_t(t, index = batch, edge_index = edge_index)
-
-        print (s_pool.shape)
-        return torch.cat([s_pool,t_pool], dim = 1)
-
-
-
+        print(s_pool.shape)
+        return torch.cat([s_pool, t_pool], dim=1)
 
     def recon_loss(self, s, t, pos_edge_index, neg_edge_index=None):
         pos_loss = -torch.log(
@@ -345,7 +308,6 @@ class AttentionDIGAE(torch.nn.Module):
         return pos_loss + neg_loss
 
     def test(self, s, t, pos_edge_index, neg_edge_index):
-        # XXX
         pos_y = s.new_ones(pos_edge_index.size(1))
         neg_y = s.new_zeros(neg_edge_index.size(1))
         y = torch.cat([pos_y, neg_y], dim=0)

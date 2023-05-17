@@ -4,7 +4,7 @@
 #!data/hol4/data/vanilla_tactic_zero/encoded_include_probability.pt
 #!data/hol4/old/paper_goals.pk
 #!graph_token_encoder.pk
-#!experiments/hol4/model_checkpoints/best_gnn/graph_token_encoder.pk
+#!sat/hol4/model_checkpoints/best_gnn/graph_token_encoder.pk
 
 
 #data/*

@@ -1,17 +1,15 @@
 import traceback
 import wandb
 import random
-import cProfile
 import models.gnn_edge_labels
 from models.graph_transformers.SAT.sat.models import GraphTransformer
 import math
 import torch
 import torch_geometric.utils
 from tqdm import tqdm
-from models.digae_layers import DirectedGCNConvEncoder, DirectedInnerProductDecoder, SingleLayerDirectedGCNConvEncoder
-from models.digae_model import OneHotDirectedGAE
+from models.gnn.digae.digae_model import OneHotDirectedGAE
 import json
-import models.inner_embedding_network
+import models.gnn.formula_net.inner_embedding_network
 from torch_geometric.data import Data
 import pickle
 from data.hol4.ast_def import *
@@ -221,7 +219,7 @@ def to_combined_batch(list_data, data_dict, embedding_dim, directed_attention=Fa
 
 def get_model(config):
 
-    if config['model_type'] == 'sat':
+    if config['model_type'] == 'graph_benchmarks':
         return GraphTransformer(in_size=config['vocab_size'], num_class=2,
                                 d_model=config['embedding_dim'],
                                 dim_feedforward=config['dim_feedforward'],
@@ -239,10 +237,10 @@ def get_model(config):
                                 num_edge_features=200)
 
     elif config['model_type'] == 'formula-net':
-        return models.inner_embedding_network.FormulaNet(config['vocab_size'], config['embedding_dim'], config['gnn_layers'])
+        return models.gnn.formula_net.inner_embedding_network.FormulaNet(config['vocab_size'], config['embedding_dim'], config['gnn_layers'])
 
     elif config['model_type'] == 'formula-net-edges':
-        return models.gnn_edge_labels.message_passing_gnn_edges(config['vocab_size'], config['embedding_dim'], config['gnn_layers'])
+        return models.gnn_edge_labels.FormulaNetEdges(config['vocab_size'], config['embedding_dim'], config['gnn_layers'])
 
     elif config['model_type'] == 'digae':
         return None
@@ -298,7 +296,7 @@ def run_combined_graphs(config):
     #     loss = checkpoint['loss']
 
     print (torch.cuda.device_count())
-    fc = models.gnn_edge_labels.F_c_module_(embedding_dim).to(device)
+    fc = models.gnn_edge_labels.BinaryClassifier(embedding_dim).to(device)
     # fc = torch.nn.DataParallel(fc)#.to(device)
     # fc = fc.cuda()
 
@@ -487,7 +485,7 @@ def val_acc_combined(model,  batch, fc, embedding_dim):
 
 
 sat_config = {
-    "model_type": "sat",
+    "model_type": "graph_benchmarks",
     "vocab_size": len(tokens),
     "embedding_dim": 128,
     "dim_feedforward": 256,
@@ -538,7 +536,7 @@ def main():
     wandb.init(
         project="hol4_premise_selection",
 
-        name="Directed + Combined Graph SAT",
+        name="Directed + Combined Graph graph_benchmarks",
         # track model and experiment configurations
         config={
             "exp_config": exp_config,
@@ -560,7 +558,7 @@ sweep_configuration = {
     "parameters": {
         "model_config" : {
             "parameters": {
-                "model_type": {"values":["sat"]},
+                "model_type": {"values":["graph_benchmarks"]},
                 "vocab_size": {"values":[len(tokens)]},
                 "embedding_dim": {"values":[128]},
                 "in_embed": {"values":[False]},

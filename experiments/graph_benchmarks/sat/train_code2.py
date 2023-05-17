@@ -21,8 +21,8 @@ from ogb.graphproppred import PygGraphPropPredDataset
 from ogb.graphproppred import Evaluator
 
 from torchvision import transforms
-from models.graph_transformers.SAT.experiments.utils import ASTNodeEncoder, get_vocab_mapping
-from models.graph_transformers.SAT.experiments.utils import augment_edge, encode_y_to_arr, decode_arr_to_seq
+from experiments.graph_benchmarks.sat.utils import ASTNodeEncoder, get_vocab_mapping
+from experiments.graph_benchmarks.sat.utils import augment_edge, encode_y_to_arr, decode_arr_to_seq
 
 
 def load_args():

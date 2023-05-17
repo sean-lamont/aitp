@@ -177,7 +177,7 @@ def gen_embedding(model, input, src_mask):
         # gmp(out).squeeze(-1).transpose(0,1) #ret
 
 
-from models import inner_embedding_network
+from models.gnn.formula_net import inner_embedding_network
 
 
 def binary_loss(preds, targets):

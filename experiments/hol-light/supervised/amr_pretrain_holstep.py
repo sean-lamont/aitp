@@ -3,27 +3,18 @@ from pymongo import MongoClient
 import traceback
 
 from utils.mongodb_utils import get_batches
-from models.graph_transformers.SAT.sat.position_encoding import RWEncoding, LapEncoding
 from models.graph_transformers.SAT.sat.models import GraphTransformer, AMRTransformer
-import random
 from models import gnn_edge_labels
-from tqdm import tqdm
 import wandb
-import os
 # from utils.viz_net_torch import make_dot
-import multiprocessing as multiprocessing
-import cProfile
 import torch
 import torch_geometric.utils
 from tqdm import tqdm
-from models.digae_layers import DirectedGCNConvEncoder, DirectedInnerProductDecoder, SingleLayerDirectedGCNConvEncoder
-from models.digae_model import OneHotDirectedGAE
-import json
-import models.inner_embedding_network
+from models.gnn.digae.digae_model import OneHotDirectedGAE
+import models.gnn.formula_net.inner_embedding_network
 from torch_geometric.data import Data
 import pickle
 # from data.hol4.ast_def import *
-import matplotlib.pyplot as plt
 from torch_geometric.loader import DataLoader
 # from torchsummary import summary
 
@@ -241,7 +232,7 @@ vocab_size = 1909
 #     for process in processes:
 #         process.join()
 #
-#     # with open("/home/sean/Documents/phd/holist/holstep_gnn/FormulaNet/data/graph_data/full_expr_dict.pk", "wb") as f:
+#     # with open("/home/sean/Documents/phd/holist/holstep_gnn/formula_net/data/graph_data/full_expr_dict.pk", "wb") as f:
 #     with open("/home/sean/Documents/phd/aitp/data/hol-light/supervised/data/tmp/graph_data/full_expr_dict.pk","wb") as f:
 #             pickle.dump(dict(global_dict), f)
 #
@@ -584,7 +575,7 @@ def to_batch(list_data, data_dict):
 
 def get_model(config):
 
-    if config['model_type'] == 'sat':
+    if config['model_type'] == 'graph_benchmarks':
         return GraphTransformer(in_size=config['vocab_size'],
                                 num_class=2,
                                 d_model=config['embedding_dim'],
@@ -618,7 +609,7 @@ def get_model(config):
 
 
     elif config['model_type'] == 'formula-net':
-        return models.inner_embedding_network.FormulaNet(config['vocab_size'], config['embedding_dim'], config['gnn_layers'])
+        return models.gnn.formula_net.inner_embedding_network.FormulaNet(config['vocab_size'], config['embedding_dim'], config['gnn_layers'])
 
     elif config['model_type'] == 'digae':
         return None
@@ -683,7 +674,7 @@ def run_dual_encoders(config):
     #     epoch = checkpoint['epoch']
     #     loss = checkpoint['loss']
 
-    fc = models.gnn_edge_labels.F_c_module_(embedding_dim * 2).to(device)
+    fc = models.gnn_edge_labels.BinaryClassifier(embedding_dim * 2).to(device)
 
 
     op_g1 = torch.optim.AdamW(graph_net_1.parameters(), lr=lr, weight_decay=weight_decay)
@@ -926,7 +917,7 @@ def val_acc_dual_encoder(model_1, model_2, batch, fc, embedding_dim):
 
 
 sat_config = {
-    "model_type": "sat",
+    "model_type": "graph_benchmarks",
     "vocab_size": 1909,
     "embedding_dim": 128,
     "dim_feedforward": 128,
@@ -989,7 +980,7 @@ def main():
     wandb.init(
         project="test_project",
 
-        name="Long Train FormulaNet",
+        name="Long Train formula_net",
         # track model and experiment configurations
         config={
             "exp_config": exp_config,
@@ -1015,7 +1006,7 @@ run_dual_encoders(config)
 #     "parameters": {
 #         "model_config" : {
 #             "parameters": {
-#                 "model_type": {"values":["sat"]},
+#                 "model_type": {"values":["graph_benchmarks"]},
 #                 "vocab_size": {"values":[1909]},
 #                 "embedding_dim": {"values":[128]},
 #                 "in_embed": {"values":[False]},

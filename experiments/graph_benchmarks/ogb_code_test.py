@@ -1,17 +1,16 @@
-from models.gnn_edge_labels import RegressionMLP, message_passing_gnn_edges
 import os
+import torch
 import pandas as pd
 from torchvision import transforms
+from experiments.graph_benchmarks.sat.utils import *
 from torch import nn
-import torch
-from models.graph_transformers.SAT.sat.layers import AttentionRelations
+from models.relation_transformer.relation_transformer import AttentionRelations
 from torch_geometric.loader import DataLoader
-from torch_geometric.datasets import ZINC
-from models.graph_transformers.SAT.experiments.utils import *
 from torch_geometric.data import Data
-#%%
 import lightning.pytorch as pl
 from ogb.graphproppred import PygGraphPropPredDataset
+
+from torchmetrics.classification import MulticlassF1Score
 
 max_seq_len = 5
 
@@ -70,11 +69,13 @@ def binary_loss(preds, targets):
 
 class OGBExperiment(pl.LightningModule):
     def __init__(self,
+                 node_encoder,
                  embedding_model,
                  classifier,
                  batch_size=128,
-                 lr=1e-3):
+                 lr=1e-4):
         super().__init__()
+        # self.node_encoder = node_encoder
         self.embedding_model = embedding_model
         self.classifier = classifier
         self.eps = 1e-6
@@ -83,7 +84,10 @@ class OGBExperiment(pl.LightningModule):
         self.criterion = nn.CrossEntropyLoss()
         self.max_seq_len = 5
 
+        self.metric = MulticlassF1Score(num_classes=5002, multidim_average='samplewise')
+
     def forward(self, graph):
+        # graph.x = self.node_encoder(graph.x, graph.node_depth.view(-1))
         emb = self.embedding_model(graph)
 
         if self.max_seq_len is not None:
@@ -99,13 +103,13 @@ class OGBExperiment(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         preds = self(batch)
         loss = self.criterion(preds, batch.y)
-        self.log("loss", loss, batch_size=self.batch_size, prog_bar=True)
+        self.log("loss", loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         preds = self(batch)
-        loss = self.criterion(preds, batch.y)
-        self.log("loss", loss, batch_size=self.batch_size, prog_bar=True)
+        f1 = self.metric(preds, batch.y)
+        self.log("f1", torch.mean(f1), prog_bar=True)
         return
 
     def configure_optimizers(self):
@@ -151,7 +155,7 @@ class OGBModule(pl.LightningDataModule):
 torch.set_float32_matmul_precision('high')
 
 module = OGBModule()
-trainer = pl.Trainer()
+trainer = pl.Trainer(val_check_interval=100, limit_val_batches=32)
 
 dim_hidden = 256
 num_class = len(vocab2idx)
@@ -167,6 +171,15 @@ classifier = nn.ModuleList()
 for i in range(max_seq_len):
     classifier.append(nn.Linear(dim_hidden, num_class))
 
+model = AttentionRelations(node_encoder,dim_hidden,2)
 
-trainer.fit(OGBExperiment(AttentionRelations(node_encoder,dim_hidden,2),classifier), module)
+# model = formula_net(256, 256, 4)
+
+def run_exp():
+    trainer.fit(OGBExperiment(node_encoder, model, classifier), module)
+    return
+
+run_exp()
+
+# cProfile.run('run_exp()', sort='cumtime')
 

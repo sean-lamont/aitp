@@ -21,7 +21,7 @@ from sat.gnn_layers import GNN_TYPES
 
 def load_args():
     parser = argparse.ArgumentParser(
-        description='Model visualization: SAT vs transformer',
+        description='Model visualization: graph_benchmarks vs transformer',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('--visu', action='store_true', help='perform visualization')
@@ -124,7 +124,7 @@ def draw_graph_with_attn(
 
     titles = {
         'tag': 'molecule',
-        'attn1': 'SAT attn',
+        'attn1': 'graph_benchmarks attn',
         'attn2': 'Transformer attn'
     }
 
@@ -193,8 +193,8 @@ def main():
         print("Graph ", graph_idx)
         graph = dataset[graph_idx]
 
-        print("Computing attention for SAT")
-        attn1 = compute_attn('../pretrained_models/sat/Mutagenicity/model.pth', dataset, graph_idx=graph_idx)
+        print("Computing attention for graph_benchmarks")
+        attn1 = compute_attn('../pretrained_models/graph_benchmarks/Mutagenicity/model.pth', dataset, graph_idx=graph_idx)
         if attn1 is None:
             continue
         print("Computing attention for Transformer")

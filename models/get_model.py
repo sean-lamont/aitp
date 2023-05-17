@@ -1,13 +1,16 @@
-from models.transformer_encoder_model import TransformerEmbedding
-from models import gnn_edge_labels, inner_embedding_network
-from models.graph_transformers.SAT.sat.layers import AttentionRelations, DigaeEmbedding
-from models.graph_transformers.SAT.sat.models import GraphTransformer, AMRTransformer
+from models.transformer.transformer_encoder_model import TransformerEmbedding
+from models.gnn.formula_net.formula_net import FormulaNet, FormulaNetEdges
+from models.relation_transformer.relation_transformer import AttentionRelations
+from models.gnn.digae.digae_model import DigaeEmbedding
+from models.sat.models import GraphTransformer
+from models.amr.amr import AMRTransformer
+
 
 '''
 Utility function to fetch model given a configuration dict
 '''
 def get_model(model_config):
-    if model_config['model_type'] == 'sat':
+    if model_config['model_type'] == 'graph_benchmarks':
         return GraphTransformer(in_size=model_config['vocab_size'],
                                 num_class=2,
                                 d_model=model_config['embedding_dim'],
@@ -37,18 +40,17 @@ def get_model(model_config):
                               dropout=model_config['dropout'],
                               layer_norm=True,#model_config['layer_norm'],
                               global_pool=True,#model_config['global_pool'],
-                              # device=model_config['device']
                               )
 
     elif model_config['model_type'] == 'formula-net':
-        return inner_embedding_network.FormulaNet(model_config['vocab_size'],
+        return FormulaNet(model_config['vocab_size'],
                                                   model_config['embedding_dim'],
                                                   model_config['gnn_layers'])
 
     elif model_config['model_type'] == 'formula-net-edges':
-        return gnn_edge_labels.message_passing_gnn_edges(model_config['vocab_size'],
-                                                         model_config['embedding_dim'],
-                                                         model_config['gnn_layers'])
+        return FormulaNetEdges(model_config['vocab_size'],
+                                               model_config['embedding_dim'],
+                                               model_config['gnn_layers'])
 
     elif model_config['model_type'] == 'digae':
         return DigaeEmbedding(model_config['vocab_size'],

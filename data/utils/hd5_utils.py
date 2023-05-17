@@ -38,7 +38,7 @@ def to_hdf5(data_list: list, h5file: h5py.File, name: str):
     max_edge_length_1 = max(len(data1.edge_index[0]) for data1, data2, y in data_list)
     max_edge_length_2 = max(len(data2.edge_index[0]) for data1, data2, y in data_list)
 
-    # attention edge index for SAT
+    # attention edge index for graph_benchmarks
     max_att_1 = max(len(data1.x) ** 2 for data1, data2, y in data_list)
     max_att_2 = max(len(data2.x) ** 2 for data1, data2, y in data_list)
 

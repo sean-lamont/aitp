@@ -14,9 +14,9 @@ import torch
 import torch_geometric.utils
 from tqdm import tqdm
 from models.digae_layers import DirectedGCNConvEncoder, DirectedInnerProductDecoder, SingleLayerDirectedGCNConvEncoder
-from models.digae_model import OneHotDirectedGAE
+from models.gnn.digae.digae_model import OneHotDirectedGAE
 import json
-import models.inner_embedding_network
+import models.gnn.formula_net.inner_embedding_network
 from torch_geometric.data import Data
 import pickle
 # from data.hol4.ast_def import *
@@ -153,12 +153,12 @@ vocab_size = 1909
 
 
 # try:
-#     with open("/home/sean/Documents/phd/holist/holstep_gnn/FormulaNet/data/graph_data/full_expr_dict.pk", "rb") as f:
+#     with open("/home/sean/Documents/phd/holist/holstep_gnn/formula_net/data/graph_data/full_expr_dict.pk", "rb") as f:
 #         graph_dict = pickle.load(f)
 #     print("Full graph db loaded")
 # except:
 #     print("Generating full database with ancestor/children edges and depth information")
-#     with open("/home/sean/Documents/phd/holist/holstep_gnn/FormulaNet/data/graph_data/global_expr_dict.pk", "rb") as f:
+#     with open("/home/sean/Documents/phd/holist/holstep_gnn/formula_net/data/graph_data/global_expr_dict.pk", "rb") as f:
 #         graph_db = pickle.load(f)
 #
 #     num_items = len(graph_db)
@@ -208,7 +208,7 @@ vocab_size = 1909
 #     for process in processes:
 #         process.join()
 #
-#     with open("/home/sean/Documents/phd/holist/holstep_gnn/FormulaNet/data/graph_data/full_expr_dict.pk", "wb") as f:
+#     with open("/home/sean/Documents/phd/holist/holstep_gnn/formula_net/data/graph_data/full_expr_dict.pk", "wb") as f:
 #         pickle.dump(dict(global_dict), f)
 #
 #     graph_dict = dict(global_dict)
@@ -216,13 +216,13 @@ vocab_size = 1909
 # exit()
 
 
-with open("/home/sean/Documents/phd/holist/holstep_gnn/FormulaNet/data/graph_data/train_data.pk", "rb") as f:
+with open("/home/sean/Documents/phd/holist/holstep_gnn/formula_net/data/graph_data/train_data.pk", "rb") as f:
     train_data = pickle.load(f)
 
-with open("/home/sean/Documents/phd/holist/holstep_gnn/FormulaNet/data/graph_data/val_data.pk", "rb") as f:
+with open("/home/sean/Documents/phd/holist/holstep_gnn/formula_net/data/graph_data/val_data.pk", "rb") as f:
     val_data = pickle.load(f)
 
-with open("/home/sean/Documents/phd/holist/holstep_gnn/FormulaNet/data/graph_data/data.pk", "rb") as f:
+with open("/home/sean/Documents/phd/holist/holstep_gnn/formula_net/data/graph_data/data.pk", "rb") as f:
     test_data = pickle.load(f)
 
 
@@ -319,7 +319,7 @@ def to_combined_batch(list_data, data_dict, embedding_dim):
 
 
         # todo Note, if we instead took the complete edge index of the combined graphs, the node embeddings would attend to all nodes in both graphs.
-        # doing it this way, we are doing normal SAT for each graph, then the CLS node will take a global attention over the intra graph node embeddings
+        # doing it this way, we are doing normal graph_benchmarks for each graph, then the CLS node will take a global attention over the intra graph node embeddings
 
         # positional encodings
 
@@ -345,7 +345,7 @@ def to_combined_batch(list_data, data_dict, embedding_dim):
 
 def get_model(config):
 
-    if config['model_type'] == 'sat':
+    if config['model_type'] == 'graph_benchmarks':
         return GraphTransformer(in_size=config['vocab_size'],
                                 num_class=2,
                                 d_model=config['embedding_dim'],
@@ -362,7 +362,7 @@ def get_model(config):
                                 global_pool=config['global_pool'])
 
     elif config['model_type'] == 'formula-net':
-        return models.inner_embedding_network.FormulaNet(config['vocab_size'], config['embedding_dim'], config['gnn_layers'])
+        return models.gnn.formula_net.inner_embedding_network.FormulaNet(config['vocab_size'], config['embedding_dim'], config['gnn_layers'])
 
     elif config['model_type'] == 'digae':
         return None
@@ -407,7 +407,7 @@ def run_combined_graphs(config):
     #     epoch = checkpoint['epoch']
     #     loss = checkpoint['loss']
 
-    fc = gnn_edge_labels.F_c_module_(embedding_dim).to(device)
+    fc = gnn_edge_labels.BinaryClassifier(embedding_dim).to(device)
 
 
     op_g1 = torch.optim.AdamW(graph_net_combined.parameters(), lr=lr, weight_decay=weight_decay)
@@ -579,7 +579,7 @@ def val_acc_dual_encoder(model_1,  batch, fc, embedding_dim):
 
 
 sat_config = {
-    "model_type": "sat",
+    "model_type": "graph_benchmarks",
     "vocab_size": 1909,
     "embedding_dim": 128,
     "dim_feedforward": 256,
@@ -650,7 +650,7 @@ def main():
 #     "parameters": {
 #         "model_config" : {
 #             "parameters": {
-#                 "model_type": {"values":["sat"]},
+#                 "model_type": {"values":["graph_benchmarks"]},
 #                 "vocab_size": {"values":[1909]},
 #                 "embedding_dim": {"values":[128, 256]},
 #                 "in_embed": {"values":[False]},

@@ -5,7 +5,8 @@ from data.hol4 import ast_def
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 
-from models import utp_model, inner_embedding_network
+from models.tactic_zero import policy_models
+from models.gnn.formula_net import inner_embedding_network
 import time
 from environments.hol4.graph_env import *
 import numpy as np

@@ -13,8 +13,6 @@ from torch_geometric.nn.inits import reset
 from torch_geometric.utils import degree
 
 
-
-
 GNN_TYPES = [
     'graph', 'graphsage', 'gcn',
     'gin', 'gine',
@@ -32,13 +30,16 @@ def get_simple_gnn_layer(gnn_type, embed_dim, **kwargs):
     edge_dim = kwargs.get('edge_dim', None)
     if gnn_type == "graph":
         return gnn.GraphConv(embed_dim, embed_dim)
+
     elif gnn_type == "graphsage":
         return gnn.SAGEConv(embed_dim, embed_dim)
+
     elif gnn_type == "gcn":
         if edge_dim is None:
             return gnn.GCNConv(embed_dim, embed_dim)
         else:
             return GCNConv(embed_dim, edge_dim)
+
     elif gnn_type == "gin":
         mlp = mlp = nn.Sequential(
             nn.Linear(embed_dim, embed_dim),
@@ -46,6 +47,7 @@ def get_simple_gnn_layer(gnn_type, embed_dim, **kwargs):
             nn.Linear(embed_dim, embed_dim),
         )
         return gnn.GINConv(mlp, train_eps=True)
+
     elif gnn_type == "gine":
         mlp = mlp = nn.Sequential(
             nn.Linear(embed_dim, embed_dim),
@@ -53,6 +55,7 @@ def get_simple_gnn_layer(gnn_type, embed_dim, **kwargs):
             nn.Linear(embed_dim, embed_dim),
         )
         return gnn.GINEConv(mlp, train_eps=True, edge_dim=edge_dim)
+
     elif gnn_type == "pna":
         aggregators = ['mean', 'min', 'max', 'std']
         scalers = ['identity', 'amplification', 'attenuation']
@@ -62,6 +65,7 @@ def get_simple_gnn_layer(gnn_type, embed_dim, **kwargs):
                             deg=deg, towers=4, pre_layers=1, post_layers=1,
                             divide_input=True, edge_dim=edge_dim)
         return layer
+
     elif gnn_type == "pna2":
         aggregators = ['mean', 'sum', 'max']
         scalers = ['identity']
@@ -71,6 +75,7 @@ def get_simple_gnn_layer(gnn_type, embed_dim, **kwargs):
                            deg=deg, towers=4, pre_layers=1, post_layers=1,
                            divide_input=True, edge_dim=edge_dim)
         return layer
+
     elif gnn_type == "pna2_ram":
         aggregators = ['mean', 'sum', 'max']
         scalers = ['identity']
@@ -79,6 +84,7 @@ def get_simple_gnn_layer(gnn_type, embed_dim, **kwargs):
                     aggregators=aggregators, scalers=scalers,
                     deg=deg, towers=4, divide_input=True, edge_dim=edge_dim)
         return layer
+
     elif gnn_type == "pna3":
         aggregators = ['mean', 'sum', 'max']
         scalers = ['identity']
@@ -88,6 +94,7 @@ def get_simple_gnn_layer(gnn_type, embed_dim, **kwargs):
                             deg=deg, towers=1, pre_layers=1, post_layers=1,
                             divide_input=False, edge_dim=edge_dim)
         return layer
+
     elif gnn_type == "pna4":
         aggregators = ['mean', 'sum', 'max']
         scalers = ['identity']

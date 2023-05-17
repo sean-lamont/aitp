@@ -2,7 +2,7 @@ from datetime import datetime
 from models.tactic_zero.batch_predictor import BatchPredictor
 from models.tactic_zero.checkpoint import Checkpoint
 
-from models import utp_model
+from models.tactic_zero import policy_models
 import time
 from environments.hol4.new_env import *
 import numpy as np

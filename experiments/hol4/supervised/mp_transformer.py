@@ -12,9 +12,9 @@ import torch
 import torch_geometric.utils
 from tqdm import tqdm
 from models.digae_layers import DirectedGCNConvEncoder, DirectedInnerProductDecoder, SingleLayerDirectedGCNConvEncoder
-from models.digae_model import OneHotDirectedGAE
+from models.gnn.digae.digae_model import OneHotDirectedGAE
 import json
-import models.inner_embedding_network
+import models.gnn.formula_net.inner_embedding_network
 from torch_geometric.data import Data
 import pickle
 from data.hol4.ast_def import *
@@ -1129,7 +1129,7 @@ def to_batch_transformer(list_data, data_dict, directed_attention=False):
 
 def get_model(config):
 
-    if config['model_type'] == 'sat':
+    if config['model_type'] == 'graph_benchmarks':
         return GraphTransformer(in_size=config['vocab_size'],
                                 num_class=2,
                                 d_model=config['embedding_dim'],
@@ -1146,10 +1146,10 @@ def get_model(config):
                                 k_hop=config['gnn_layers'])
 
     elif config['model_type'] == 'formula-net':
-        return models.inner_embedding_network.FormulaNet(config['vocab_size'], config['embedding_dim'], config['gnn_layers'])
+        return models.gnn.formula_net.inner_embedding_network.FormulaNet(config['vocab_size'], config['embedding_dim'], config['gnn_layers'])
 
     elif config['model_type'] == 'formula-net-edges':
-        return models.gnn_edge_labels.message_passing_gnn_edges(config['vocab_size'], config['embedding_dim'], config['gnn_layers'])
+        return models.gnn_edge_labels.FormulaNetEdges(config['vocab_size'], config['embedding_dim'], config['gnn_layers'])
 
     elif config['model_type'] == 'digae':
         return None
@@ -1175,7 +1175,7 @@ val_data = val
 
 
 # todo move generation of this to data module
-# with open("/home/sean/Documents/phd/aitp/experiments/hol4/supervised/torch_graph_dict_directed_depth.pk", "rb") as f:
+# with open("/home/sean/Documents/phd/aitp/sat/hol4/supervised/torch_graph_dict_directed_depth.pk", "rb") as f:
 #     torch_graph_dict = pickle.load(f)
 
 
@@ -1227,7 +1227,7 @@ def run_dual_encoders(config):
     #     epoch = checkpoint['epoch']
     #     loss = checkpoint['loss']
 
-    fc = models.gnn_edge_labels.F_c_module_(embedding_dim * 2).to(device)
+    fc = models.gnn_edge_labels.BinaryClassifier(embedding_dim * 2).to(device)
     # fc = nn.DataParallel(fc).to(device)
     # fc = torch.compile(fc)
 
@@ -1462,7 +1462,7 @@ def val_acc_dual_encoder(model_1, model_2, batch, fc, embedding_dim, directed_at
     return torch.sum(preds == torch.LongTensor(batch.y).to(device)) / len(batch.y)
 
 sat_config = {
-    "model_type": "sat",
+    "model_type": "graph_benchmarks",
     "vocab_size": len(tokens),
     "embedding_dim": 128,
     "dim_feedforward": 256,
@@ -1486,7 +1486,7 @@ exp_config = {
     "model_save": True,
     "val_size": 2048,
     "logging": False,
-    "model_dir": "/home/sean/Documents/phd/aitp/experiments/hol4/supervised/model_checkpoints"
+    "model_dir": "/home/sean/Documents/phd/aitp/sat/hol4/supervised/model_checkpoints"
 }
 
 formula_net_config = {
@@ -1523,7 +1523,7 @@ run_dual_encoders(config = {"model_config": sat_config, "exp_config": exp_config
 #     "parameters": {
 #         "model_config" : {
 #             "parameters": {
-#                 "model_type": {"values":["sat"]},
+#                 "model_type": {"values":["graph_benchmarks"]},
 #                 "vocab_size": {"values":[len(tokens)]},
 #                 "embedding_dim": {"values":[128]},
 #                 "in_embed": {"values":[False]},

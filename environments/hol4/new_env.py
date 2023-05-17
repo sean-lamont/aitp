@@ -8,7 +8,7 @@ from sys import exit
 from time import sleep
 import signal
 import os
-# from experiments.hol4.rl.exp_config import *
+# from sat.hol4.rl.exp_config import *
 from copy import deepcopy
 import re
 

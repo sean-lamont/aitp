@@ -12,7 +12,6 @@ class PositionEncoding(object):
         for i, g in enumerate(dataset):
             pe = self.compute_pe(g)
             dataset.abs_pe_list.append(pe)
-
         return dataset
 
 

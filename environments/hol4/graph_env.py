@@ -495,8 +495,6 @@ class HolEnv():
             cmd = re.sub("'", "\"", cmd)
             print("Adding simp lemmas from {}".format(theory))
 
-
-
         reset_cmd = "BasicProvers.recreate_sset_at_parentage (parents \"{}\");".format(theory)
         self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
         self.process.sendline(reset_cmd.encode("utf-8"))
