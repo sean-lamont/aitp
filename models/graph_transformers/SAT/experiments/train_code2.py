@@ -224,7 +224,9 @@ def main():
     num_edge_features = 2
 
     dataset = PygGraphPropPredDataset(name=args.dataset, root=data_path)
+
     seq_len_list = np.array([len(seq) for seq in dataset.data.y])
+
     print('Target seqence less or equal to {} is {}%.'.format(
         args.max_seq_len,
         np.sum(seq_len_list <= args.max_seq_len) / len(seq_len_list))

@@ -1190,16 +1190,23 @@ class AttentionRelations(nn.Module):
 
         self.num_heads = num_heads
 
-        self.transformer_embedding =  TransformerEmbedding(ntoken = None,d_model = embed_dim,nhead=num_heads,
+        self.transformer_embedding =  TransformerEmbedding(ntoken = None, d_model = embed_dim,nhead=num_heads,
                                                            d_hid=embed_dim, nlayers=num_layers,dropout=dropout,
                                                            enc=False,in_embed=False,global_pool=global_pool)
 
         self.edge_embed = torch.nn.Embedding(edge_dim, 32)
-        self.embedding = torch.nn.Embedding(ntoken, embed_dim)
+
+        if isinstance(ntoken, int):
+            self.embedding = torch.nn.Embedding(ntoken, embed_dim)
+        elif isinstance(ntoken, nn.Module):
+            self.embedding = ntoken
+        else:
+            raise ValueError("Not implemented!")
 
         self.scale = head_dim ** -0.5
 
-        self.r_proj = nn.Linear(embed_dim * 2 + 32, embed_dim , bias=bias)
+        # self.r_proj = nn.Linear(embed_dim * 2 + 32, embed_dim , bias=bias)
+        self.r_proj = nn.Linear(embed_dim * 2 + 64, embed_dim , bias=bias)
 
         self.cls_token = nn.Parameter(torch.randn(1, embed_dim))
 
@@ -1223,26 +1230,33 @@ class AttentionRelations(nn.Module):
         edge_attr = batch.edge_attr
         softmax_idx = batch.softmax_idx
 
+        x = self.embedding(x) if hasattr(batch, "node_depth") is None else self.embedding(x, batch.node_depth.view(-1,))
 
-        x = self.embedding(x)
 
         first = torch.index_select(x, 0, edge_index[0])
         last = torch.index_select(x, 0, edge_index[1])
 
 
+
         if edge_attr is not None:
             edge_attr = self.edge_embed(edge_attr)
+
+            # print (edge_attr.shape)
+            if len(edge_attr.shape) > 2:
+                edge_attr = edge_attr.flatten(1,2)
+            # print (edge_attr.shape)
+
             R = torch.cat([first, edge_attr, last], dim = 1)
         else:
             R = torch.cat([first, last], dim = 1)
 
         R = self.r_proj(R)
 
-        cls_tokens = einops.repeat(self.cls_token, '() d -> 1 b d', b=len(softmax_idx)- 1)
-        # cls_tokens = einops.repeat(self.cls_token, '() d -> 1 b d', b=len(softmax_idx))
+        # cls_tokens = einops.repeat(self.cls_token, '() d -> 1 b d', b=len(softmax_idx)- 1)
+        cls_tokens = einops.repeat(self.cls_token, '() d -> 1 b d', b=len(softmax_idx))
 
         #split R according to softmax_idx (i.e. how many edges per sequence in batch)
-        R = torch.tensor_split(R, softmax_idx[1:-1])
+        R = torch.tensor_split(R, softmax_idx[:-1])
 
         R = torch.nn.utils.rnn.pad_sequence(R)
 
@@ -1282,6 +1296,7 @@ class AttentionRelations(nn.Module):
         # masked_pos = masked_inds[:, :, None].expand(-1, -1, enc.size(-1))  # [batch_size, max_pred, d_model]
 
         return
+
 
 
 
