@@ -38,9 +38,11 @@ def to_hdf5(data_list: list, h5file: h5py.File, name: str):
     max_edge_length_1 = max(len(data1.edge_index[0]) for data1, data2, y in data_list)
     max_edge_length_2 = max(len(data2.edge_index[0]) for data1, data2, y in data_list)
 
+
+
     # attention edge index for graph_benchmarks
-    max_att_1 = max(len(data1.x) ** 2 for data1, data2, y in data_list)
-    max_att_2 = max(len(data2.x) ** 2 for data1, data2, y in data_list)
+    max_att_1 = max(len(data1.attention_edge_index[0]) for data1, data2, y in data_list)
+    max_att_2 = max(len(data2.attention_edge_index[0]) for data1, data2, y in data_list)
 
     # len should be constant for ptr
     ptr_len = len(data_list[0][0].ptr)
@@ -51,7 +53,7 @@ def to_hdf5(data_list: list, h5file: h5py.File, name: str):
     batch1_dset = h5file.create_dataset(f"{name}/batch1", shape=(len(data_list), max_length_1), dtype=np.int64, compression="gzip")
     ptr1_dset = h5file.create_dataset(f"{name}/ptr1", shape=(len(data_list),ptr_len), dtype=np.int64, compression="gzip")
     edge_ptr1_dset = h5file.create_dataset(f"{name}/edge_ptr1", shape=(len(data_list),ptr_len), dtype=np.int64, compression="gzip")
-    attention_edge_1 = h5file.create_dataset(f"{name}/edge_ptr1", shape=(len(data_list),2,max_att_1), dtype=np.int64, compression="gzip")
+    attention_edge_1 = h5file.create_dataset(f"{name}/attention_edge1", shape=(len(data_list),2,max_att_1), dtype=np.int64, compression="gzip")
 
     x2_dset = h5file.create_dataset(f"{name}/x2", shape=(len(data_list), max_length_2), dtype=np.int64, compression="gzip")#, data_list[0][1].num_node_features))
     edge_index2_dset = h5file.create_dataset(f"{name}/edge_index2", shape=(len(data_list), 2, max_edge_length_2), dtype=np.int64, compression="gzip")
@@ -59,7 +61,7 @@ def to_hdf5(data_list: list, h5file: h5py.File, name: str):
     batch2_dset = h5file.create_dataset(f"{name}/batch2", shape=(len(data_list), max_length_2), dtype=np.int64, compression="gzip")
     ptr2_dset = h5file.create_dataset(f"{name}/ptr2", shape=(len(data_list),ptr_len), dtype=np.int64, compression="gzip")
     edge_ptr2_dset = h5file.create_dataset(f"{name}/edge_ptr2", shape=(len(data_list),ptr_len), dtype=np.int64, compression="gzip")
-    attention_edge_2 = h5file.create_dataset(f"{name}/edge_ptr2", shape=(len(data_list),2,max_att_2), dtype=np.int64, compression="gzip")
+    attention_edge_2 = h5file.create_dataset(f"{name}/attention_edge2", shape=(len(data_list),2,max_att_2), dtype=np.int64, compression="gzip")
 
     y_dset = h5file.create_dataset(f"{name}/y", shape=(len(data_list),ptr_len-1), dtype=np.int64, compression="gzip")
     
@@ -79,7 +81,8 @@ def to_hdf5(data_list: list, h5file: h5py.File, name: str):
         batch1_dset[i, :num_nodes1] = data1.batch.numpy()#.reshape(num_nodes1, 1)
         ptr1_dset[i] = data1.ptr.numpy()
         edge_ptr1_dset[i] = np.append([0], data1.softmax_idx.numpy())
-        attention_edge_1[i] = ptr_to_complete_edge_index(data1.ptr).numpy()
+        attention_idx = data1.attention_edge_index
+        attention_edge_1[i, :, :attention_idx.shape[1]] = attention_idx.numpy()
 
         x2_dset[i, :num_nodes2] = data2.x.numpy()#.reshape(num_nodes2, 1)
         edge_index2_dset[i, :, :num_edges2] = data2.edge_index.numpy()
@@ -87,7 +90,9 @@ def to_hdf5(data_list: list, h5file: h5py.File, name: str):
         batch2_dset[i, :num_nodes2] = data2.batch.numpy()#.reshape(num_nodes2, 1)
         ptr2_dset[i] = data2.ptr.numpy()
         edge_ptr2_dset[i] = np.append([0], data2.softmax_idx.numpy())
-        attention_edge_2[i, :, num_nodes1 ** 2] = ptr_to_complete_edge_index(data2.ptr).numpy()
+
+        attention_idx = data2.attention_edge_index
+        attention_edge_2[i, :, :attention_idx.shape[1]] = attention_idx.numpy()
 
         y_dset[i] = y.numpy()
 

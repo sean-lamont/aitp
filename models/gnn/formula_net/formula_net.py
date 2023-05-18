@@ -115,7 +115,7 @@ class FormulaNet(nn.Module):
         edges = data.edge_index
         batch = data.batch if hasattr(data, 'batch') else None
 
-        nodes = self.initial_encoder(nodes)
+        # nodes = self.initial_encoder(nodes)
 
         for t in range(self.num_iterations):
             fi_sum = self.parent_agg(nodes, edges)

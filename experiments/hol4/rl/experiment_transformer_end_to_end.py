@@ -3,7 +3,6 @@ from datetime import datetime
 
 from torch import Tensor
 from data.hol4 import ast_def
-
 from models.tactic_zero import policy_models
 import time
 from environments.hol4.new_env import *
@@ -79,7 +78,7 @@ class TransformerEmbedding(nn.Module):
         super().__init__()
         self.model_type = 'Transformer'
         self.pos_encoder = PositionalEncoding(d_model, dropout, max_len=256)
-        encoder_layers = TransformerEncoderLayer(d_model, nhead, d_hid, dropout)
+        encoder_layers = TransformerEncoderLayer(d_model, nhead, d_hid, dropout, activation='gelu')
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
         self.encoder = nn.Embedding(ntoken, d_model)
         # self.initial_encoder = inner_embedding_network.F_x_module_(ntoken, d_model)

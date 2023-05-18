@@ -121,7 +121,12 @@ class MongoDataModule(pl.LightningDataModule):
                 ret.attention_edge_index_t = conj_graph['attention_edge_index']
                 ret.attention_edge_index_s = stmt_graph['attention_edge_index']
             else:
-                raise NotImplementedError
+                ret.attention_edge_index_t = torch.cartesian_prod(torch.arange(x1_mat.size(0)),
+                                                                        torch.arange(x1_mat.size(0))).transpose(0,1)
+
+                ret.attention_edge_index_s = torch.cartesian_prod(torch.arange(x2_mat.size(0)),
+                                                                        torch.arange(x2_mat.size(0))).transpose(0,1)
+                # raise NotImplementedError
 
         if 'softmax_idx' in options:
             ret.softmax_idx_t = x1_edge_index.size(1)
@@ -207,14 +212,15 @@ def separate_link_batch(batch):
     return data_1, data_2, batch.y
 
 
-data_dir = '/home/sean/Documents/phd/repo/aitp/data/utils/processed_data'
+# data_dir = '/home/sean/Documents/phd/repo/aitp/data/utils/holstep_full'
 
 # save preprocessed graph data in batches to files. Prevents need for recomputing batch level attributes,
 # such as ptr, batch idx etc.
-def write_mongo_to_h5():
+def write_mongo_to_h5(data_dir):
     data_module = MongoDataModule(config={'buf_size': 2048, 'batch_size': 32, 'db_name': 'hol_step',
                                                          'collection_name': 'pretrain_graphs',
-                                                         'options': ['edge_attr', 'edge_index', 'softmax_idx']})
+                                                         'options': ['edge_attr', 'edge_index', 'softmax_idx',
+                                                                     'attention_edge_index']})
 
     data_module.setup('fit')
     data_module.setup('test')
@@ -253,33 +259,36 @@ class H5DataLoader(torchdata.datapipes.iter.IterDataPipe):
         # self.transform = kwargs['transform']
     # def file_to_data(self, h5file):
 
-# todo make int64 when saving
     def __iter__(self):
         for file_name in self.source_datapipe:
             with h5py.File(file_name, 'r') as h5file:
                 x1 = torch.from_numpy(h5file['data/x1'][:])
-                edge_index1 = torch.from_numpy(h5file['data/edge_index1'][:]).long()
-                edge_attr1 = torch.from_numpy(h5file['data/edge_attr1'][:]).long()
-                batch1 = torch.from_numpy(h5file['data/batch1'][:]).long()
+                edge_index1 = torch.from_numpy(h5file['data/edge_index1'][:])#.long()
+                edge_attr1 = torch.from_numpy(h5file['data/edge_attr1'][:])#.long()
+                batch1 = torch.from_numpy(h5file['data/batch1'][:])#.long()
 
                 # ptr1 = torch.from_numpy(h5file['data/ptr1'][:]).tolist()
-                ptr1 = torch.from_numpy(h5file['data/ptr1'][:]).long()
+                ptr1 = torch.from_numpy(h5file['data/ptr1'][:])#.long()
 
                 edge_ptr1 = torch.from_numpy(h5file['data/edge_ptr1'][:]).tolist()
                 # edge_ptr1 = torch.from_numpy(h5file['data/edge_ptr1'][:]).long()
 
-                x2 = torch.from_numpy(h5file['data/x2'][:]).long()
-                edge_index2 = torch.from_numpy(h5file['data/edge_index2'][:]).long()
-                edge_attr2 = torch.from_numpy(h5file['data/edge_attr2'][:]).long()
-                batch2 = torch.from_numpy(h5file['data/batch2'][:]).long()
+                attention_edge_1 = torch.from_numpy(h5file['data/attention_edge1'][:])
+
+                x2 = torch.from_numpy(h5file['data/x2'][:])#.long()
+                edge_index2 = torch.from_numpy(h5file['data/edge_index2'][:])#.long()
+                edge_attr2 = torch.from_numpy(h5file['data/edge_attr2'][:])#.long()
+                batch2 = torch.from_numpy(h5file['data/batch2'][:])#.long()
 
                 # ptr2 = torch.from_numpy(h5file['data/ptr2'][:]).tolist()
-                ptr2 = torch.from_numpy(h5file['data/ptr2'][:]).long()
+                ptr2 = torch.from_numpy(h5file['data/ptr2'][:])#.long()
 
                 edge_ptr2 = torch.from_numpy(h5file['data/edge_ptr2'][:]).tolist()
                 # edge_ptr2 = torch.from_numpy(h5file['data/edge_ptr2'][:]).long()
 
-                y = torch.from_numpy(h5file['data/y'][:]).long()
+                attention_edge_2 = torch.from_numpy(h5file['data/attention_edge2'][:])
+
+                y = torch.from_numpy(h5file['data/y'][:])#.long()
 
                 data_len_1 = torch.from_numpy(h5file['data/x1_len'][:])
                 data_len_2 = torch.from_numpy(h5file['data/x2_len'][:])
@@ -296,6 +305,7 @@ class H5DataLoader(torchdata.datapipes.iter.IterDataPipe):
                                edge_attr=edge_attr1[i, :num_edges1],
                                batch=batch1[i, :num_nodes1],
                                ptr=ptr1[i],
+                               attention_edge_index=attention_edge_1[i],
                                softmax_idx=edge_ptr1[i])
 
                     data_2 = Data(x=x2[i, :num_nodes2],
@@ -303,13 +313,14 @@ class H5DataLoader(torchdata.datapipes.iter.IterDataPipe):
                              edge_attr=edge_attr2[i, :num_edges2],
                              batch=batch2[i, :num_nodes2],
                              ptr=ptr2[i],
-                             softmax_idx=edge_ptr2[i])
+                            attention_edge_index=attention_edge_2[i],
+                            softmax_idx=edge_ptr2[i])
 
                     y_i = y[i]
 
                     yield data_1, data_2, y_i
 
-def build_h5_datapipe(masks, cycle=False):
+def build_h5_datapipe(masks, data_dir, cycle=False):
     datapipe = torchdata.datapipes.iter.FileLister(data_dir, masks=masks)
     datapipe = datapipe.shuffle()
     datapipe = datapipe.sharding_filter()
@@ -325,14 +336,14 @@ class H5DataModule(pl.LightningDataModule):
     def prepare_data(self):
         if not os.path.isdir(self.data_dir):
             os.mkdir(self.data_dir)
-            write_mongo_to_h5()
+            write_mongo_to_h5(self.data_dir)
 
     def setup(self, stage: str):
         if stage == "fit":
-            self.train_pipe = build_h5_datapipe("train*")
-            self.val_pipe = build_h5_datapipe("val*",cycle=True)
+            self.train_pipe = build_h5_datapipe("train*", self.data_dir)
+            self.val_pipe = build_h5_datapipe("val*",self.data_dir, cycle=True)
         if stage == "test":
-            self.test_pipe = build_h5_datapipe("test*")
+            self.test_pipe = build_h5_datapipe("test*", self.data_dir)
 
     def train_dataloader(self):
          return torch.utils.data.DataLoader(
@@ -384,8 +395,9 @@ class H5DataModule(pl.LightningDataModule):
         # data_1.softmax_idx = data_1.softmax_idx.to(device)
         # data_2.softmax_idx = data_2.softmax_idx.to(device)
 
-        # data_1.attention_edge_index = ptr_to_complete_edge_index(data_1.ptr).to(device)
-        # data_2.attention_edge_index = ptr_to_complete_edge_index(data_2.ptr).to(device)
+        if hasattr(data_1, "attention_edge_index"):
+            data_1.attention_edge_index = data_1.attention_edge_index.to(device)
+            data_2.attention_edge_index = data_2.attention_edge_index.to(device)
 
         y = y.to(device)
         # batch.edge_index = batch.edge_index.to(device)

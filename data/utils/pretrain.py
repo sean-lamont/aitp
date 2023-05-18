@@ -92,12 +92,9 @@ Premise selection experiment with separate encoders for goal and premise
 '''
 
 
-class SeparateEncoderPremiseSelection():
-    def __int__(self, config):
-        super(self, config)
-
+class SeparateEncoderPremiseSelection:
+    def __init__(self, config):
         self.config = config
-
         self.model_config = config['model_config']
         self.data_config = config['data_config']
         self.exp_config = config['exp_config']
@@ -112,7 +109,7 @@ class SeparateEncoderPremiseSelection():
         logger = WandbLogger(project=self.config['project'],
                              name=self.config['name'],
                              config=self.config,
-                             offline=False)
+                             offline=True)
 
         trainer = pl.Trainer(
             max_epochs=self.exp_config['epochs'],
