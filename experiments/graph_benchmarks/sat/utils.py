@@ -21,10 +21,12 @@ class ASTNodeEncoder(torch.nn.Module):
         self.depth_encoder = torch.nn.Embedding(self.max_depth + 1, emb_dim)
 
 
-    def forward(self, x, depth):
+    def forward(self, x):#, depth):
+
+        depth = x[:, :, 2]
         depth[depth > self.max_depth] = self.max_depth
 
-        return self.type_encoder(x[:,0]) + self.attribute_encoder(x[:,1]) + self.depth_encoder(depth)
+        return self.type_encoder(x[:,:, 0]) + self.attribute_encoder(x[:,:,1]) + self.depth_encoder(depth)
 
 
 
