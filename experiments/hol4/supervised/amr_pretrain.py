@@ -5,7 +5,7 @@ from data.utils.pretrain import SeparateEncoderPremiseSelection
 from lightning import LightningApp
 
 # HOL4 vocab
-VOCAB_SIZE = 1000
+VOCAB_SIZE = 1004
 
 # HOLStep vocab
 VOCAB_SIZE = 1909 + 4
@@ -68,7 +68,7 @@ amr_config = {
 exp_config = {
     "experiment": "premise_selection",
     "learning_rate": 1e-4,
-    "epochs": 8,
+    "epochs": 20,
     "weight_decay": 1e-6,
     "batch_size": 32,
     "model_save": False,
@@ -77,7 +77,7 @@ exp_config = {
     "checkpoint_dir": "/home/sean/Documents/phd/repo/aitp/sat/hol4/supervised/model_checkpoints",
     "device": "cuda:0",
     "max_errors": 1000,
-    "val_frequency": 2048
+    "val_frequency": 2048,
 }
 
 formula_net_config = {
@@ -95,13 +95,15 @@ digae_config = {
 
 
 # h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/utils/holstep_full"}
-h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/aitp/data/utils/processed_data"}
+h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/utils/processed_data"}
+
+hol4_data_config = {"source": "hol4", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/hol4/torch_data"}
 
 relation_att_exp = SeparateEncoderPremiseSelection(config={"model_config": relation_config,
                                                            "exp_config": exp_config,
-                                                           "data_config": h5_data_config,
-                                                           "project": "test_project",
-                                                           "name": "relation attention large"})
+                                                           "data_config": hol4_data_config,
+                                                           "project": "hol4_premise_selection",
+                                                           "name": "relation attention sep proj"})
 
 # todo with original sequence for positional encoding
 transformer_experiment = SeparateEncoderPremiseSelection(config={"model_config": transformer_config,
@@ -137,8 +139,8 @@ amr_exp = SeparateEncoderPremiseSelection(config={"model_config": amr_config,
 
 
 # amr_exp.run_lightning()
-sat_exp.run_lightning()
-# relation_att_exp.run_lightning()
+# sat_exp.run_lightning()
+relation_att_exp.run_lightning()
 # formula_net_exp.run_lightning()
 # transformer_experiment.run_lightning()
 # digae_exp.run_lightning()

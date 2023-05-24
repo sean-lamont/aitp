@@ -7,11 +7,14 @@ import warnings
 
 warnings.filterwarnings('ignore')
 import lightning.pytorch as pl
+from data.hol4.mongo_to_torch import HOL4DataModule
 from lightning.pytorch.loggers import WandbLogger
 from models.get_model import get_model
 from models.gnn.formula_net.formula_net import BinaryClassifier
 import torch
+from collections import namedtuple
 
+data_tuple = namedtuple('data_tuple', 'graph_dict, expr_dict, train_data, val_data, test_data')
 
 def binary_loss(preds, targets):
     return -1. * torch.sum(targets * torch.log(preds) + (1 - targets) * torch.log((1. - preds)))
@@ -86,6 +89,8 @@ def get_experiment(exp_config, model_config):
 def get_data(data_config):
     if data_config['source'] == 'h5':
         return H5DataModule(config=data_config)
+    if data_config['source'] == 'hol4':
+        return HOL4DataModule(dir=data_config['data_dir'])
     else:
         raise NotImplementedError
 
@@ -128,7 +133,7 @@ class SeparateEncoderPremiseSelection:
             enable_progress_bar=True,
             log_every_n_steps=500,
             # accelerator='gpu',
-            # devices=1,
+            devices=1,
             # strategy='ddp_find_unused_parameters_true',
             # todo figure out why, e.g. https://github.com/Lightning-AI/lightning/issues/11242
             # hack to fix ddp hanging error..

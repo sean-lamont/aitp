@@ -210,12 +210,9 @@ class FormulaNetEdges(nn.Module):
 
         if hasattr(batch, 'node_depth'):
             nodes = self.initial_encoder(nodes, batch.node_depth.view(-1))
-
         else:
             nodes = self.initial_encoder(nodes)
-
         edge_attr = self.edge_encoder(edge_attr)  # torch.transpose(edge_attr, 0, 1))
-
 
         if len(edge_attr.shape) > 2:
             edge_attr = edge_attr.flatten(-2, -1)
@@ -246,7 +243,6 @@ class Final_Agg_induct(nn.Module):
 
 
 class message_passing_gnn_induct(nn.Module):
-
     def __init__(self, input_shape, embedding_dim, num_iterations, device):
         super(message_passing_gnn_induct, self).__init__()
 
@@ -254,15 +250,16 @@ class message_passing_gnn_induct(nn.Module):
 
         self.num_iterations = num_iterations
 
-        self.initial_encoder = torch.nn.Linear(input_shape, embedding_dim).to(device)
+        # self.initial_encoder = torch.nn.Linear(input_shape, embedding_dim).to(device)
+        self.initial_encoder = torch.nn.Embedding(input_shape, embedding_dim)
 
-        self.parent_agg = ParentAggregation(embedding_dim, embedding_dim).to(device)
+        self.parent_agg = ParentAggregation(embedding_dim, embedding_dim)
 
-        self.child_agg = ChildAggregation(embedding_dim, embedding_dim).to(device)
+        self.child_agg = ChildAggregation(embedding_dim, embedding_dim)
 
-        self.final_agg = Final_Agg_induct(embedding_dim).to(device)
+        self.final_agg = Final_Agg_induct(embedding_dim)
 
-        self.conv1 = torch.nn.Conv1d(embedding_dim, embedding_dim * 2, 1, stride=1).to(device)
+        self.conv1 = torch.nn.Conv1d(embedding_dim, embedding_dim * 2, 1, stride=1)
 
     def forward(self, nodes, edges, batch=None):
         nodes = self.initial_encoder(nodes)

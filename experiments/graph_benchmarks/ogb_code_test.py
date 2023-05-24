@@ -1,5 +1,5 @@
 import os
-from pytorch_lightning.profilers import PyTorchProfiler
+from lightning.pytorch.profilers import PyTorchProfiler
 from torch_geometric.data.lightning import LightningDataset
 from models.sat.models import GraphTransformer
 from lightning.pytorch.callbacks import ModelCheckpoint

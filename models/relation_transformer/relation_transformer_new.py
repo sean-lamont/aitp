@@ -38,7 +38,8 @@ class AttentionRelations(nn.Module):
         # self.edge_embed = torch.nn.Linear(edge_dim, edge_embed_dim)
 
         if isinstance(ntoken, int):
-            self.embedding = torch.nn.Embedding(ntoken, embed_dim)
+            self.embedding = torch.nn.Embedding(ntoken + 1, embed_dim, padding_idx=0)
+            # self.embed_2 = torch.nn.Embedding(ntoken + 1, embed_dim, padding_idx=0)
         elif isinstance(ntoken, nn.Module):
             self.embedding = ntoken
         else:
@@ -46,8 +47,18 @@ class AttentionRelations(nn.Module):
 
         self.scale = head_dim ** -0.5
 
-        # self.r_proj = nn.Linear(embed_dim * 2 + (2 * edge_embed_dim), embed_dim, bias=bias)
+
         self.r_proj = nn.Linear(embed_dim * 2 + edge_embed_dim, embed_dim, bias=bias)
+
+        # self.r_proj = nn.Linear(embed_dim + edge_embed_dim, embed_dim, bias=bias)
+
+        self.in_proj = nn.Sequential(nn.Linear(embed_dim, embed_dim), nn.GELU())
+        self.out_proj = nn.Sequential(nn.Linear(embed_dim, embed_dim), nn.GELU())
+
+        # self.r_proj = nn.Sequential(nn.Linear(embed_dim * 2 + edge_embed_dim, embed_dim, bias=bias),
+        #                             nn.ReLU(),
+        #                             nn.LayerNorm(embed_dim))
+
 
         self.cls_token = nn.Parameter(torch.randn(1, embed_dim))
 
@@ -71,6 +82,10 @@ class AttentionRelations(nn.Module):
 
         xi = self.embedding(xi)
         xj = self.embedding(xj)
+        # xj = self.embed_2(xj)
+
+        xi = self.in_proj(xi)
+        xj = self.out_proj(xj)
 
         if edge_attr is not None:
             edge_attr = self.edge_embed(edge_attr)

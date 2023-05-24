@@ -1,140 +1,5 @@
-import traceback
-import lightning.pytorch as pl
-from data.hol4.ast_def import graph_to_torch_labelled
-from torch.distributions import Categorical
-import torch.nn.functional as F
-from datetime import datetime
-import pickle
-from data.hol4 import ast_def
-from torch_geometric.loader import DataLoader
-from models.tactic_zero import policy_models
-from models.gnn.formula_net import formula_net
-import time
-from environments.hol4.new_env import *
-import numpy as np
-#import batch_gnn
-
-MORE_TACTICS = True
-if not MORE_TACTICS:
-    thms_tactic = ["simp", "fs", "metis_tac"]
-    thm_tactic = ["irule"]
-    term_tactic = ["Induct_on"]
-    no_arg_tactic = ["strip_tac"]
-else:
-    thms_tactic = ["simp", "fs", "metis_tac", "rw"]
-    thm_tactic = ["irule", "drule"]
-    term_tactic = ["Induct_on"]
-    no_arg_tactic = ["strip_tac", "EQ_TAC"]
-    
-tactic_pool = thms_tactic + thm_tactic + term_tactic + no_arg_tactic
-
-def revert_with_polish(context):
-    target = context["polished"]
-    assumptions = target["assumptions"]
-    goal = target["goal"]
-    for i in reversed(assumptions): 
-        goal = "@ @ C$min$ ==> {} {}".format(i, goal)
-    return goal
-
-def split_by_fringe(goal_set, goal_scores, fringe_sizes):
-    # group the scores by fringe
-    fs = []
-    gs = []
-    counter = 0
-    for i in fringe_sizes:
-        end = counter + i
-        fs.append(goal_scores[counter:end])
-        gs.append(goal_set[counter:end])
-        counter = end
-    return gs, fs
 
 
-'''
-
-High level agent class 
-
-'''
-class Agent:
-    def __init__(self, tactic_pool):
-        self.tactic_pool = tactic_pool    
-        self.load_encoder()
-    
-    def load_agent(self):
-        pass
-    
-    def load_encoder(self):
-        pass
-        
-    def run(self, env, max_steps):
-        pass
-    
-    def update_params(self):
-        pass
-
-with open("data/hol4/data/torch_graph_dict.pk", "rb") as f:
-    torch_graph_dict = pickle.load(f)
-
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-with open("data/hol4/data/graph_token_encoder.pk", "rb") as f:
-    token_enc = pickle.load(f)
-
-encoded_graph_db = []
-with open('data/hol4/data/adjusted_db.json') as f:
-    compat_db = json.load(f)
-    
-reverse_database = {(value[0], value[1]) : key for key, value in compat_db.items()}
-
-graph_db = {}
-
-print ("Generating premise graph db...")
-for i,t in enumerate(compat_db):
-    graph_db[t] = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc)
-
-with open("data/hol4/data/paper_goals.pk", "rb") as f:
-   paper_goals = pickle.load(f)
-
-with open("data/hol4/data/valid_goals_shuffled.pk", "rb") as f:
-    valid_goals = pickle.load(f)
-
-train_goals = valid_goals[:int(0.8 * len(valid_goals))]
-test_goals = valid_goals[int(0.8 * len(valid_goals)):]
-
-def gather_encoded_content_gnn(history, encoder):
-    fringe_sizes = []
-    contexts = []
-    reverted = []
-    for i in history:
-        c = i["content"]
-        contexts.extend(c)
-        fringe_sizes.append(len(c))
-    for e in contexts:
-        g = revert_with_polish(e)
-        reverted.append(g)
-
-    # todo keep graph_db for now (possbily generate from DB). Then define function to map from list of graphs to batch
-    graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
-
-    loader = DataLoader(graphs, batch_size = len(reverted))
-
-    batch = next(iter(loader))
-
-    batch.edge_attr = batch.edge_attr.long()#torch.LongTensor(batch.edge_attr)
-
-    representations = torch.unsqueeze(encoder(batch.to(device)), 1)
-
-    return representations, contexts, fringe_sizes
-
-
-
-
-
-
-# todo: torch lightning initial experiment:
-# todo: define self.{goal_selector, tactic_selector, term_selector, arg_selector}
-# todo: possibly implement as follows: full list of goals to prove is one epoch.
-# todo: then, DataLoader which gives a single goal as batch.
-# todo: Then run forward loop as normal, return loss as defined in updata_parameters
 
 
 '''
@@ -473,11 +338,11 @@ class GNNVanilla(Agent):
             reward_pool.append(reward)
 
             steps += 1
-            total_reward = float(np.sum(reward_print))
+            # total_reward = float(np.sum(reward_print))
 
             if done == True:
                 print ("Goal Proved in {} steps".format(t+1))
-                iteration_rewards.append(total_reward)
+                # iteration_rewards.append(total_reward)
 
                 #if proved, add to successful replays for this goal
                 if env.goal in self.replays.keys():
@@ -504,7 +369,6 @@ class GNNVanilla(Agent):
 
                 if env.goal in self.replays.keys():
                     replay_flag = True
-
                     return trace, steps, done, 0, 0, replay_flag
 
                 #print("Rewards: {}".format(reward_print))
@@ -512,7 +376,7 @@ class GNNVanilla(Agent):
                 #print("Tactics: {}".format(action_pool))
                 # print("Mean reward: {}\n".format(np.mean(reward_pool)))
                 #print("Total: {}".format(total_reward))
-                iteration_rewards.append(total_reward)
+                # iteration_rewards.append(total_reward)
 
 
         if self.train_mode:

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from tqdm import tqdm
 import pickle
 from models.gnn.formula_net.formula_net import FormulaNetEdges
 import os
@@ -138,7 +139,7 @@ def train_epoch(model, loader, criterion, optimizer, lr_scheduler, epoch, use_cu
     running_loss = 0.0
 
     tic = timer()
-    for i, data in enumerate(loader):
+    for i, data in tqdm(enumerate(loader)):
         size = len(data.y)
         if epoch < args.warmup:
             iteration = epoch * len(loader) + i
@@ -213,6 +214,7 @@ def eval_epoch(model, loader, criterion, evaluator, arr_to_seq, use_cuda=False, 
 
     n_sample = len(loader.dataset)
     epoch_loss = running_loss / n_sample
+    pickle.dump((seq_ref_list, seq_pred_list))
     score = evaluator.eval({"seq_ref": seq_ref_list, "seq_pred": seq_pred_list})['F1']
     print('{} loss: {:.4f} score: {:.4f} time: {:.2f}s'.format(
           split, epoch_loss, score, toc - tic))
@@ -225,7 +227,7 @@ def main():
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     print(args)
-    data_path = "/home/sean/Documents/phd/aitp/ogbg-code2/"#'/home/sean/Documents'
+    data_path = "/home/sean/Documents/phd/repo/aitp/experiments/graph_benchmarks/ogbg-code2/"#'/home/sean/Documents'
     num_edge_features = 2
 
     dataset = PygGraphPropPredDataset(name=args.dataset, root=data_path)
@@ -260,7 +262,7 @@ def main():
     with open("/home/sean/Documents/phd/repo/aitp/experiments/graph_benchmarks/filter_train.pk", "rb") as f:
         filter_mask = pickle.load(f)
 
-    train_dset = GraphDataset(dataset[split_idx['train'][filter_mask]], degree=True,
+    train_dset = GraphDataset(dataset[split_idx['train'][filter_mask]][:32000], degree=True,
             k_hop=args.k_hop, se=args.se, use_subgraph_edge_attr=args.use_edge_attr,
             return_complete_index=False)
 
@@ -274,7 +276,7 @@ def main():
     with open("/home/sean/Documents/phd/repo/aitp/experiments/graph_benchmarks/filter_val.pk", "rb") as f:
         filter_mask = pickle.load(f)
 
-    val_dset = GraphDataset(dataset[split_idx['valid'][filter_mask]], degree=True,
+    val_dset = GraphDataset(dataset[split_idx['valid'][filter_mask]][:2048], degree=True,
             k_hop=args.k_hop, se=args.se, use_subgraph_edge_attr=args.use_edge_attr,
             return_complete_index=False)
 
@@ -306,29 +308,29 @@ def main():
         max_depth = 20
     )
 
-    model = FormulaNetEdges(256, 256, 4, 2, 32, node_encoder)
+    # model = FormulaNetEdges(256, 256, 4, 2, 32, node_encoder)
 
-    # model = GraphTransformer(in_size=node_encoder,
-    #                          num_class=len(vocab2idx),
-    #                          d_model=args.dim_hidden,
-    #                          dim_feedforward=4*args.dim_hidden,
-    #                          dropout=args.dropout,
-    #                          num_heads=args.num_heads,
-    #                          num_layers=args.num_layers,
-    #                          batch_norm=args.batch_norm,
-    #                          abs_pe=args.abs_pe,
-    #                          abs_pe_dim=args.abs_pe_dim,
-    #                          gnn_type=args.gnn_type,
-    #                          k_hop=args.k_hop,
-    #                          use_edge_attr=args.use_edge_attr,
-    #                          num_edge_features=num_edge_features,
-    #                          edge_dim=args.edge_dim,
-    #                          se=args.se,
-    #                          deg=deg,
-    #                          in_embed=True,
-    #                          edge_embed=False,
-    #                          max_seq_len=args.max_seq_len,
-    #                          global_pool=args.global_pool)
+    model = GraphTransformer(in_size=node_encoder,
+                             num_class=len(vocab2idx),
+                             d_model=args.dim_hidden,
+                             dim_feedforward=4*args.dim_hidden,
+                             dropout=args.dropout,
+                             num_heads=args.num_heads,
+                             num_layers=args.num_layers,
+                             batch_norm=args.batch_norm,
+                             abs_pe=args.abs_pe,
+                             abs_pe_dim=args.abs_pe_dim,
+                             gnn_type=args.gnn_type,
+                             k_hop=args.k_hop,
+                             use_edge_attr=args.use_edge_attr,
+                             num_edge_features=num_edge_features,
+                             edge_dim=args.edge_dim,
+                             se=args.se,
+                             deg=deg,
+                             in_embed=True,
+                             edge_embed=False,
+                             max_seq_len=args.max_seq_len,
+                             global_pool=args.global_pool)
     if args.use_cuda:
         model.cuda()
     print("Total number of parameters: {}".format(count_parameters(model)))
