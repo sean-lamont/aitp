@@ -8,7 +8,7 @@ class EncoderRNN(BaseRNN):
 
     Args:
         vocab_size (int): size of the vocabulary
-        max_len (int): a maximum allowed length for the sequence to be processed
+        max_len (int): a maximum allowed length for the sequence to be processed_old
         hidden_size (int): the number of features in the hidden state `h`
         input_dropout_p (float, optional): dropout probability for the input sequence (default: 0)
         dropout_p (float, optional): dropout probability for the output sequence (default: 0)

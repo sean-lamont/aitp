@@ -1,4 +1,6 @@
 from data.utils.dataset import H5DataModule
+from lightning.pytorch.callbacks import EarlyStopping
+from tqdm import tqdm
 import wandb
 import os
 import warnings
@@ -44,7 +46,11 @@ class PremiseSelection(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         goal, premise, y = batch
-        preds = self(goal, premise)
+        try:
+            preds = self(goal, premise)
+        except Exception as e:
+            print (f"Error in forward: {e}")
+            return
         loss = binary_loss(preds, y)
         # loss = torch.nn.functional.cross_entropy(preds, y)
         self.log("loss", loss, batch_size=self.batch_size)
@@ -109,7 +115,10 @@ class SeparateEncoderPremiseSelection:
         logger = WandbLogger(project=self.config['project'],
                              name=self.config['name'],
                              config=self.config,
-                             offline=True)
+                             offline=False)
+
+        early_stop_callback = EarlyStopping(monitor="acc", min_delta=0.00, patience=10, verbose=False,
+                                            mode="max")
 
         trainer = pl.Trainer(
             max_epochs=self.exp_config['epochs'],
@@ -123,11 +132,14 @@ class SeparateEncoderPremiseSelection:
             # strategy='ddp_find_unused_parameters_true',
             # todo figure out why, e.g. https://github.com/Lightning-AI/lightning/issues/11242
             # hack to fix ddp hanging error..
-            limit_train_batches=28000,
+            # limit_train_batches=28000,
             # profiler='pytorch',
-            enable_checkpointing=True)
+            enable_checkpointing=True,
+            # callbacks=[early_stop_callback],
+            )
 
         trainer.fit(model=experiment, datamodule=data_module)
+        trainer.test(model=experiment, datamodule=data_module)
 #
 # def objective(self, trial):
 #     torch.set_float32_matmul_precision('high')

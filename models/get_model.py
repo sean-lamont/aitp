@@ -1,6 +1,6 @@
 from models.transformer.transformer_encoder_model import TransformerEmbedding
 from models.gnn.formula_net.formula_net import FormulaNet, FormulaNetEdges
-from models.relation_transformer.relation_transformer import AttentionRelations
+from models.relation_transformer.relation_transformer_new import AttentionRelations
 from models.gnn.digae.digae_model import DigaeEmbedding
 from models.sat.models import GraphTransformer
 from models.amr.amr import AMRTransformer
@@ -10,7 +10,7 @@ from models.amr.amr import AMRTransformer
 Utility function to fetch model given a configuration dict
 '''
 def get_model(model_config):
-    if model_config['model_type'] == 'graph_benchmarks':
+    if model_config['model_type'] == 'sat':
         return GraphTransformer(in_size=model_config['vocab_size'],
                                 num_class=2,
                                 d_model=model_config['embedding_dim'],

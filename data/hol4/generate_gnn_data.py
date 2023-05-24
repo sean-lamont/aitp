@@ -283,7 +283,7 @@ def generate_gnn_data(data, train_ratio, val_ratio, rand, data_dir,deps,full_db)
 
 # graph-of-graphs
 # edge cases, multiple equivalent polished expressions map to different theory name-numbers e.g. list-8 <-> bool-25
-# can be confirmed from processed HOL file include_probability.txt
+# can be confirmed from processed_old HOL file include_probability.txt
 
 # # map from polished goal to library-dep key
 # with open("polished_dict.json") as f:

@@ -22,7 +22,7 @@ class DecoderRNN(BaseRNN):
 
     Args:
         vocab_size (int): size of the vocabulary
-        max_len (int): a maximum allowed length for the sequence to be processed
+        max_len (int): a maximum allowed length for the sequence to be processed_old
         hidden_size (int): the number of features in the hidden state `h`
         sos_id (int): index of the start of sentence symbol
         eos_id (int): index of the end of sentence symbol

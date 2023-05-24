@@ -273,7 +273,7 @@ class H5DataLoader(torchdata.datapipes.iter.IterDataPipe):
                 edge_ptr1 = torch.from_numpy(h5file['data/edge_ptr1'][:]).tolist()
                 # edge_ptr1 = torch.from_numpy(h5file['data/edge_ptr1'][:]).long()
 
-                attention_edge_1 = torch.from_numpy(h5file['data/attention_edge1'][:])
+                # attention_edge_1 = torch.from_numpy(h5file['data/attention_edge1'][:])
 
                 x2 = torch.from_numpy(h5file['data/x2'][:])#.long()
                 edge_index2 = torch.from_numpy(h5file['data/edge_index2'][:])#.long()
@@ -286,7 +286,7 @@ class H5DataLoader(torchdata.datapipes.iter.IterDataPipe):
                 edge_ptr2 = torch.from_numpy(h5file['data/edge_ptr2'][:]).tolist()
                 # edge_ptr2 = torch.from_numpy(h5file['data/edge_ptr2'][:]).long()
 
-                attention_edge_2 = torch.from_numpy(h5file['data/attention_edge2'][:])
+                # attention_edge_2 = torch.from_numpy(h5file['data/attention_edge2'][:])
 
                 y = torch.from_numpy(h5file['data/y'][:])#.long()
 
@@ -305,7 +305,7 @@ class H5DataLoader(torchdata.datapipes.iter.IterDataPipe):
                                edge_attr=edge_attr1[i, :num_edges1],
                                batch=batch1[i, :num_nodes1],
                                ptr=ptr1[i],
-                               attention_edge_index=attention_edge_1[i],
+                               # attention_edge_index=attention_edge_1[i],
                                softmax_idx=edge_ptr1[i])
 
                     data_2 = Data(x=x2[i, :num_nodes2],
@@ -313,7 +313,7 @@ class H5DataLoader(torchdata.datapipes.iter.IterDataPipe):
                              edge_attr=edge_attr2[i, :num_edges2],
                              batch=batch2[i, :num_nodes2],
                              ptr=ptr2[i],
-                            attention_edge_index=attention_edge_2[i],
+                            # attention_edge_index=attention_edge_2[i],
                             softmax_idx=edge_ptr2[i])
 
                     y_i = y[i]
@@ -326,6 +326,74 @@ def build_h5_datapipe(masks, data_dir, cycle=False):
     datapipe = datapipe.sharding_filter()
     datapipe = datapipe.load_h5_data(cycle=cycle)
     return datapipe
+
+def collate_to_relation(batch):
+    data_1, data_2, y = batch[0]
+
+    x = data_1.x + 1
+    edge_index = data_1.edge_index
+
+    xi = torch.index_select(x, 0, edge_index[0])
+    xj = torch.index_select(x, 0, edge_index[1])
+
+
+    xi = torch.tensor_split(xi, data_1.softmax_idx[1:-1])
+    xj = torch.tensor_split(xj, data_1.softmax_idx[1:-1])
+
+
+    edge_attr_ = data_1.edge_attr.long()
+    edge_attr_ = torch.tensor_split(edge_attr_, data_1.softmax_idx[1:-1])
+    edge_attr_ = torch.nn.utils.rnn.pad_sequence(edge_attr_)
+
+
+    xi = torch.nn.utils.rnn.pad_sequence(xi)
+    xj = torch.nn.utils.rnn.pad_sequence(xj)
+
+    xi = xi[:300]
+    xj = xj[:300]
+    edge_attr_ = edge_attr_[:300]
+
+    # mask = torch.stack([torch.cat([xi[:, i] != 0, torch.BoolTensor([True])], dim=0) for i in range(xi.shape[1])], dim = 0)
+
+    mask = (xi == 0).T
+    mask = torch.cat([mask, torch.zeros(mask.shape[0]).bool().unsqueeze(1)], dim=1)
+
+    data_1 = Data(xi=xi, xj=xj, edge_attr_=edge_attr_, mask=mask)
+
+    x = data_2.x + 1
+    edge_index = data_2.edge_index
+
+    xi = torch.index_select(x, 0, edge_index[0])
+    xj = torch.index_select(x, 0, edge_index[1])
+
+    xi = torch.tensor_split(xi, data_2.softmax_idx[1:-1])
+    xj = torch.tensor_split(xj, data_2.softmax_idx[1:-1])
+
+    edge_attr_ = data_2.edge_attr.long()
+    edge_attr_ = torch.tensor_split(edge_attr_, data_2.softmax_idx[1:-1])
+    edge_attr_ = torch.nn.utils.rnn.pad_sequence(edge_attr_)
+
+    xi = torch.nn.utils.rnn.pad_sequence(xi)
+    xj = torch.nn.utils.rnn.pad_sequence(xj)
+
+    xi = xi[:300]
+    xj = xj[:300]
+    edge_attr_ = edge_attr_[:300]
+
+
+    # mask = torch.stack([torch.cat([xi[:, i] != 0, torch.BoolTensor([True,])], dim=0) for i in range(xi.shape[1])], dim = 0)
+
+    # mask = (xi != 0).T
+    # mask = None
+
+    mask = (xi == 0).T
+    mask = torch.cat([mask, torch.zeros(mask.shape[0]).bool().unsqueeze(1)], dim=1)
+
+    data_2 = Data(xi=xi, xj=xj, edge_attr_=edge_attr_, mask=mask)
+
+    return data_1, data_2, y
+
+
 
 class H5DataModule(pl.LightningDataModule):
     def __init__(self, config):
@@ -350,9 +418,10 @@ class H5DataModule(pl.LightningDataModule):
             dataset=self.train_pipe,
             batch_size=1,
             shuffle=False,
-            # drop_last=True,
+            drop_last=True,
             # pin_memory=True,
             num_workers=0, collate_fn=lambda x: x)
+            # num_workers = 4, collate_fn = collate_to_relation)
 
     def val_dataloader(self):
         # cycle through
@@ -360,18 +429,26 @@ class H5DataModule(pl.LightningDataModule):
             dataset=self.val_pipe,
             batch_size=1,
             shuffle=False,
-            # drop_last=True,
+            drop_last=True,
             num_workers=0, collate_fn=lambda x: x)
+            # num_workers = 0, collate_fn = collate_to_relation)
 
     def test_dataloader(self):
         return torch.utils.data.DataLoader(
             dataset=self.test_pipe,
             batch_size=1,
             # shuffle=True,
-            # drop_last=True,
+            drop_last=True,
             num_workers=0, collate_fn=lambda x: x)
+            # num_workers = 0, collate_fn = collate_to_relation)
 
-
+    # def transfer_batch_to_device(self, batch, device, dataloader_idx):
+    #     data_1, data_2, y = batch
+    #     data_1 = data_1.to(device)
+    #     data_2= data_2.to(device)
+    #     y = y.to(device)
+    #     return data_1, data_2, y
+    #
     # only transfer relevant properties to device
     def transfer_batch_to_device(self, batch, device, dataloader_idx):
         batch = batch[0]
@@ -380,17 +457,17 @@ class H5DataModule(pl.LightningDataModule):
         data_1.x = data_1.x.to(device)
         data_2.x = data_2.x.to(device)
 
-        data_1.edge_index = data_1.edge_index.to(device)
-        data_2.edge_index = data_2.edge_index.to(device)
+        data_1.edge_index = data_1.edge_index.to(device).long()
+        data_2.edge_index = data_2.edge_index.to(device).long()
 
-        data_1.edge_attr = data_1.edge_attr.to(device)
-        data_2.edge_attr = data_2.edge_attr.to(device)
+        data_1.edge_attr = data_1.edge_attr.to(device).long()
+        data_2.edge_attr = data_2.edge_attr.to(device).long()
 
-        data_1.batch = data_1.batch.to(device)
-        data_2.batch = data_2.batch.to(device)
+        data_1.batch = data_1.batch.to(device).long()
+        data_2.batch = data_2.batch.to(device).long()
 
-        data_1.ptr = data_1.ptr.to(device)
-        data_2.ptr = data_2.ptr.to(device)
+        data_1.ptr = data_1.ptr.to(device).long()
+        data_2.ptr = data_2.ptr.to(device).long()
 
         # data_1.softmax_idx = data_1.softmax_idx.to(device)
         # data_2.softmax_idx = data_2.softmax_idx.to(device)
@@ -410,12 +487,6 @@ def ptr_to_complete_edge_index(ptr):
     to_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
     combined_complete_edge_index = torch.vstack((torch.cat(from_lists, dim=0), torch.cat(to_lists, dim=0)))
     return combined_complete_edge_index
-
-
-
-
-
-
 
 
 

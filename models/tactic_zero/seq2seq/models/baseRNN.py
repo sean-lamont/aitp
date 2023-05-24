@@ -9,7 +9,7 @@ class BaseRNN(nn.Module):
         Do not use this class directly, use one of the sub classes.
     Args:
         vocab_size (int): size of the vocabulary
-        max_len (int): maximum allowed length for the sequence to be processed
+        max_len (int): maximum allowed length for the sequence to be processed_old
         hidden_size (int): number of features in the hidden state `h`
         input_dropout_p (float): dropout probability for the input sequence
         dropout_p (float): dropout probability for the output sequence

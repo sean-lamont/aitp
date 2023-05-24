@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import pickle
+from models.gnn.formula_net.formula_net import FormulaNetEdges
 import os
 import copy
 import argparse
@@ -8,13 +10,14 @@ from collections import defaultdict
 
 import torch
 from torch import nn, optim
-from torch_geometric.data import DataLoader
+from torch_geometric.loader import DataLoader
 import torch_geometric.utils as utils
-from sat.models import GraphTransformer
-from sat.data import GraphDataset
-from sat.utils import count_parameters
-from sat.position_encoding import POSENCODINGS
-from sat.gnn_layers import GNN_TYPES
+
+from models.sat.models import GraphTransformer
+from models.sat.data import GraphDataset
+from models.sat.utils import count_parameters
+from models.sat.position_encoding import POSENCODINGS
+from models.gnn.gnn_layers import GNN_TYPES
 from timeit import default_timer as timer
 
 from ogb.graphproppred import PygGraphPropPredDataset
@@ -23,6 +26,7 @@ from ogb.graphproppred import Evaluator
 from torchvision import transforms
 from experiments.graph_benchmarks.sat.utils import ASTNodeEncoder, get_vocab_mapping
 from experiments.graph_benchmarks.sat.utils import augment_edge, encode_y_to_arr, decode_arr_to_seq
+from models.gnn.formula_net.formula_net import FormulaNetEdges
 
 
 def load_args():
@@ -36,7 +40,7 @@ def load_args():
     parser.add_argument('--num-heads', type=int, default=4, help="number of heads")
     parser.add_argument('--num-layers', type=int, default=4, help="number of layers")
     parser.add_argument('--dim-hidden', type=int, default=256, help="hidden dimension of Transformer")
-    parser.add_argument('--dropout', type=float, default=0.2, help="dropout")
+    parser.add_argument('--dropout', type=float, default=0., help="dropout")
     parser.add_argument('--epochs', type=int, default=30,
                         help='number of epochs')
     parser.add_argument('--lr', type=float, default=0.0001,
@@ -51,7 +55,7 @@ def load_args():
                         help='output path')
     parser.add_argument('--warmup', type=int, default=2, help="number of epochs for warmup")
     parser.add_argument('--layer-norm', action='store_true', help='use layer norm instead of batch norm')
-    parser.add_argument('--use-edge-attr', action='store_true', help='use edge features')
+    parser.add_argument('--use-edge-attr', action='store_true', default=True, help='use edge features')
     parser.add_argument('--edge-dim', type=int, default=128, help='edge features hidden dim')
     parser.add_argument('--gnn-type', type=str, default='gcn',
                         choices=GNN_TYPES,
@@ -65,6 +69,7 @@ def load_args():
 
     parser.add_argument('--max_seq_len', type=int, default=5,
                         help='maximum sequence length to predict')
+
     parser.add_argument('--num_vocab', type=int, default=5000,
                         help='the number of vocabulary used for sequence prediction')
 
@@ -220,7 +225,7 @@ def main():
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     print(args)
-    data_path = '../datasets'
+    data_path = "/home/sean/Documents/phd/aitp/ogbg-code2/"#'/home/sean/Documents'
     num_edge_features = 2
 
     dataset = PygGraphPropPredDataset(name=args.dataset, root=data_path)
@@ -250,20 +255,32 @@ def main():
 
     print(nodeattributes_mapping)
 
-    filter_mask = np.array([dataset[i].num_nodes for i in split_idx['train']]) <= 1000
+    # filter_mask = np.array([dataset[i].num_nodes for i in split_idx['train']]) <= 1000
+
+    with open("/home/sean/Documents/phd/repo/aitp/experiments/graph_benchmarks/filter_train.pk", "rb") as f:
+        filter_mask = pickle.load(f)
+
     train_dset = GraphDataset(dataset[split_idx['train'][filter_mask]], degree=True,
             k_hop=args.k_hop, se=args.se, use_subgraph_edge_attr=args.use_edge_attr,
             return_complete_index=False)
 
     train_loader = DataLoader(train_dset, batch_size=args.batch_size, shuffle=True)
+
     print(len(train_dset))
     print(train_dset[0])
 
-    filter_mask = np.array([dataset[i].num_nodes for i in split_idx['valid']]) <= 1000
+    # filter_mask = np.array([dataset[i].num_nodes for i in split_idx['valid']]) <= 1000
+
+    with open("/home/sean/Documents/phd/repo/aitp/experiments/graph_benchmarks/filter_val.pk", "rb") as f:
+        filter_mask = pickle.load(f)
+
     val_dset = GraphDataset(dataset[split_idx['valid'][filter_mask]], degree=True,
             k_hop=args.k_hop, se=args.se, use_subgraph_edge_attr=args.use_edge_attr,
             return_complete_index=False)
+
+
     val_loader = DataLoader(val_dset, batch_size=args.batch_size, shuffle=False)
+
     print(np.sum(filter_mask))
     print(len(split_idx['valid']))
 
@@ -289,27 +306,29 @@ def main():
         max_depth = 20
     )
 
-    model = GraphTransformer(in_size=node_encoder,
-                             num_class=len(vocab2idx),
-                             d_model=args.dim_hidden,
-                             dim_feedforward=4*args.dim_hidden,
-                             dropout=args.dropout,
-                             num_heads=args.num_heads,
-                             num_layers=args.num_layers,
-                             batch_norm=args.batch_norm,
-                             abs_pe=args.abs_pe,
-                             abs_pe_dim=args.abs_pe_dim,
-                             gnn_type=args.gnn_type,
-                             k_hop=args.k_hop,
-                             use_edge_attr=args.use_edge_attr,
-                             num_edge_features=num_edge_features,
-                             edge_dim=args.edge_dim,
-                             se=args.se,
-                             deg=deg,
-                             in_embed=True,
-                             edge_embed=False,
-                             max_seq_len=args.max_seq_len,
-                             global_pool=args.global_pool)
+    model = FormulaNetEdges(256, 256, 4, 2, 32, node_encoder)
+
+    # model = GraphTransformer(in_size=node_encoder,
+    #                          num_class=len(vocab2idx),
+    #                          d_model=args.dim_hidden,
+    #                          dim_feedforward=4*args.dim_hidden,
+    #                          dropout=args.dropout,
+    #                          num_heads=args.num_heads,
+    #                          num_layers=args.num_layers,
+    #                          batch_norm=args.batch_norm,
+    #                          abs_pe=args.abs_pe,
+    #                          abs_pe_dim=args.abs_pe_dim,
+    #                          gnn_type=args.gnn_type,
+    #                          k_hop=args.k_hop,
+    #                          use_edge_attr=args.use_edge_attr,
+    #                          num_edge_features=num_edge_features,
+    #                          edge_dim=args.edge_dim,
+    #                          se=args.se,
+    #                          deg=deg,
+    #                          in_embed=True,
+    #                          edge_embed=False,
+    #                          max_seq_len=args.max_seq_len,
+    #                          global_pool=args.global_pool)
     if args.use_cuda:
         model.cuda()
     print("Total number of parameters: {}".format(count_parameters(model)))
@@ -329,10 +348,16 @@ def main():
         lr = s * lr_steps
         return lr
 
-    filter_mask = np.array([dataset[i].num_nodes for i in split_idx['test']]) <= 1000
+    # filter_mask = np.array([dataset[i].num_nodes for i in split_idx['test']]) <= 1000
+
+    with open("/home/sean/Documents/phd/repo/aitp/experiments/graph_benchmarks/filter_test.pk", "rb") as f:
+        filter_mask = pickle.load(f)
+
+
     test_dset = GraphDataset(dataset[split_idx['test'][filter_mask]], degree=True,
             k_hop=args.k_hop, se=args.se, use_subgraph_edge_attr=args.use_edge_attr,
             return_complete_index=False)
+
     test_loader = DataLoader(test_dset, batch_size=args.batch_size, shuffle=False)
 
     if abs_pe_encoder is not None:

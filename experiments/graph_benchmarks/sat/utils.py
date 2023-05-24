@@ -11,22 +11,58 @@ class ASTNodeEncoder(torch.nn.Module):
         Output:
             emb_dim-dimensional vector
     '''
-    def __init__(self, emb_dim, num_nodetypes, num_nodeattributes, max_depth):
+    def __init__(self, emb_dim, num_nodetypes, num_nodeattributes, max_depth, pad=True):
         super(ASTNodeEncoder, self).__init__()
 
         self.max_depth = max_depth
+        self.pad = pad
 
-        self.type_encoder = torch.nn.Embedding(num_nodetypes, emb_dim)
-        self.attribute_encoder = torch.nn.Embedding(num_nodeattributes, emb_dim)
-        self.depth_encoder = torch.nn.Embedding(self.max_depth + 1, emb_dim)
+        if self.pad:
+            self.type_encoder = torch.nn.Embedding(num_nodetypes + 1, emb_dim, padding_idx=0)
+            self.attribute_encoder = torch.nn.Embedding(num_nodeattributes + 1, emb_dim,padding_idx=0 )
+            self.depth_encoder = torch.nn.Embedding(self.max_depth + 2, emb_dim, padding_idx=0)
 
+        else:
+            self.type_encoder = torch.nn.Embedding(num_nodetypes, emb_dim)
+            self.attribute_encoder = torch.nn.Embedding(num_nodeattributes, emb_dim)
+            self.depth_encoder = torch.nn.Embedding(self.max_depth + 1, emb_dim)
 
     def forward(self, x):#, depth):
 
-        depth = x[:, :, 2]
-        depth[depth > self.max_depth] = self.max_depth
+        # depth = x[:,:, 2]
+        # depth[depth > self.max_depth] = self.max_depth
 
-        return self.type_encoder(x[:,:, 0]) + self.attribute_encoder(x[:,:,1]) + self.depth_encoder(depth)
+        # if self.pad:
+        #     return self.type_encoder(x[:, :,0] + 1) + self.attribute_encoder(x[:,:,1] + 1) + self.depth_encoder(depth + 1)
+
+        return self.type_encoder(x[:,:, 0]) + self.attribute_encoder(x[:,:,1]) + self.depth_encoder(x[:, :, 2])
+
+    # def forward(self, x,depth):
+    #
+    #     depth[depth > self.max_depth] = self.max_depth
+    #
+    #     return self.type_encoder(x[:, 0]) + self.attribute_encoder(x[:,1]) + self.depth_encoder(depth)
+
+
+
+
+    # def forward(self, x):#, depth):
+    #
+    #     depth1 = x[:, 2]
+    #     depth1[depth1 > self.max_depth] = self.max_depth
+    #
+    #     # return self.type_encoder(x[:, 0]) + self.attribute_encoder(x[:,1]) + self.depth_encoder(depth1)
+    #
+    #     depth2 = x[:, -1]
+    #     depth2[depth2 > self.max_depth] = self.max_depth
+    #
+    #     edge_attr = self.edge_encoder(x[:, 3:4])
+    #
+    #     xi = self.type_encoder(x[:, 0]) + self.attribute_encoder(x[:, 1]) + self.depth_encoder(depth1)
+    #     xj = self.type_encoder(x[:, 5]) + self.attribute_encoder(x[:, 6]) + self.depth_encoder(depth2)
+    #
+    #     return xi + xj + edge_attr
+    #
 
 
 

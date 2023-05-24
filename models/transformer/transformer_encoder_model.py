@@ -49,7 +49,7 @@ class TransformerEmbedding(nn.Module):
         if self.enc:
             self.pos_encoder = PositionalEncoding(d_model, dropout=0)
 
-        encoder_layers = TransformerEncoderLayer(d_model, nhead, d_hid, dropout)#, activation='gelu')
+        encoder_layers = TransformerEncoderLayer(d_model, nhead, d_hid, dropout, activation='gelu')
 
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
 
@@ -65,7 +65,7 @@ class TransformerEmbedding(nn.Module):
         initrange = 0.1
         self.encoder.weight.data.uniform_(-initrange, initrange)
 
-    def forward(self, data):
+    def forward(self, data, mask=None):
         """
         Args:
             data: x with token indices, ptr identifying which sequence tokens belong to
@@ -91,7 +91,7 @@ class TransformerEmbedding(nn.Module):
         if self.enc:
             src = self.pos_encoder(src)
 
-        output = self.transformer_encoder(src)
+        output = self.transformer_encoder(src, src_key_padding_mask=mask)#, memory_mask=mask)
 
         output = torch.transpose(output, 0, 1)
 

@@ -29,7 +29,8 @@ class AttentionRelations(nn.Module):
                                                           d_hid=embed_dim, nlayers=num_layers, dropout=dropout,
                                                           enc=False, in_embed=False, global_pool=global_pool)
 
-        self.edge_embed = torch.nn.Embedding(edge_dim, edge_embed_dim)
+        # self.edge_embed = torch.nn.Embedding(edge_dim, edge_embed_dim)
+        self.edge_embed = torch.nn.Linear(edge_dim, edge_embed_dim)
 
         if isinstance(ntoken, int):
             self.embedding = torch.nn.Embedding(ntoken, embed_dim)
@@ -40,7 +41,8 @@ class AttentionRelations(nn.Module):
 
         self.scale = head_dim ** -0.5
 
-        self.r_proj = nn.Linear(embed_dim * 2 + (2 * edge_embed_dim), embed_dim, bias=bias)
+        # self.r_proj = nn.Linear(embed_dim * 2 + (2 * edge_embed_dim), embed_dim, bias=bias)
+        self.r_proj = nn.Linear(embed_dim * 2 + edge_embed_dim, embed_dim, bias=bias)
 
         self.cls_token = nn.Parameter(torch.randn(1, embed_dim))
 
@@ -72,8 +74,8 @@ class AttentionRelations(nn.Module):
             edge_attr = self.edge_embed(edge_attr)
 
             # if multiple edge attributes, flatten them
-            if len(edge_attr.shape) > 2:
-                edge_attr = edge_attr.flatten(1, 2)
+            # if len(edge_attr.shape) > 2:
+            #     edge_attr = edge_attr.flatten(1, 2)
 
             R = torch.cat([first, edge_attr, last], dim=1)
         else:

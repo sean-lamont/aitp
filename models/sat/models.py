@@ -146,6 +146,8 @@ class GraphTransformer(nn.Module):
             output = output + abs_pe
 
         if self.use_edge_attr and edge_attr is not None:
+            # print (self.embedding_edge)
+            # print (edge_attr.shape)
             edge_attr = self.embedding_edge(edge_attr)
             if subgraph_edge_attr is not None:
                 subgraph_edge_attr = self.embedding_edge(subgraph_edge_attr)
@@ -175,6 +177,7 @@ class GraphTransformer(nn.Module):
             cls_tokens = repeat(self.cls_token, '() d -> b d', b=bsz)
             output = torch.cat((output, cls_tokens))
 
+        # print (degree)
         output = self.encoder(
             output, 
             edge_index,

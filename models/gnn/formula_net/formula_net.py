@@ -188,29 +188,44 @@ class RegressionMLP(nn.Module):
 
 
 class FormulaNetEdges(nn.Module):
-    def __init__(self, input_shape, embedding_dim, num_iterations):
+    def __init__(self, input_shape, embedding_dim, num_iterations, max_edges=200, edge_dim = 32, in_encoder=None):
         super(FormulaNetEdges, self).__init__()
         self.num_iterations = num_iterations
-        # self.initial_encoder = F_x_module_(input_shape, embedding_dim)
-        self.initial_encoder = torch.nn.Embedding(input_shape, embedding_dim)
+
+        if in_encoder is not None:
+            self.initial_encoder = in_encoder
+        else:
+            self.initial_encoder = torch.nn.Embedding(input_shape, embedding_dim)
+
         # assume max 200 children
-        self.edge_encoder = nn.Embedding(200, 32)
-        self.parent_agg = ParentAggregationEdges(embedding_dim, embedding_dim)
-        self.child_agg = ChildAggregationEdges(embedding_dim, embedding_dim)
+        self.edge_encoder = nn.Embedding(max_edges, edge_dim)
+        self.parent_agg = ParentAggregationEdges(embedding_dim, embedding_dim)#,edge_dim=64)
+        self.child_agg = ChildAggregationEdges(embedding_dim, embedding_dim)#, edge_dim=64)
         self.final_agg = CombinedAggregation(embedding_dim)
 
     def forward(self, batch):  # nodes, edges, edge_attr, batch=None):
         nodes = batch.x
         edges = batch.edge_index
         edge_attr = batch.edge_attr
-        nodes = self.initial_encoder(nodes)
-        edge_encodings = self.edge_encoder(edge_attr)  # torch.transpose(edge_attr, 0, 1))
+
+        if hasattr(batch, 'node_depth'):
+            nodes = self.initial_encoder(nodes, batch.node_depth.view(-1))
+
+        else:
+            nodes = self.initial_encoder(nodes)
+
+        edge_attr = self.edge_encoder(edge_attr)  # torch.transpose(edge_attr, 0, 1))
+
+
+        if len(edge_attr.shape) > 2:
+            edge_attr = edge_attr.flatten(-2, -1)
 
         for t in range(self.num_iterations):
-            fi_sum = self.parent_agg(nodes, edges, edge_encodings)
-            fo_sum = self.child_agg(nodes, edges, edge_encodings)
+            fi_sum = self.parent_agg(nodes, edges, edge_attr)
+            fo_sum = self.child_agg(nodes, edges, edge_attr)
             node_update = self.final_agg(nodes + fi_sum + fo_sum)
             nodes = nodes + node_update
+
 
         return gmp(nodes, batch.batch)
 

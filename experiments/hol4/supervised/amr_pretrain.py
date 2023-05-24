@@ -1,5 +1,5 @@
 import wandb
-import optuna
+# import optuna
 import cProfile
 from data.utils.pretrain import SeparateEncoderPremiseSelection
 from lightning import LightningApp
@@ -12,7 +12,7 @@ VOCAB_SIZE = 1909 + 4
 
 
 sat_config = {
-    "model_type": "graph_benchmarks",
+    "model_type": "sat",
     "num_edge_features":  200,
     "vocab_size": VOCAB_SIZE,
     "embedding_dim": 128,
@@ -68,7 +68,7 @@ amr_config = {
 exp_config = {
     "experiment": "premise_selection",
     "learning_rate": 1e-4,
-    "epochs": 20,
+    "epochs": 8,
     "weight_decay": 1e-6,
     "batch_size": 32,
     "model_save": False,
@@ -94,7 +94,8 @@ digae_config = {
 }
 
 
-h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/utils/holstep_full"}
+# h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/utils/holstep_full"}
+h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/aitp/data/utils/processed_data"}
 
 relation_att_exp = SeparateEncoderPremiseSelection(config={"model_config": relation_config,
                                                            "exp_config": exp_config,
@@ -113,7 +114,7 @@ sat_exp = SeparateEncoderPremiseSelection(config={"model_config": sat_config,
                                                            "exp_config": exp_config,
                                                            "data_config": h5_data_config,
                                                            "project": "test_project",
-                                                           "name": "graph_benchmarks"})
+                                                           "name": "sat"})
 
 
 formula_net_exp = SeparateEncoderPremiseSelection(config={"model_config": formula_net_config,
@@ -136,8 +137,8 @@ amr_exp = SeparateEncoderPremiseSelection(config={"model_config": amr_config,
 
 
 # amr_exp.run_lightning()
-# sat_exp.run_lightning()
-relation_att_exp.run_lightning()
+sat_exp.run_lightning()
+# relation_att_exp.run_lightning()
 # formula_net_exp.run_lightning()
 # transformer_experiment.run_lightning()
 # digae_exp.run_lightning()
