@@ -112,6 +112,7 @@ def gather_encoded_content_gnn(history, encoder):
         g = revert_with_polish(e)
         reverted.append(g)
 
+    # todo keep graph_db for now (possbily generate from DB). Then define function to map from list of graphs to batch
     graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
 
     loader = DataLoader(graphs, batch_size = len(reverted))
@@ -129,7 +130,11 @@ def gather_encoded_content_gnn(history, encoder):
 
 
 
-
+# todo: torch lightning initial experiment:
+# todo: define self.{goal_selector, tactic_selector, term_selector, arg_selector}
+# todo: possibly implement as follows: full list of goals to prove is one epoch.
+# todo: then, DataLoader which gives a single goal as batch.
+# todo: Then run forward loop as normal, return loss as defined in updata_parameters
 
 
 '''
