@@ -1,6 +1,8 @@
 import traceback
+import einops
+from torch_geometric.data import Data
 from models.tactic_zero.policy_models import ArgPolicy, TacPolicy, TermPolicy, ContextPolicy
-from models.gnn.formula_net.formula_net import FormulaNetEdges
+from models.gnn.formula_net.formula_net import FormulaNetEdges, message_passing_gnn_induct
 from torch.utils.data import DataLoader as loader
 import lightning.pytorch as pl
 import torch.optim
@@ -54,27 +56,7 @@ def split_by_fringe(goal_set, goal_scores, fringe_sizes):
     return gs, fs
 
 
-'''
-
-High level agent class 
-
-'''
-class Agent:
-    def __init__(self, tactic_pool):
-        self.tactic_pool = tactic_pool
-        self.load_encoder()
-
-    def load_agent(self):
-        pass
-
-    def load_encoder(self):
-        pass
-
-    def run(self, env, max_steps):
-        pass
-
-    def update_params(self):
-        pass
+# todo DB data format/ HDF5 etc...
 
 with open("data/hol4/data/torch_graph_dict.pk", "rb") as f:
     torch_graph_dict = pickle.load(f)
@@ -105,7 +87,32 @@ with open("data/hol4/data/valid_goals_shuffled.pk", "rb") as f:
 train_goals = valid_goals[:int(0.8 * len(valid_goals))]
 test_goals = valid_goals[int(0.8 * len(valid_goals)):]
 
-def gather_encoded_content_gnn(history, encoder):
+def data_to_relation(batch):
+    xis = []
+    xjs = []
+    edge_attrs = []
+    for graph in batch:
+        x = graph.x
+        edge_index = graph.edge_index
+        edge_attr = graph.edge_attr
+        xi = torch.index_select(x, 0, edge_index[0])
+        xj = torch.index_select(x, 0, edge_index[1])
+        xis.append(xi)
+        xjs.append(xj)
+        edge_attrs.append(edge_attr.long())
+
+    xi = torch.nn.utils.rnn.pad_sequence(xis)
+    xj = torch.nn.utils.rnn.pad_sequence(xjs)
+    edge_attr_ = torch.nn.utils.rnn.pad_sequence(edge_attrs)
+
+    mask= (xi == 0).T
+    mask = torch.cat([mask, torch.zeros(mask.shape[0]).bool().unsqueeze(1)], dim=1)
+
+    return Data(xi=xi, xj=xj, edge_attr_=edge_attr_, mask=mask)
+
+
+
+def gather_encoded_content_gnn(history, encoder, device):
     fringe_sizes = []
     contexts = []
     reverted = []
@@ -117,16 +124,23 @@ def gather_encoded_content_gnn(history, encoder):
         g = revert_with_polish(e)
         reverted.append(g)
 
-    # todo keep graph_db for now (possibly generate from DB). Then define function to map from list of graphs to batch
     graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
 
+    # if GNN/SAT
     loader = DataLoader(graphs, batch_size = len(reverted))
-
     batch = next(iter(loader))
-
+    batch.to(device)
     batch.edge_attr = batch.edge_attr.long()#torch.LongTensor(batch.edge_attr)
 
-    representations = torch.unsqueeze(encoder(batch.to(device)), 1)
+    representations = torch.unsqueeze(encoder(batch), 1)
+
+    # representations = torch.unsqueeze(encoder(batch.to(device)), 1)
+
+    # if relation transformer
+    # graphs = data_to_relation(graphs)
+    # graphs.to(device)
+    # representations = torch.unsqueeze(encoder(graphs))
+
 
     return representations, contexts, fringe_sizes
 
@@ -163,9 +177,12 @@ class RLData(pl.LightningDataModule):
 
         # todo: adapt for different data type
         graphs = [graph_db[t] for t in candidate_args]
+
         loader = DataLoader(graphs, batch_size=len(candidate_args))
         allowed_fact_batch = next(iter(loader))
         allowed_fact_batch.edge_attr = allowed_fact_batch.edge_attr.long()
+
+        # allowed_fact_batch = data_to_relation(graphs)
 
         #todo not sure if we need allowed_arguments_ids?
 
@@ -185,37 +202,40 @@ class RLData(pl.LightningDataModule):
         return loader(self.test_goals, collate_fn=self.setup_goal)
 
     def transfer_batch_to_device(self, batch, device, dataloader_idx):
-        allowed_fact_batch, allowed_arguments_ids, candidate_args, env = batch
+        goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env = batch
         allowed_fact_batch = allowed_fact_batch.to(device)
 
-        return allowed_fact_batch, allowed_arguments_ids, candidate_args, env
+        return goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env
 
 
 
-# todo: torch lightning initial experiment:
-# todo: define self.{goal_selector, tactic_selector, term_selector, arg_selector}
-# todo: possibly implement as follows: full list of goals to prove is one epoch.
-# todo: then, DataLoader which gives a single goal as batch.
-# todo: Then run forward loop as normal, return loss as defined in updata_parameters
+#  torch lightning initial experiment:
+#  define self.{goal_selector, tactic_selector, term_selector, arg_selector}
+#  possibly implement as follows: full list of goals to prove is one epoch.
+#  then, DataLoader which gives a single goal as batch.
+#  Then run forward loop as normal, return loss as defined in updata_parameters
 
 class TacticZeroLoop(pl.LightningModule):
     def __init__(self,
-                 config,
-                 context_net=ContextPolicy(),
-                 tac_net=TacPolicy(len(tactic_pool)),
-                 arg_net=ArgPolicy(len(tactic_pool), 256),
-                 term_net=TermPolicy(len(tactic_pool), 256),
-                # message_passing_gnn_induct(1000, self.embedding_dim // 2, num_iterations=2, device=self.device)
-                 encoder_premise=FormulaNetEdges(1000, 256, 4),
-                 encoder_goal=FormulaNetEdges(1000, 256, 4),
+                 context_net,
+                 tac_net,
+                 arg_net,
+                 term_net,
+                 induct_net,
+                 encoder_premise,
+                 encoder_goal,
+                 config={'max_steps':50, 'gamma': 0.99, 'lr': 5e-5, 'arg_len': 5},
                  ):
 
+        super().__init__()
         self.context_net = context_net
         self.tac_net = tac_net
         self.arg_net = arg_net
         self.term_net = term_net
+        self.induct_net = induct_net
         self.encoder_premise = encoder_premise
         self.encoder_goal = encoder_goal
+
         self.config = config
 
     def forward(self, batch):
@@ -240,7 +260,7 @@ class TacticZeroLoop(pl.LightningModule):
 
             # gather all the goals in the history using goal encoder
             try:
-                representations, context_set, fringe_sizes = gather_encoded_content_gnn(env.history, self.encoder_goal)
+                representations, context_set, fringe_sizes = gather_encoded_content_gnn(env.history, self.encoder_goal, self.device)
             except Exception as e:
                 print("Encoder error {}".format(e))
                 print(traceback.print_exc())
@@ -263,8 +283,9 @@ class TacticZeroLoop(pl.LightningModule):
             # take the first context in the chosen fringe
             try:
                 target_context = contexts_by_fringe[fringe][0]
-            except:
+            except Exception as e:
                 print("error {} {}".format(contexts_by_fringe, fringe))
+                return (f"fringe error...{e}")
 
             target_goal = target_context["polished"]["goal"]
             target_representation = representations[context_set.index(target_context)]
@@ -294,7 +315,7 @@ class TacticZeroLoop(pl.LightningModule):
             ######################################################################################################
 
             elif tactic_pool[tac] == "Induct_on":
-                target_graph = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(target_goal), token_enc)
+                target_graph = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(target_goal), token_enc)#.to(self.device)
                 arg_probs = []
                 candidates = []
 
@@ -302,17 +323,27 @@ class TacticZeroLoop(pl.LightningModule):
                 token_inds = [i for i, t in enumerate(target_graph.labels) if t[0] == "V"]
                 if tokens:
                     # pass whole graph through Induct GNN
-                    induct_graph = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(target_goal), token_enc)
-                    induct_nodes = self.induct_gnn(induct_graph.x.to(self.device),
-                                                   induct_graph.edge_index.to(self.device))
+                    induct_graph = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(target_goal), token_enc).to(self.device)
+
+                    # induct_nodes = self.induct_net(induct_graph.x.to(self.device),
+                    #                                induct_graph.edge_index.to(self.device))
+
+                    induct_graph.edge_attr = induct_graph.edge_attr.long()
+                    induct_nodes = self.induct_net(induct_graph)
 
                     # select representations of Variable nodes with ('V' label only)
-                    token_representations = torch.index_select(induct_nodes, 0, torch.tensor(token_inds).to(device))
+                    token_representations = torch.index_select(induct_nodes, 0, torch.tensor(token_inds).to(self.device))
                     # pass through term_net as before
-                    target_representation_list = [target_representation for _ in tokens]
-                    target_representations = torch.cat(target_representation_list)
+
+                    # target_representation_list = [target_representation for _ in tokens]
+                    # target_representations = torch.cat(target_representation_list)
+
+
+                    target_representations = einops.repeat(target_representation, '1 d -> n d', n=len(tokens))
+
+
                     candidates = torch.cat([token_representations, target_representations], dim=1)
-                    candidates = candidates.to(self.device)
+                    # candidates = candidates.to(self.device)
                     scores = self.term_net(candidates, tac_tensor)
                     term_probs = F.softmax(scores, dim=0)
                     try:
@@ -358,6 +389,7 @@ class TacticZeroLoop(pl.LightningModule):
                 try:
                     hiddenl = torch.cat(hiddenl)
                 except Exception as e:
+                    print (f"Error in hiddenl: {e}")
                     return ("hiddenl error...{}", str(e))
 
                 candidates = torch.cat([encoded_fact_pool, hiddenl], dim=1)
@@ -374,7 +406,7 @@ class TacticZeroLoop(pl.LightningModule):
                 if tactic_pool[tac] in thm_tactic:
                     arg_len = 1
                 else:
-                    arg_len = self.ARG_LEN  # ARG_LEN
+                    arg_len = self.config['arg_len'] # ARG_LEN
 
                 for _ in range(arg_len):
                     hidden, scores = self.arg_net(input, candidates, hidden)
@@ -413,8 +445,9 @@ class TacticZeroLoop(pl.LightningModule):
 
             try:
                 reward, done = env.step(action)
-            except:
-                print("Step exception raised.")
+            except Exception as e:
+                print(f"Step exception raised. {e}")
+                # exit()
                 return ("Step error", action)
                 print("Handling: {}".format(env.handling))
                 print("Using: {}".format(env.using))
@@ -437,7 +470,7 @@ class TacticZeroLoop(pl.LightningModule):
 
             # todo: replays
             if done == True:
-                # print("Goal Proved in {} steps".format(t + 1))
+                print("Goal Proved in {} steps".format(t + 1))
                 # # iteration_rewards.append(total_reward)
                 #
                 # # if proved, add to successful replays for this goal
@@ -474,11 +507,13 @@ class TacticZeroLoop(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # todo use self forward for training step, if replay, have new method for replay in place of forward
+        # todo add probability to outputs
         try:
             reward_pool, fringe_pool, arg_pool, tac_pool, steps = self(batch)
             loss = self.update_params(reward_pool, fringe_pool, arg_pool, tac_pool, steps)
             return loss
         except Exception as e:
+            print ("error")
             print (traceback.print_exc())
             return
 
@@ -511,12 +546,27 @@ class TacticZeroLoop(pl.LightningModule):
     # def validation_step(self):
 
     def configure_optimizers(self):
-        optimizer = torch.optim.RMSprop(self.parameters(), lr=self.lr)
+        optimizer = torch.optim.RMSprop(self.parameters(), lr=self.config['lr'])
         return optimizer
 
 
 module = RLData(train_goals = train_goals, test_goals=test_goals)
-module.setup("fit")
+# module.setup("fit")
 
-batch = next(iter(module.train_dataloader()))
-print (batch)
+# batch = next(iter(module.train_dataloader()))
+# print (batch)
+
+context_net = ContextPolicy()
+tac_net = TacPolicy(len(tactic_pool))
+arg_net = ArgPolicy(len(tactic_pool), 256)
+term_net = TermPolicy(len(tactic_pool), 256)
+induct_net = FormulaNetEdges(1000, 256, 4, global_pool=False, batch_norm=False)
+encoder_premise = FormulaNetEdges(1000, 256, 4, batch_norm=False)
+encoder_goal = FormulaNetEdges(1000, 256, 4, batch_norm=False)
+
+experiment = TacticZeroLoop(context_net=context_net, tac_net=tac_net, arg_net=arg_net, term_net=term_net, induct_net=induct_net,
+                            encoder_premise=encoder_premise, encoder_goal=encoder_goal)
+
+torch.set_float32_matmul_precision('high')
+trainer = pl.Trainer(devices=1)
+trainer.fit(experiment, module)

@@ -30,7 +30,7 @@ tactic_pool = thms_tactic + thm_tactic + term_tactic + no_arg_tactic
 
 UNEXPECTED_REWARD = -1000
 
-HOLPATH = "/home/sean/Documents/phd/hol/HOL/bin/hol --maxheap=256"
+HOLPATH = "/home/sean/Documents/phd/hol_old/HOL/bin/hol --maxheap=256"
 #HOLPATH = "/home/sean/Documents/PhD/HOL4/HOL/bin/hol --maxheap=256"
 
 EXCLUDED_THEORIES = ["min"] #["min", "bool"]
@@ -115,7 +115,7 @@ class HolEnv():
         for i in self.import_theories:
             self.process.sendline("load \"{}\";".format(i).encode("utf-8"))
             self.process.sendline("open {};".format(i).encode("utf-8"))
-            sleep(3)
+            sleep(5)
 
         # remove built-in simp lemmas
         # print("Removing simp lemmas...")
@@ -127,9 +127,7 @@ class HolEnv():
         
         # load utils
         print("Loading modules...")
-        sleep (2)
         self.process.sendline("use \"helper.sml\";")
-        # self.process.sendline("use \"/home/sean/Documents/phd/repo/aitp/helper.sml\";")
         # self.process.sendline("val _ = load \"Timeout\";")
         sleep(5)
         print("Configuration done.")

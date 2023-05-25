@@ -9,13 +9,26 @@ import torch.nn.functional as F
 
 
 class CombinedAggregation(nn.Module):
-    def __init__(self, embedding_dim):
+    def __init__(self, embedding_dim, batch_norm=True):
         super(CombinedAggregation, self).__init__()
-        self.fc = nn.Linear(embedding_dim, embedding_dim)
-        self.bn = nn.BatchNorm1d(embedding_dim)
+        # self.fc = nn.Linear(embedding_dim, embedding_dim)
+        # self.bn = nn.BatchNorm1d(embedding_dim)
+
+        if batch_norm:
+            self.mlp = torch.nn.Sequential(
+                nn.Linear(embedding_dim, embedding_dim),
+                nn.BatchNorm1d(embedding_dim),
+                nn.ReLU()
+            )
+        else:
+            self.mlp = torch.nn.Sequential(
+                nn.Linear(embedding_dim, embedding_dim),
+                nn.ReLU()
+            )
 
     def forward(self, x):
-        x = torch.relu(self.bn(self.fc(x)))
+        x = self.mlp(x)
+        # x = torch.relu(self.bn(self.fc(x)))
         return x
 
 
@@ -108,7 +121,7 @@ class FormulaNet(nn.Module):
         self.initial_encoder = nn.Embedding(input_shape, embedding_dim)
         self.parent_agg = ParentAggregation(embedding_dim, embedding_dim, batch_norm=batch_norm)
         self.child_agg = ChildAggregation(embedding_dim, embedding_dim, batch_norm=batch_norm)
-        self.final_agg = CombinedAggregation(embedding_dim)
+        self.final_agg = CombinedAggregation(embedding_dim, batch_norm=batch_norm)
 
     def forward(self, data):
         nodes = data.x
@@ -133,15 +146,22 @@ class FormulaNet(nn.Module):
 
 
 class ChildAggregationEdges(MessagePassing):
-    def __init__(self, in_channels, out_channels, edge_dim=32):
+    def __init__(self, in_channels, out_channels, edge_dim=32, batch_norm = True):
         super().__init__(aggr='sum', flow='target_to_source')
 
-        self.mlp = Seq(Linear(2 * in_channels + edge_dim, out_channels),
-                       nn.BatchNorm1d(out_channels),
-                       ReLU(),
-                       Linear(out_channels, out_channels),
-                       nn.BatchNorm1d(out_channels),
-                       ReLU())
+        if batch_norm:
+            self.mlp = Seq(Linear(2 * in_channels + edge_dim, out_channels),
+                           nn.BatchNorm1d(out_channels),
+                           ReLU(),
+                           Linear(out_channels, out_channels),
+                           nn.BatchNorm1d(out_channels),
+                           ReLU())
+
+        else:
+            self.mlp = Seq(Linear(2 * in_channels + edge_dim, out_channels),
+                           ReLU(),
+                           Linear(out_channels, out_channels),
+                           ReLU())
 
     def message(self, x_i, x_j, edge_attr):
         tmp = torch.cat([x_i, x_j, edge_attr], dim=1)
@@ -154,15 +174,24 @@ class ChildAggregationEdges(MessagePassing):
         return deg_inv.view(-1, 1) * self.propagate(edge_index, x=x, edge_attr=edge_attr)
 
 class ParentAggregationEdges(MessagePassing):
-    def __init__(self, in_channels, out_channels, edge_dim=32):
+    def __init__(self, in_channels, out_channels, edge_dim=32, batch_norm = True):
         super().__init__(aggr='sum', flow='source_to_target')
 
-        self.mlp = Seq(Linear(2 * in_channels + edge_dim, out_channels),
-                       nn.BatchNorm1d(out_channels),
-                       ReLU(),
-                       Linear(out_channels, out_channels),
-                       nn.BatchNorm1d(out_channels),
-                       ReLU())
+
+        if batch_norm:
+            self.mlp = Seq(Linear(2 * in_channels + edge_dim, out_channels),
+                           nn.BatchNorm1d(out_channels),
+                           ReLU(),
+                           Linear(out_channels, out_channels),
+                           nn.BatchNorm1d(out_channels),
+                           ReLU())
+
+        else:
+            self.mlp = Seq(Linear(2 * in_channels + edge_dim, out_channels),
+                           ReLU(),
+                           Linear(out_channels, out_channels),
+                           ReLU())
+
 
     def message(self, x_i, x_j, edge_attr):
         tmp = torch.cat([x_i, x_j, edge_attr], dim=1)
@@ -188,9 +217,11 @@ class RegressionMLP(nn.Module):
 
 
 class FormulaNetEdges(nn.Module):
-    def __init__(self, input_shape, embedding_dim, num_iterations, max_edges=200, edge_dim = 32, in_encoder=None):
+    def __init__(self, input_shape, embedding_dim, num_iterations, max_edges=200,
+                 edge_dim = 32, in_encoder=None, global_pool=True, batch_norm=True):
         super(FormulaNetEdges, self).__init__()
         self.num_iterations = num_iterations
+        self.global_pool = global_pool
 
         if in_encoder is not None:
             self.initial_encoder = in_encoder
@@ -199,9 +230,9 @@ class FormulaNetEdges(nn.Module):
 
         # assume max 200 children
         self.edge_encoder = nn.Embedding(max_edges, edge_dim)
-        self.parent_agg = ParentAggregationEdges(embedding_dim, embedding_dim)#,edge_dim=64)
-        self.child_agg = ChildAggregationEdges(embedding_dim, embedding_dim)#, edge_dim=64)
-        self.final_agg = CombinedAggregation(embedding_dim)
+        self.parent_agg = ParentAggregationEdges(embedding_dim, embedding_dim, batch_norm=batch_norm)#,edge_dim=64)
+        self.child_agg = ChildAggregationEdges(embedding_dim, embedding_dim, batch_norm=batch_norm)#, edge_dim=64)
+        self.final_agg = CombinedAggregation(embedding_dim, batch_norm=batch_norm)
 
     def forward(self, batch):  # nodes, edges, edge_attr, batch=None):
         nodes = batch.x
@@ -224,7 +255,10 @@ class FormulaNetEdges(nn.Module):
             nodes = nodes + node_update
 
 
-        return gmp(nodes, batch.batch)
+        if self.global_pool:
+            return gmp(nodes, batch.batch)
+        else:
+            return nodes
 
 
 #####################################################################################################

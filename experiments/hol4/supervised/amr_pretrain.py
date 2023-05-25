@@ -47,7 +47,7 @@ relation_config = {
     "dim_feedforward": 512,
     "num_heads": 8,
     "num_layers": 4,
-    "dropout": 0.0
+    "dropout": 0.3
 }
 
 amr_config = {
@@ -101,9 +101,9 @@ hol4_data_config = {"source": "hol4", "data_dir": "/home/sean/Documents/phd/repo
 
 relation_att_exp = SeparateEncoderPremiseSelection(config={"model_config": relation_config,
                                                            "exp_config": exp_config,
-                                                           "data_config": hol4_data_config,
-                                                           "project": "hol4_premise_selection",
-                                                           "name": "relation attention sep proj"})
+                                                           "data_config": h5_data_config,
+                                                           "project": "test_project",
+                                                           "name": "relation attention dropout + embedding proj"})
 
 # todo with original sequence for positional encoding
 transformer_experiment = SeparateEncoderPremiseSelection(config={"model_config": transformer_config,

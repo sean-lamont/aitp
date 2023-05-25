@@ -366,6 +366,12 @@ def graph_to_torch_labelled(g, token_enc=None):
 
     edges = torch.tensor([senders, receivers], dtype=torch.long)
 
-    nodes = sp_to_torch(node_features)
+    #old:
+    # nodes = sp_to_torch(node_features)
 
-    return Data(x=nodes, edge_index=edges, edge_attr=torch.Tensor(edge_labels), labels=labels)
+    # new:
+    # returning only the one-hot tensors
+    coo = node_features.tocoo()
+    nodes = torch.LongTensor(coo.col)
+
+    return Data(x=nodes, edge_index=edges, edge_attr=torch.LongTensor(edge_labels), labels=labels)
