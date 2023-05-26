@@ -8,7 +8,7 @@ from lightning import LightningApp
 VOCAB_SIZE = 1004
 
 # HOLStep vocab
-VOCAB_SIZE = 1909 + 4
+# VOCAB_SIZE = 1909 + 4
 
 
 sat_config = {
@@ -68,7 +68,7 @@ amr_config = {
 exp_config = {
     "experiment": "premise_selection",
     "learning_rate": 1e-4,
-    "epochs": 20,
+    "epochs": 10,
     "weight_decay": 1e-6,
     "batch_size": 32,
     "model_save": False,
@@ -77,7 +77,7 @@ exp_config = {
     "checkpoint_dir": "/home/sean/Documents/phd/repo/aitp/sat/hol4/supervised/model_checkpoints",
     "device": "cuda:0",
     "max_errors": 1000,
-    "val_frequency": 2048,
+    "val_frequency": 512,
 }
 
 formula_net_config = {
@@ -97,6 +97,7 @@ digae_config = {
 # h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/utils/holstep_full"}
 h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/utils/processed_data"}
 
+# hol4 for relations
 hol4_data_config = {"source": "hol4", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/hol4/torch_data"}
 
 relation_att_exp = SeparateEncoderPremiseSelection(config={"model_config": relation_config,
@@ -125,8 +126,8 @@ sat_exp = SeparateEncoderPremiseSelection(config={"model_config": sat_config,
 
 formula_net_exp = SeparateEncoderPremiseSelection(config={"model_config": formula_net_config,
                                                            "exp_config": exp_config,
-                                                           "data_config": h5_data_config,
-                                                           "project": "test_project",
+                                                           "data_config": hol4_data_config,
+                                                           "project": "hol4_premise_selection",
                                                           "notes": "",
                                                           "name": "formula_net_batch_norm_edges"})
 
@@ -146,7 +147,7 @@ amr_exp = SeparateEncoderPremiseSelection(config={"model_config": amr_config,
 
 # amr_exp.run_lightning()
 # sat_exp.run_lightning()
-relation_att_exp.run_lightning()
+# relation_att_exp.run_lightning()
 # formula_net_exp.run_lightning()
 # transformer_experiment.run_lightning()
 # digae_exp.run_lightning()

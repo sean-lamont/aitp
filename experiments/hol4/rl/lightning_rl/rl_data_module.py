@@ -1,4 +1,5 @@
 from torch_geometric.data import Data
+from torch_geometric.loader import DataLoader
 from torch.utils.data import DataLoader as loader
 import lightning.pytorch as pl
 import torch.optim
@@ -103,18 +104,25 @@ class RLData(pl.LightningDataModule):
 
     def setup_goal(self, goal):
         goal = goal[0]
-        self.env.reset(goal[1])
+        try:
+            self.env.reset(goal[1])
+        except:
+            self.env = HolEnv("T")
+            return None
         allowed_fact_batch, allowed_arguments_ids, candidate_args = self.gen_fact_pool(self.env, goal)
         return goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, self.env
 
     def train_dataloader(self):
         return loader(self.train_goals, batch_size=1, collate_fn=self.setup_goal)
 
-    # todo: val set to terminate with??
+    # todo: val set to terminate training with??
     def test_dataloader(self):
         return loader(self.test_goals, collate_fn=self.setup_goal)
 
     def transfer_batch_to_device(self, batch, device, dataloader_idx):
+        if batch is None:
+            return None
+
         goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env = batch
         allowed_fact_batch = allowed_fact_batch.to(device)
 

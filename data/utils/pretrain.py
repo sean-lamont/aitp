@@ -57,7 +57,8 @@ class PremiseSelection(pl.LightningModule):
         loss = binary_loss(preds, y)
         # loss = torch.nn.functional.cross_entropy(preds, y)
         self.log("loss", loss, batch_size=self.batch_size)
-        return loss
+        # return loss
+        return
 
     def validation_step(self, batch, batch_idx):
         if self.global_step == 0:

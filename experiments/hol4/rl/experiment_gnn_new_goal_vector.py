@@ -1404,7 +1404,6 @@ class Experiment_GNN:
                 except Exception as e:
                     print ("Restarting environment..")
                     env = HolEnv("T")
-                    #env_errors.append((goal, e, i))
                     continue
                  
                 try:

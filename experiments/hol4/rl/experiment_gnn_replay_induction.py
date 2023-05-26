@@ -677,6 +677,7 @@ class GNNVanilla(Agent):
                         theory_name = name_parser[0][:-6]  # get rid of the "Theory" substring
                         theorem_name = name_parser[1]
                         true_arg_exp = reverse_database[(theory_name, theorem_name)]
+
                     true_arg = torch.tensor(candidate_args.index(true_arg_exp))
                     true_arg = true_arg.to(self.device)
 
