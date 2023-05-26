@@ -1,5 +1,5 @@
 from data.utils.dataset import H5DataModule
-from lightning.pytorch.callbacks import EarlyStopping
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from tqdm import tqdm
 import wandb
 import os
@@ -60,6 +60,9 @@ class PremiseSelection(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
+        if self.global_step == 0:
+            wandb.define_metric('acc', summary='max')
+
         goal, premise, y = batch
         preds = self(goal, premise)
         preds = (preds > 0.5)
@@ -68,8 +71,13 @@ class PremiseSelection(pl.LightningModule):
         return
 
     def configure_optimizers(self):
+        # optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
-        return optimizer
+
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
+        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 20)
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}
+        # return optimizer
 
 
 def get_experiment(exp_config, model_config):
@@ -96,12 +104,10 @@ def get_data(data_config):
 
 
 
-# todo analogous to get_model
 
 '''
 Premise selection experiment with separate encoders for goal and premise
 '''
-
 
 class SeparateEncoderPremiseSelection:
     def __init__(self, config):
@@ -120,10 +126,23 @@ class SeparateEncoderPremiseSelection:
         logger = WandbLogger(project=self.config['project'],
                              name=self.config['name'],
                              config=self.config,
+                             notes=self.config['notes'],
+                             # log_model="all",
                              offline=False)
 
-        early_stop_callback = EarlyStopping(monitor="acc", min_delta=0.00, patience=10, verbose=False,
-                                            mode="max")
+        callbacks = []
+
+        # todo update model artifacts manually
+
+        checkpoint_callback = ModelCheckpoint(monitor="acc", mode="max", save_top_k=3, auto_insert_metric_name=True,
+                                              save_weights_only=True)
+        callbacks.append(checkpoint_callback)
+
+        # early_stop_callback = EarlyStopping(monitor="acc", min_delta=0.00, patience=10, verbose=False,
+        #                                     mode="max")
+
+
+
 
         trainer = pl.Trainer(
             max_epochs=self.exp_config['epochs'],
@@ -133,14 +152,14 @@ class SeparateEncoderPremiseSelection:
             enable_progress_bar=True,
             log_every_n_steps=500,
             # accelerator='gpu',
-            devices=1,
+            devices=[1],
             # strategy='ddp_find_unused_parameters_true',
             # todo figure out why, e.g. https://github.com/Lightning-AI/lightning/issues/11242
             # hack to fix ddp hanging error..
             # limit_train_batches=28000,
             # profiler='pytorch',
             enable_checkpointing=True,
-            # callbacks=[early_stop_callback],
+            callbacks=callbacks,
             )
 
         trainer.fit(model=experiment, datamodule=data_module)

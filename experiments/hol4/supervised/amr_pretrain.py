@@ -47,7 +47,7 @@ relation_config = {
     "dim_feedforward": 512,
     "num_heads": 8,
     "num_layers": 4,
-    "dropout": 0.3
+    "dropout": 0.
 }
 
 amr_config = {
@@ -103,32 +103,38 @@ relation_att_exp = SeparateEncoderPremiseSelection(config={"model_config": relat
                                                            "exp_config": exp_config,
                                                            "data_config": h5_data_config,
                                                            "project": "test_project",
-                                                           "name": "relation attention dropout + embedding proj"})
+                                                           "notes": "",
+                                                           "name": "relation, Adam, Single Embed"})
+
 
 # todo with original sequence for positional encoding
 transformer_experiment = SeparateEncoderPremiseSelection(config={"model_config": transformer_config,
                                                                  "exp_config": exp_config,
                                                                  "data_config": h5_data_config,
                                                                  "project": "test_project",
-                                                                "name": "transformer"})
+                                                                 "notes": "SGD, step 5 schedule, single embedding",
+                                                                 "name": "transformer"})
 
 sat_exp = SeparateEncoderPremiseSelection(config={"model_config": sat_config,
                                                            "exp_config": exp_config,
                                                            "data_config": h5_data_config,
                                                            "project": "test_project",
-                                                           "name": "sat"})
+                                                  "notes": "",
+                                                  "name": "sat"})
 
 
 formula_net_exp = SeparateEncoderPremiseSelection(config={"model_config": formula_net_config,
                                                            "exp_config": exp_config,
                                                            "data_config": h5_data_config,
                                                            "project": "test_project",
-                                                           "name": "formula_net_batch_norm_edges"})
+                                                          "notes": "",
+                                                          "name": "formula_net_batch_norm_edges"})
 
 digae_exp = SeparateEncoderPremiseSelection(config={"model_config": digae_config,
                                                           "exp_config": exp_config,
                                                           "data_config": h5_data_config,
                                                           "project": "test_project",
+                                                            "notes": "",
                                                           "name": "digae_large"})
 
 amr_exp = SeparateEncoderPremiseSelection(config={"model_config": amr_config,
