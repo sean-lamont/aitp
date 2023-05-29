@@ -5,7 +5,7 @@ from torch_scatter import scatter_add, scatter_mean
 import torch_geometric.nn as gnn
 import torch_geometric.utils as utils
 from einops import rearrange
-from models.gnn.formula_net.formula_net import FormulaNet
+from models.gnn.formula_net.formula_net import FormulaNetSAT
 from .utils import pad_batch, unpad_batch
 from models.gnn.gnn_layers import get_simple_gnn_layer, EDGE_GNN_TYPES
 from models.gnn.digae.digae_model import DigaeSE
@@ -50,7 +50,7 @@ class Attention(gnn.MessagePassing):
             self.structure_extractor = DigaeSE(embed_dim, 64, embed_dim // 2)
 
         elif self.se == "formula-net":
-            self.structure_extractor = FormulaNet.message_passing_gnn_sat(embed_dim, k_hop)
+            self.structure_extractor = FormulaNetSAT(embedding_dim=embed_dim, num_iterations=k_hop)
 
         else:
             self.structure_extractor = StructureExtractor(embed_dim, gnn_type=gnn_type,

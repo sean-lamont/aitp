@@ -1,3 +1,4 @@
+import torch_geometric.loader.dataloader
 from pymongo import MongoClient
 from torch_geometric.data import Data
 from torch.utils.data import DataLoader
@@ -105,3 +106,69 @@ class HOL4DataModule(LightningDataModule):
         return DataLoader(self.val_data, batch_size=self.batch_size, collate_fn=self.collate_pad)
     def test_dataloader(self):
         return DataLoader(self.test_data, batch_size=self.batch_size, collate_fn=self.collate_pad)
+
+
+
+class HOL4DataModuleGraph(LightningDataModule):
+    def __init__(self, dir, batch_size=32):
+        super().__init__()
+        self.dir = dir
+        self.batch_size = batch_size
+
+    def prepare_data(self) -> None:
+        if not os.path.exists(self.dir):
+            print ("Generating data from MongoDB..")
+            os.mkdir(self.dir)
+            db_name = "hol4_tactic_zero"
+            db = MongoClient()
+            db = db[db_name]
+
+            split = db.pretrain_data
+            expr = db.expression_graph_data
+            meta = db.expression_metadata
+
+            graph_dict = {v['_id']: v['graph'] for v in expr.find({})}
+            expr_dict = {v['_id']: (v['theory'],v['name'],v['dep_id'],v['type'], v['plain_expression']) for v in meta.find({})}
+
+            train_data = [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']],v['y'])) for v in split.find({}) if
+                          v['split'] == 'train']
+            val_data =  [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']], v['y'])) for v in split.find({}) if
+                         v['split'] == 'val']
+            test_data = [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']], v['y'])) for v in split.find({}) if
+                         v['split'] == 'test']
+
+            data = {'graph_dict': graph_dict,'expr_dict': expr_dict,'train_data': train_data,'val_data': val_data,'test_data': test_data}
+            torch.save(data, self.dir + "/data.pt")
+
+    def to_graph(self, data):
+        data_1, data_2, y = data
+
+        x = torch.LongTensor(data_1['onehot'])
+        edge_index = torch.LongTensor(data_1['edge_index'])
+        edge_attr = torch.LongTensor(data_1['edge_attr'])
+        data_1 = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
+
+        x = torch.LongTensor(data_2['onehot'])
+        edge_index = torch.LongTensor(data_2['edge_index'])
+        edge_attr = torch.LongTensor(data_2['edge_attr'])
+        data_2 = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
+
+
+        return data_1, data_2, y
+
+    def setup(self, stage: str) -> None:
+        print ("Setting up data loaders..")
+        self.data = torch.load(self.dir + "/data.pt")
+        if stage == "fit":
+            self.train_data = self.data['train_data']
+            self.val_data = self.data['val_data']
+        if stage == "test":
+            self.test_data = self.data['test_data']
+
+
+    def train_dataloader(self):
+        return torch_geometric.loader.dataloader.DataLoader(self.train_data, batch_size=self.batch_size)
+    def val_dataloader(self):
+        return torch_geometric.loader.dataloader.DataLoader(self.val_data, batch_size=self.batch_size)
+    def test_dataloader(self):
+        return torch_geometric.loader.dataloader.DataLoader(self.test_data, batch_size=self.batch_size)

@@ -7,7 +7,7 @@ import warnings
 
 warnings.filterwarnings('ignore')
 import lightning.pytorch as pl
-from data.hol4.mongo_to_torch import HOL4DataModule
+from data.hol4.mongo_to_torch import HOL4DataModule, HOL4DataModuleGraph
 from lightning.pytorch.loggers import WandbLogger
 from models.get_model import get_model
 from models.gnn.formula_net.formula_net import BinaryClassifier
@@ -57,13 +57,21 @@ class PremiseSelection(pl.LightningModule):
         loss = binary_loss(preds, y)
         # loss = torch.nn.functional.cross_entropy(preds, y)
         self.log("loss", loss, batch_size=self.batch_size)
-        # return loss
-        return
+        return loss
+        # return
 
     def validation_step(self, batch, batch_idx):
         if self.global_step == 0:
             wandb.define_metric('acc', summary='max')
 
+        goal, premise, y = batch
+        preds = self(goal, premise)
+        preds = (preds > 0.5)
+        acc = torch.sum(preds == y) / y.size(0)
+        self.log("acc", acc, batch_size=self.batch_size, prog_bar=True)
+        return
+
+    def test_step(self, batch, batch_idx):
         goal, premise, y = batch
         preds = self(goal, premise)
         preds = (preds > 0.5)
@@ -100,9 +108,10 @@ def get_data(data_config):
         return H5DataModule(config=data_config)
     if data_config['source'] == 'hol4':
         return HOL4DataModule(dir=data_config['data_dir'])
+    if data_config['source'] == 'hol4_graph':
+        return HOL4DataModuleGraph(dir=data_config['data_dir'])
     else:
         raise NotImplementedError
-
 
 
 
@@ -136,7 +145,7 @@ class SeparateEncoderPremiseSelection:
         # todo update model artifacts manually
 
         checkpoint_callback = ModelCheckpoint(monitor="acc", mode="max", save_top_k=3, auto_insert_metric_name=True,
-                                              save_weights_only=True)
+                                              save_weights_only=True, dirpath=self.exp_config['checkpoint_dir'])
         callbacks.append(checkpoint_callback)
 
         # early_stop_callback = EarlyStopping(monitor="acc", min_delta=0.00, patience=10, verbose=False,
@@ -163,7 +172,21 @@ class SeparateEncoderPremiseSelection:
             callbacks=callbacks,
             )
 
-        trainer.fit(model=experiment, datamodule=data_module)
+        # trainer.fit(model=experiment, datamodule=data_module)
+
+        # artifact = wandb.Artifact(name='checkpoint', type="checkpoint")
+
+        # artifact.add_dir(
+        #     local_path=self.exp_config['checkpoint_dir'],
+        #     name='Checkpoints'
+        # )
+
+        # logger.experiment.log_artifact(artifact)
+        # ckpt = torch.load("/home/sean/Documents/phd/repo/aitp/test_project/yqiw2dgr/checkpoints/epoch=6-step=368646.ckpt")
+        ckpt = torch.load("/home/sean/Documents/phd/repo/aitp/test_project/a2gpqgp1/checkpoints/epoch=19-step=558624.ckpt")
+        ckpt = ckpt['state_dict']
+        experiment.load_state_dict(ckpt)
+
         trainer.test(model=experiment, datamodule=data_module)
 #
 # def objective(self, trial):

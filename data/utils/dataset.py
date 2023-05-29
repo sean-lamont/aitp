@@ -422,8 +422,8 @@ class H5DataModule(pl.LightningDataModule):
             shuffle=False,
             drop_last=True,
             # pin_memory=True,
-            # num_workers=0, collate_fn=lambda x: x)
-            num_workers = 0, collate_fn = collate_to_relation)
+            num_workers=0, collate_fn=lambda x: x)
+            # num_workers = 0, collate_fn = collate_to_relation)
 
     def val_dataloader(self):
         # cycle through
@@ -432,8 +432,8 @@ class H5DataModule(pl.LightningDataModule):
             batch_size=1,
             shuffle=False,
             drop_last=True,
-            # num_workers=0, collate_fn=lambda x: x)
-            num_workers = 0, collate_fn = collate_to_relation)
+            num_workers=0, collate_fn=lambda x: x)
+            # num_workers = 0, collate_fn = collate_to_relation)
 
     def test_dataloader(self):
         return torch.utils.data.DataLoader(
@@ -441,47 +441,47 @@ class H5DataModule(pl.LightningDataModule):
             batch_size=1,
             # shuffle=True,
             drop_last=True,
-            # num_workers=0, collate_fn=lambda x: x)
-            num_workers = 0, collate_fn = collate_to_relation)
+            num_workers=0, collate_fn=lambda x: x)
+            # num_workers = 0, collate_fn = collate_to_relation)
 
-    def transfer_batch_to_device(self, batch, device, dataloader_idx):
-        data_1, data_2, y = batch
-        data_1 = data_1.to(device)
-        data_2= data_2.to(device)
-        y = y.to(device)
-        return data_1, data_2, y
+    # def transfer_batch_to_device(self, batch, device, dataloader_idx):
+    #     data_1, data_2, y = batch
+    #     data_1 = data_1.to(device)
+    #     data_2= data_2.to(device)
+    #     y = y.to(device)
+    #     return data_1, data_2, y
     #
     # only transfer relevant properties to device
-    # def transfer_batch_to_device(self, batch, device, dataloader_idx):
-    #     batch = batch[0]
-    #     data_1, data_2, y = batch
-    #
-    #     data_1.x = data_1.x.to(device)
-    #     data_2.x = data_2.x.to(device)
-    #
-    #     data_1.edge_index = data_1.edge_index.to(device).long()
-    #     data_2.edge_index = data_2.edge_index.to(device).long()
-    #
-    #     data_1.edge_attr = data_1.edge_attr.to(device).long()
-    #     data_2.edge_attr = data_2.edge_attr.to(device).long()
-    #
-    #     data_1.batch = data_1.batch.to(device).long()
-    #     data_2.batch = data_2.batch.to(device).long()
-    #
-    #     data_1.ptr = data_1.ptr.to(device).long()
-    #     data_2.ptr = data_2.ptr.to(device).long()
-    #
-        # data_1.softmax_idx = data_1.softmax_idx.to(device)
-        # data_2.softmax_idx = data_2.softmax_idx.to(device)
-        #
-        # if hasattr(data_1, "attention_edge_index"):
-        #     data_1.attention_edge_index = data_1.attention_edge_index.to(device)
-        #     data_2.attention_edge_index = data_2.attention_edge_index.to(device)
-        #
-        # y = y.to(device)
-        # # batch.edge_index = batch.edge_index.to(device)
-        # return data_1, data_2, y
-        #
+    def transfer_batch_to_device(self, batch, device, dataloader_idx):
+        batch = batch[0]
+        data_1, data_2, y = batch
+
+        data_1.x = data_1.x.to(device)
+        data_2.x = data_2.x.to(device)
+
+        data_1.edge_index = data_1.edge_index.to(device).long()
+        data_2.edge_index = data_2.edge_index.to(device).long()
+
+        data_1.edge_attr = data_1.edge_attr.to(device).long()
+        data_2.edge_attr = data_2.edge_attr.to(device).long()
+
+        data_1.batch = data_1.batch.to(device).long()
+        data_2.batch = data_2.batch.to(device).long()
+
+        data_1.ptr = data_1.ptr.to(device).long()
+        data_2.ptr = data_2.ptr.to(device).long()
+
+        data_1.softmax_idx = data_1.softmax_idx.to(device)
+        data_2.softmax_idx = data_2.softmax_idx.to(device)
+
+        if hasattr(data_1, "attention_edge_index"):
+            data_1.attention_edge_index = data_1.attention_edge_index.to(device)
+            data_2.attention_edge_index = data_2.attention_edge_index.to(device)
+
+        y = y.to(device)
+        # batch.edge_index = batch.edge_index.to(device)
+        return data_1, data_2, y
+
 
 def ptr_to_complete_edge_index(ptr):
     # print (ptr)

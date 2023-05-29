@@ -30,7 +30,7 @@ def data_to_relation(batch):
 
     return Data(xi=xi, xj=xj, edge_attr_=edge_attr_, mask=mask)
 
-def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc):
+def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, data_type='graph'):
     fringe_sizes = []
     contexts = []
     reverted = []
@@ -44,22 +44,22 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc):
 
     graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
 
-    # if GNN/SAT
-    # loader = DataLoader(graphs, batch_size = len(reverted))
-    # batch = next(iter(loader))
-    # batch.to(device)
-    # batch.edge_attr = batch.edge_attr.long()#torch.LongTensor(batch.edge_attr)
-    # representations = torch.unsqueeze(encoder(batch), 1)
+    if data_type == 'graph':
+        loader = DataLoader(graphs, batch_size=len(graphs))
+        batch = next(iter(loader))
+        batch.to(device)
+        batch.edge_attr = batch.edge_attr.long()
+        representations = torch.unsqueeze(encoder(batch), 1)
 
-    # if relation transformer
-    graphs = data_to_relation(graphs)
-    graphs.to(device)
-    representations = torch.unsqueeze(encoder(graphs), 1)
+    elif data_type == 'relation':
+        graphs = data_to_relation(graphs)
+        graphs.to(device)
+        representations = torch.unsqueeze(encoder(graphs), 1)
 
     return representations, contexts, fringe_sizes
 
 class RLData(pl.LightningDataModule):
-    def __init__(self, train_goals, test_goals, config={'max_steps':50, 'gamma': 0.99}, database=None, graph_db=None):
+    def __init__(self, train_goals, test_goals, config, database=None, graph_db=None):
         super().__init__()
         self.config = config
         self.env = HolEnv("T")
@@ -83,23 +83,22 @@ class RLData(pl.LightningDataModule):
                     allowed_arguments_ids.append(i)
                     candidate_args.append(t)
             env.toggle_simpset("diminish", goal_theory)
-            print("Removed simpset of {}".format(goal_theory))
+            # print("Removed simpset of {}".format(goal_theory))
 
         except Exception as e:
             raise Exception(f"Error generating fact pool: {e}")
 
         graphs = [self.graph_db[t] for t in candidate_args]
 
-        # GNN:
-        # loader = DataLoader(graphs, batch_size=len(candidate_args))
-        # allowed_fact_batch = next(iter(loader))
-        # allowed_fact_batch.edge_attr = allowed_fact_batch.edge_attr.long()
+        if self.config['data_type'] == 'graph':
+            loader = DataLoader(graphs, batch_size=len(candidate_args))
+            allowed_fact_batch = next(iter(loader))
+            allowed_fact_batch.edge_attr = allowed_fact_batch.edge_attr.long()
 
-        # relation
-        allowed_fact_batch = data_to_relation(graphs)
+        elif self.config['data_type'] == 'relation':
+            allowed_fact_batch = data_to_relation(graphs)
 
         #todo not sure if we need allowed_arguments_ids?
-
         return allowed_fact_batch, allowed_arguments_ids, candidate_args
 
     def setup_goal(self, goal):
@@ -127,3 +126,11 @@ class RLData(pl.LightningDataModule):
         allowed_fact_batch = allowed_fact_batch.to(device)
 
         return goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env
+
+
+
+# test model
+# module = RLData(train_goals=train_goals, test_goals=test_goals, database=compat_db, graph_db=graph_db)
+# module.setup("fit")
+# batch = next(iter(module.train_dataloader()))
+# print (batch)

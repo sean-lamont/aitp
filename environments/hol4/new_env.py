@@ -109,7 +109,7 @@ class HolEnv():
         # experimental feature
         self.process.delaybeforesend = None
         # import theories
-        print("Importing theories...")
+        # print("Importing theories...")
         self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
         self.process.sendline("val _ = set_trace \"types\" 1;".encode("utf-8"))
         for i in self.import_theories:
@@ -126,11 +126,11 @@ class HolEnv():
         # sleep(1)
         
         # load utils
-        print("Loading modules...")
+        # print("Loading modules...")
         self.process.sendline("use \"helper.sml\";")
         # self.process.sendline("val _ = load \"Timeout\";")
         sleep(5)
-        print("Configuration done.")
+        # print("Configuration done.")
         self.process.expect('\r\n>')
         # self.process.readline()
         self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
@@ -253,7 +253,7 @@ class HolEnv():
         if self.frequency:
             self.mean_frequency = sum(self.frequency.values())/len(self.frequency.values())
 
-        print("Initialization done. Main goal is:\n{}.".format(self.goal))
+        # print("Initialization done. Main goal is:\n{}.".format(self.goal))
 
     def close(self):    
         pids = get_process("hol")
@@ -325,7 +325,7 @@ class HolEnv():
             i = self.process.expect(["metis: proof translation error", "Initial goal proved", ": proof", ":\r\n +proof" , "Exception", "error"])
 
         except:
-            print("Exception: {} to {} to be debugged".format(tac, raw_goal))
+            # print("Exception: {} to {} to be debugged".format(tac, raw_goal))
             i = -1
 
 
