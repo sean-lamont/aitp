@@ -172,7 +172,7 @@ class SeparateEncoderPremiseSelection:
             callbacks=callbacks,
             )
 
-        # trainer.fit(model=experiment, datamodule=data_module)
+        trainer.fit(model=experiment, datamodule=data_module)
 
         # artifact = wandb.Artifact(name='checkpoint', type="checkpoint")
 
@@ -183,9 +183,9 @@ class SeparateEncoderPremiseSelection:
 
         # logger.experiment.log_artifact(artifact)
         # ckpt = torch.load("/home/sean/Documents/phd/repo/aitp/test_project/yqiw2dgr/checkpoints/epoch=6-step=368646.ckpt")
-        ckpt = torch.load("/home/sean/Documents/phd/repo/aitp/test_project/a2gpqgp1/checkpoints/epoch=19-step=558624.ckpt")
-        ckpt = ckpt['state_dict']
-        experiment.load_state_dict(ckpt)
+        # ckpt = torch.load("/home/sean/Documents/phd/repo/aitp/test_project/a2gpqgp1/checkpoints/epoch=19-step=558624.ckpt")
+        # ckpt = ckpt['state_dict']
+        # experiment.load_state_dict(ckpt)
 
         trainer.test(model=experiment, datamodule=data_module)
 #

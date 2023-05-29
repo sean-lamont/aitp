@@ -215,6 +215,7 @@ def get_arg_tac(target_representation,
 def get_replay_tac(true_tactic_text):
     if true_tactic_text in no_arg_tactic:
         true_tac_text = true_tactic_text
+        true_args_text = None
     else:
         tac_args = re.findall(r'(.*?)\[(.*?)\]', true_tactic_text)
         tac_term = re.findall(r'(.*?) `(.*?)`', true_tactic_text)

@@ -471,8 +471,8 @@ class H5DataModule(pl.LightningDataModule):
         data_1.ptr = data_1.ptr.to(device).long()
         data_2.ptr = data_2.ptr.to(device).long()
 
-        data_1.softmax_idx = data_1.softmax_idx.to(device)
-        data_2.softmax_idx = data_2.softmax_idx.to(device)
+        # data_1.softmax_idx = data_1.softmax_idx.to(device)
+        # data_2.softmax_idx = data_2.softmax_idx.to(device)
 
         if hasattr(data_1, "attention_edge_index"):
             data_1.attention_edge_index = data_1.attention_edge_index.to(device)

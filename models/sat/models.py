@@ -207,13 +207,13 @@ class GraphTransformer(nn.Module):
                 # output_2 = gnn.global_max_pool(output, data.batch)
                 # output = torch.cat([output_1, output_2], dim=1)
 
-        # return output
+        return output
 
-        if self.max_seq_len is not None:
-            pred_list = []
-            for i in range(self.max_seq_len):
-                pred_list.append(self.classifier[i](output))
-            return pred_list
+        # if self.max_seq_len is not None:
+        #     pred_list = []
+        #     for i in range(self.max_seq_len):
+        #         pred_list.append(self.classifier[i](output))
+        #     return pred_list
+        # #
+        # # return self.classifier(output)
         #
-        # return self.classifier(output)
-
