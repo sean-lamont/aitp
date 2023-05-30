@@ -49,7 +49,11 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, da
         batch = next(iter(loader))
         batch.to(device)
         batch.edge_attr = batch.edge_attr.long()
+
+        # for batch norm, when only one goal
+        encoder.eval()
         representations = torch.unsqueeze(encoder(batch), 1)
+        encoder.train()
 
     elif data_type == 'relation':
         graphs = data_to_relation(graphs)

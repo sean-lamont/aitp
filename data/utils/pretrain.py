@@ -144,7 +144,7 @@ class SeparateEncoderPremiseSelection:
 
         # todo update model artifacts manually
 
-        checkpoint_callback = ModelCheckpoint(monitor="acc", mode="max", save_top_k=3, auto_insert_metric_name=True,
+        checkpoint_callback = ModelCheckpoint(monitor="acc", mode="max", auto_insert_metric_name=True,
                                               save_weights_only=True, dirpath=self.exp_config['checkpoint_dir'])
         callbacks.append(checkpoint_callback)
 
