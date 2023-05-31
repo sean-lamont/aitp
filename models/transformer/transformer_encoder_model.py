@@ -3,9 +3,11 @@ import math
 from torch import nn, Tensor
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 import einops
+
+
 class PositionalEncoding(nn.Module):
 
-    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
+    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 512):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
 
@@ -25,18 +27,47 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-# todo wrapper for transformer embedding taking in batch
-# class TransformerFromBatch(nn.Module):
-#         def __init__(self, ntoken: int, d_model: int, nhead: int, d_hid: int,
-#                      nlayers: int, dropout: float = 0.5, enc=True, in_embed=True, global_pool=True):
-#             super().__init__(())
-#             self.transformer_embedding = TransformerEmbedding(ntoken, d_model, nhead, d_hid,
-#                                                               nlayers, dropout, enc, in_embed, global_pool)
+"""
+
+Wrapper for transformer taking in tuple with first element as data, second as mask
+
+"""
 
 
-'''
+class TransformerWrapper(nn.Module):
+    def __init__(self, ntoken: int, d_model: int, nhead: int, d_hid: int,
+                 nlayers: int, dropout: float = 0.5, enc=True, in_embed=False, global_pool=True):
+
+        super().__init__()
+
+        self.transformer_embedding = TransformerEmbedding(ntoken=None, d_model=d_model, nhead=nhead, d_hid=d_hid,
+                                                          nlayers=nlayers, dropout=dropout, enc=enc,
+                                                          global_pool=global_pool, in_embed=in_embed)
+
+        self.embedding = nn.Embedding(ntoken, d_model, padding_idx=0)
+
+        self.cls_token = nn.Parameter(torch.randn(1, d_model))
+
+    def forward(self, data):
+        x = data[0]
+        mask = data[1]
+
+        x = self.embedding(x)
+
+        cls_tokens = einops.repeat(self.cls_token, '() d -> 1 b d', b=x.shape[1])
+        x = torch.cat([x, cls_tokens], dim=0)
+
+        return self.transformer_embedding(x, mask)
+
+
+
+"""
+
 Transformer Embedding 
-'''
+
+"""
+
+
 class TransformerEmbedding(nn.Module):
     def __init__(self, ntoken: int, d_model: int, nhead: int, d_hid: int,
                  nlayers: int, dropout: float = 0.5, enc=True, in_embed=True, global_pool=True):
@@ -49,7 +80,7 @@ class TransformerEmbedding(nn.Module):
         if self.enc:
             self.pos_encoder = PositionalEncoding(d_model, dropout=0)
 
-        print (f"dropout {dropout}")
+        print(f"dropout {dropout}")
         encoder_layers = TransformerEncoderLayer(d_model, nhead, d_hid, dropout, activation='gelu')
 
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
@@ -67,37 +98,20 @@ class TransformerEmbedding(nn.Module):
         self.encoder.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, data, mask=None):
-        """
-        Args:
-            data: x with token indices, ptr identifying which sequence tokens belong to
-        Returns:
-            output Tensor of shape [seq_len, batch_size, d_model], if global pool [batch_size, d_model]
-        """
-
-        # todo change this, maybe make a separate model wrapping this with processing by batch and splitting/padding
-        # src = data.x
-
         src = data
-        # split by batch ptr and pad
-        # src = torch.tensor_split(src, data.ptr[1:-1])
-        # src = torch.nn.utils.rnn.pad_sequence(src)
 
         if self.in_embed:
             src = self.encoder(src) * math.sqrt(self.d_model)
 
-        # if self.global_pool:
-        #     cls_tokens = einops.repeat(self.cls_token, '() d -> 1 b d', b=len(data.ptr) - 1)
-        #     src = torch.cat([src, cls_tokens], dim=0)
-
         if self.enc:
             src = self.pos_encoder(src)
 
-        output = self.transformer_encoder(src, src_key_padding_mask=mask)#, memory_mask=mask)
+        output = self.transformer_encoder(src, src_key_padding_mask=mask)  # , memory_mask=mask)
 
         output = torch.transpose(output, 0, 1)
 
         if self.global_pool:
-            #CLS token value
+            # CLS token value
             output = output[:, 0]
             return output
 

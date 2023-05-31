@@ -7,7 +7,7 @@ import warnings
 
 warnings.filterwarnings('ignore')
 import lightning.pytorch as pl
-from data.hol4.mongo_to_torch import HOL4DataModule, HOL4DataModuleGraph
+from data.hol4.mongo_to_torch import HOL4DataModule, HOL4DataModuleGraph, HOL4SequenceModule
 from lightning.pytorch.loggers import WandbLogger
 from models.get_model import get_model
 from models.gnn.formula_net.formula_net import BinaryClassifier
@@ -110,6 +110,8 @@ def get_data(data_config):
         return HOL4DataModule(dir=data_config['data_dir'])
     if data_config['source'] == 'hol4_graph':
         return HOL4DataModuleGraph(dir=data_config['data_dir'])
+    if data_config['source'] == 'hol4_sequence':
+        return HOL4SequenceModule(dir=data_config['data_dir'])
     else:
         raise NotImplementedError
 
@@ -138,7 +140,8 @@ class SeparateEncoderPremiseSelection:
                              config=self.config,
                              notes=self.config['notes'],
                              # log_model="all",
-                             offline=False)
+                             # offline=True,
+                             )
 
         callbacks = []
 
@@ -162,7 +165,7 @@ class SeparateEncoderPremiseSelection:
             enable_progress_bar=True,
             log_every_n_steps=500,
             # accelerator='gpu',
-            devices=[1],
+            # devices=[1],
             # strategy='ddp_find_unused_parameters_true',
             # todo figure out why, e.g. https://github.com/Lightning-AI/lightning/issues/11242
             # hack to fix ddp hanging error..

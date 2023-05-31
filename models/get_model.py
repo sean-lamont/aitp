@@ -1,4 +1,4 @@
-from models.transformer.transformer_encoder_model import TransformerEmbedding
+from models.transformer.transformer_encoder_model import TransformerEmbedding, TransformerWrapper
 from models.gnn.formula_net.formula_net import FormulaNet, FormulaNetEdges
 from models.relation_transformer.relation_transformer_new import AttentionRelations
 from models.gnn.digae.digae_model import DigaeEmbedding
@@ -26,6 +26,7 @@ def get_model(model_config):
                                 dropout=model_config['dropout'],
                                 k_hop=model_config['gnn_layers'])
 
+
     if model_config['model_type'] == 'amr':
         return AMRTransformer(in_size=model_config['vocab_size'],
                               d_model=model_config['embedding_dim'],
@@ -41,6 +42,7 @@ def get_model(model_config):
                               layer_norm=True,#model_config['layer_norm'],
                               global_pool=True,#model_config['global_pool'],
                               )
+
 
     elif model_config['model_type'] == 'formula-net':
         return FormulaNet(model_config['vocab_size'],
@@ -60,7 +62,7 @@ def get_model(model_config):
 
 
     elif model_config['model_type'] == 'transformer':
-        return TransformerEmbedding(ntoken=model_config['vocab_size'],
+        return TransformerWrapper(ntoken=model_config['vocab_size'],
                                     d_model=model_config['embedding_dim'],
                                     nhead=model_config['num_heads'],
                                     nlayers=model_config['num_layers'],

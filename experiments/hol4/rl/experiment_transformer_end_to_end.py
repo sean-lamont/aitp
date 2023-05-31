@@ -155,7 +155,6 @@ tokenized_db = {}
 
 print ("generating premise tokenized db...")
 for i,t in enumerate(compat_db):
-
     tokenized_db[t] = vectorise([[i.value for i in ast_def.polished_to_tokens_2(t)]])
 
 # with open("paper_goals.pk", "rb") as f:
