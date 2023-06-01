@@ -145,8 +145,7 @@ class HOL4DataModuleGraph(LightningDataModule):
             val_data = [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']], v['y'])) for v in split.find({}) if
                         v['split'] == 'val']
             test_data = [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']], v['y'])) for v in split.find({})
-                         if
-                         v['split'] == 'test']
+                         if v['split'] == 'test']
 
             data = {'graph_dict': graph_dict, 'expr_dict': expr_dict, 'train_data': train_data, 'val_data': val_data,
                     'test_data': test_data}
@@ -220,7 +219,7 @@ class HOL4SequenceModule(LightningDataModule):
             train_data = [self.to_sequence((v['conj'], v['stmt'], v['y']), vocab) for v in split.find({}) if
                           v['split'] == 'train']
             val_data = [self.to_sequence((v['conj'], v['stmt'], v['y']), vocab) for v in split.find({}) if
-                        v['split'] == 'valid']
+                        v['split'] == 'val']
             test_data = [self.to_sequence((v['conj'], v['stmt'], v['y']), vocab) for v in split.find({}) if
                          v['split'] == 'test']
 

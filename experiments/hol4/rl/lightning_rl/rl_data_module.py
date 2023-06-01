@@ -30,6 +30,19 @@ def data_to_relation(batch):
 
     return Data(xi=xi, xj=xj, edge_attr_=edge_attr_, mask=mask)
 
+def to_sequence(data, vocab):
+    data = data.split(" ")
+    data = torch.LongTensor([vocab[c] for c in data if c in vocab])
+    return data
+
+
+def collate_pad(batch):
+    x = torch.nn.utils.rnn.pad_sequence(batch)
+    x = x[:300]
+    mask = (x == 0).T
+    mask = torch.cat([mask, torch.zeros(mask.shape[0]).bool().unsqueeze(1)], dim=1)
+    return Data(data=x, mask=mask)
+
 def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, data_type='graph'):
     fringe_sizes = []
     contexts = []
@@ -42,9 +55,11 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, da
         g = revert_with_polish(e)
         reverted.append(g)
 
-    graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
+    # graphs = [graph_db[t] if t in graph_db.keys() else to_sequence(t) for t in reverted]
+    # graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
 
     if data_type == 'graph':
+        graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
         loader = DataLoader(graphs, batch_size=len(graphs))
         batch = next(iter(loader))
         batch.to(device)
@@ -56,9 +71,17 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, da
         encoder.train()
 
     elif data_type == 'relation':
+        graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
         graphs = data_to_relation(graphs)
         graphs.to(device)
         representations = torch.unsqueeze(encoder(graphs), 1)
+
+    elif data_type == 'sequence':
+        db, vocab = graph_db
+        batch = [to_sequence(t, vocab) for t in reverted]
+        data = collate_pad(batch).to(device)
+        representations = torch.unsqueeze(encoder(data), 1)
+
 
     return representations, contexts, fringe_sizes
 
@@ -92,15 +115,21 @@ class RLData(pl.LightningDataModule):
         except Exception as e:
             raise Exception(f"Error generating fact pool: {e}")
 
-        graphs = [self.graph_db[t] for t in candidate_args]
 
         if self.config['data_type'] == 'graph':
+            graphs = [self.graph_db[t] for t in candidate_args]
             loader = DataLoader(graphs, batch_size=len(candidate_args))
             allowed_fact_batch = next(iter(loader))
             allowed_fact_batch.edge_attr = allowed_fact_batch.edge_attr.long()
 
         elif self.config['data_type'] == 'relation':
+            graphs = [self.graph_db[t] for t in candidate_args]
             allowed_fact_batch = data_to_relation(graphs)
+
+        elif self.config['data_type'] == 'sequence':
+            db, vocab = self.graph_db
+            batch = [to_sequence(t, vocab) for t in candidate_args]
+            allowed_fact_batch = collate_pad(batch)
 
         #todo not sure if we need allowed_arguments_ids?
         return allowed_fact_batch, allowed_arguments_ids, candidate_args
@@ -118,9 +147,12 @@ class RLData(pl.LightningDataModule):
     def train_dataloader(self):
         return loader(self.train_goals, batch_size=1, collate_fn=self.setup_goal)
 
+    def val_dataloader(self):
+        return loader(self.test_goals, batch_size=1, collate_fn=self.setup_goal)
+
     # todo: val set to terminate training with??
-    def test_dataloader(self):
-        return loader(self.test_goals, collate_fn=self.setup_goal)
+    # def test_dataloader(self):
+    #     return loader(self.test_goals, collate_fn=self.setup_goal)
 
     def transfer_batch_to_device(self, batch, device, dataloader_idx):
         if batch is None:

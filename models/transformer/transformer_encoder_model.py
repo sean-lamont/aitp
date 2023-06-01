@@ -49,8 +49,12 @@ class TransformerWrapper(nn.Module):
         self.cls_token = nn.Parameter(torch.randn(1, d_model))
 
     def forward(self, data):
-        x = data[0]
-        mask = data[1]
+        if type(data) == list or type(data) == tuple:
+            x = data[0]
+            mask = data[1]
+        else:
+            x = data.data
+            mask = data.mask
 
         x = self.embedding(x)
 

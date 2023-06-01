@@ -141,33 +141,12 @@ class MagLapNet(torch.nn.Module):
         self.use_attention = use_attention
         self.num_heads = num_heads
         self.dropout_p = dropout_p
+
         if norm:
             self.norm = torch.nn.LayerNorm(d_model_elem)  # norm
         else:
             self.norm = None
 
-        # self.use_gnn = use_gnn
-
-        # if self.use_gnn:
-        #   self.element_gnn = GNN(
-        #       int(2 * d_model_elem) if self.consider_im_part else d_model_elem,
-        #       gnn_type='gnn',
-        #       k_hop=n_layers,
-        #       mlp_layers=n_layers,
-        #       activation=activation,
-        #       use_edge_attr=False,
-        #       concat=True,
-        #       residual=False,
-        #       name='re_element')
-        # else:
-
-        # self.element_mlp = torch.nn.sequentialMLP(
-        #   int(2 * d_model_elem) if self.consider_im_part else d_model_elem,
-        #   n_layers=n_layers,
-        #   activation=activation,
-        #   with_norm=False,
-        #   final_activation=True,
-        # )
 
         self.element_mlp = torch.nn.Sequential(
             torch.nn.Linear(2 * d_model_elem) if self.consider_im_part else d_model_elem,
@@ -179,31 +158,15 @@ class MagLapNet(torch.nn.Module):
             torch.nn.ReLU()
         )
 
-        # self.attn = torch.nn.MultiheadAttention(embed_dim=d_model_aggr)
-
-        # self.re_aggregate_mlp = MLP(
-        #     d_model_aggr,
-        #     n_layers=n_layers,
-        #     activation=activation,
-        #     with_norm=False,
-        #     final_activation=True,
-        #     name='re_aggregate')
-        #
+        self.attn = torch.nn.MultiheadAttention(embed_dim=d_model_aggr)
 
         self.im_aggregate_mlp = None
+
         if not return_real_output and self.consider_im_part:
             self.im_aggregate_mlp = torch.nn.Sequential(
                 torch.nn.Linear(d_model_aggr),
                 torch.nn.ReLU()
             )
-        # self.im_aggregate_mlp = MLP(
-        #       d_model_aggr,
-        #       n_layers=n_layers,
-        #       activation=activation,
-        #       with_norm=False,
-        #       final_activation=True,
-        #       name='im_aggregate')
-        #
 
     def forward(self, eigenvalues,
                 eigenvectors):
@@ -211,29 +174,12 @@ class MagLapNet(torch.nn.Module):
         trans_eig = eigenvectors[0]
         trans_eig_im = eigenvectors[1]
 
-        trans_eig = torch.cat([trans_eig, trans_eig_im], dim=-1)
+        if self.consider_im_part:
+            trans_eig = torch.cat([trans_eig, trans_eig_im], dim=-1)
 
         # padding_mask = (eigenvalues > 0)[..., None, :]
         # padding_mask = padding_mask.at[..., 0].set(True)
         # attn_padding_mask = padding_mask[..., None] & padding_mask[..., None, :]
-
-        # trans_eig = jnp.real(eigenvectors)[..., None]
-
-        # if self.consider_im_part and jnp.iscomplexobj(eigenvectors):
-        #   trans_eig_im = jnp.imag(eigenvectors)[..., None]
-        #   trans_eig = jnp.concatenate((trans_eig, trans_eig_im), axis=-1)
-
-        # if self.use_gnn:
-        #   trans = self.element_gnn(
-        #       graph._replace(nodes=trans_eig, edges=None), call_args).nodes
-        #   if self.use_signnet:
-        #     trans_neg = self.element_gnn(
-        #         graph._replace(nodes=-trans_eig, edges=None), call_args).nodes
-        #     trans += trans_neg
-        # else:
-        #   trans = self.element_mlp(trans_eig)
-        #   if self.use_signnet:
-        #     trans += self.element_mlp(-trans_eig)
 
         trans = self.element_mlp(trans_eig)
         if self.use_signnet:
