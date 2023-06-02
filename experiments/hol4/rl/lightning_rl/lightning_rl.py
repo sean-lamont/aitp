@@ -87,31 +87,31 @@ reverse_database = {(value[0], value[1]): key for key, value in compat_db.items(
 graph_db = {}
 
 print("Generating premise graph db...")
-# for i, t in enumerate(compat_db):
-#     graph_db[t] = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc)
+for i, t in enumerate(compat_db):
+    graph_db[t] = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc)
 
 # todo reorganise sequence/transformer based data
-def to_sequence(data, vocab):
-    data = data.split(" ")
-    data = torch.LongTensor([vocab[c] for c in data])
-    return data
-
-vocab = {}
-i = 1
-for k in compat_db.keys():
-    tmp = k.split(" ")
-    for t in tmp:
-        if t not in vocab:
-            vocab[t] = i
-            i += 1
-
-for i,t in enumerate(compat_db):
-    graph_db[t] = to_sequence(t, vocab)
-
-graph_db = graph_db, vocab
-
-
-
+# def to_sequence(data, vocab):
+#     data = data.split(" ")
+#     data = torch.LongTensor([vocab[c] for c in data])
+#     return data
+#
+# vocab = {}
+# i = 1
+# for k in compat_db.keys():
+#     tmp = k.split(" ")
+#     for t in tmp:
+#         if t not in vocab:
+#             vocab[t] = i
+#             i += 1
+#
+# for i,t in enumerate(compat_db):
+#     graph_db[t] = to_sequence(t, vocab)
+#
+# graph_db = graph_db, vocab
+#
+#
+#
 with open("data/hol4/data/paper_goals.pk", "rb") as f:
     paper_goals = pickle.load(f)
 
@@ -156,6 +156,8 @@ class TacticZeroLoop(pl.LightningModule):
 
         logging.basicConfig(filename=self.dir + 'log', level=logging.DEBUG)
 
+        self.cur_steps = 1
+
         # todo replay DB + log probs
         if "replay_dir" in self.config:
             self.replays = torch.load(self.config['replay_dir'])
@@ -178,7 +180,18 @@ class TacticZeroLoop(pl.LightningModule):
         # todo stats per goal? save to experiment directory?
 
         # todo 1 - eps replay? I.e run replay only with prob 1 - eps
-        for t in range(self.config['max_steps']):
+
+       # todo learnable step count? I.e. Model predicts num steps up to max, then if it proves within step gets a large reward, else punished?
+
+        # dynamic step count: Start at 1, if goal has been proven max_steps is fixed value above that (e.g. 5), if not have counter of current max which grows over time
+
+        if env.goal in self.replays:
+            max_steps = self.replays[env.goal][0] + 5
+        else:
+            max_steps = self.cur_steps
+        # self.config['max_steps']
+
+        for t in range(max_steps):
             target_representation, target_goal, fringe, fringe_prob = select_goal_fringe(history=env.history,
                                                                                          encoder_goal=self.encoder_goal,
                                                                                          graph_db=graph_db,
@@ -259,13 +272,15 @@ class TacticZeroLoop(pl.LightningModule):
                 # steps += 1
                 break
 
-            if t == self.config['max_steps'] - 1:
+            if t == max_steps - 1:
+            # if t == self.config['max_steps'] - 1:
                 if not train_mode:
                     break
                 reward = -5
+                reward_pool.append(reward)
                 # print("Failed")
                 if env.goal in self.replays:
-                    self.replayed += 1
+                    # self.replayed += 1
                     # self.log("cur_replayed", self.replayed, prog_bar=True)
                     return self.run_replay(allowed_arguments_ids, candidate_args, env, encoded_fact_pool)
 
@@ -429,8 +444,12 @@ class TacticZeroLoop(pl.LightningModule):
         # self.logger.log_text(key="Epoch Proved", columns = ["Goals", "Steps"], data=self.proven)
 
         self.proven = []
-        self.replayed = 0
+        # self.replayed = 0
         self.save_replays()
+
+        self.cur_steps = (self.current_epoch // 10) + 2
+
+        self.log("max_steps", self.cur_steps, prog_bar=True)
 
     def on_validation_epoch_end(self):
         # print (f"Val done")
@@ -527,13 +546,13 @@ induct_net = FormulaNetEdges(VOCAB_SIZE, EMBEDDING_DIM, 3, global_pool=False, ba
 
 
 # relation
-# encoder_premise = AttentionRelations(VOCAB_SIZE, EMBEDDING_DIM)
-# encoder_goal = AttentionRelations(VOCAB_SIZE, EMBEDDING_DIM)
-# ckpt_dir = "/home/sean/Documents/phd/repo/aitp/sat/hol4/supervised/model_checkpoints/epoch=5-step=41059.ckpt"
-# ckpt = torch.load(ckpt_dir)['state_dict']
-# encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
-# encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
-#
+encoder_premise = AttentionRelations(VOCAB_SIZE, EMBEDDING_DIM)
+encoder_goal = AttentionRelations(VOCAB_SIZE, EMBEDDING_DIM)
+ckpt_dir = "/home/sean/Documents/phd/repo/aitp/sat/hol4/supervised/model_checkpoints/epoch=5-step=41059.ckpt"
+ckpt = torch.load(ckpt_dir)['state_dict']
+encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
+encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
+
 
 # GNN
 # encoder_premise = FormulaNetEdges(VOCAB_SIZE, EMBEDDING_DIM, 3, batch_norm=False)
@@ -548,34 +567,36 @@ induct_net = FormulaNetEdges(VOCAB_SIZE, EMBEDDING_DIM, 3, global_pool=False, ba
 
 # transformer
 
-VOCAB_SIZE = 1300
-transformer_config = {
-    "model_type": "transformer",
-    "vocab_size": VOCAB_SIZE,
-    "embedding_dim": 256,
-    "dim_feedforward": 512,
-    "num_heads": 8,
-    "num_layers": 4,
-    "dropout": 0.0
-}
-
-# todo split up encoding premises for GPU memory
-encoder_premise = get_model(transformer_config)
-encoder_goal = get_model(transformer_config)
-ckpt_dir = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/transformer_90_04.ckpt"
-ckpt = torch.load(ckpt_dir)['state_dict']
-encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
-encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
-
+# VOCAB_SIZE = 1300
+# transformer_config = {
+#     "model_type": "transformer",
+#     "vocab_size": VOCAB_SIZE,
+#     "embedding_dim": 256,
+#     "dim_feedforward": 512,
+#     "num_heads": 8,
+#     "num_layers": 4,
+#     "dropout": 0.0
+# }
+#
+# # todo split up encoding premises for GPU memory
+# encoder_premise = get_model(transformer_config)
+# encoder_goal = get_model(transformer_config)
+# ckpt_dir = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/transformer_90_04.ckpt"
+# ckpt = torch.load(ckpt_dir)['state_dict']
+# encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
+# encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
+#
 
 
 
 # notes = "gnn_5_step/"
 # notes = "relation_5_step/"
-notes = "transformer_5_step/"
+# notes = "transformer_5_step/"
 # notes = "sat_5_step/"
-
-# notes = "test/"
+#
+# notes = "gnn_dynamic_step/"
+# notes = "transformer_dynamic_step/"
+notes = "relation_dynamic_step/"
 
 save_dir = '/home/sean/Documents/phd/repo/aitp/experiments/hol4/rl/lightning_rl/experiments/' + notes
 
@@ -583,7 +604,7 @@ config = {'max_steps': 5,
           'gamma': 0.99,
           'lr': 5e-5,
           'arg_len': 5,
-          'data_type': 'sequence',
+          'data_type': 'relation',
           # 'replay_dir': '/home/sean/Documents/phd/repo/aitp/data/hol4/replay_test_gnn.pk',
           'dir_path': save_dir}
 
@@ -602,7 +623,7 @@ experiment = TacticZeroLoop(context_net=context_net, tac_net=tac_net, arg_net=ar
 # experiment.load_state_dict(state_dict)
 
 logger = WandbLogger(project="RL Test",
-                     name="TacticZero Transformer 5 step",
+                     name="TacticZero Relation Dynamic step",
                      config=config,
                      notes=notes,
                      # offline=True,
@@ -620,7 +641,7 @@ checkpoint_callback = ModelCheckpoint(monitor="val_proven", mode="max",
 
 callbacks.append(checkpoint_callback)
 
-trainer = pl.Trainer(devices=[0],
+trainer = pl.Trainer(devices=[1],
                      check_val_every_n_epoch=5,
                      # limit_val_batches=30,
                      logger=logger,
