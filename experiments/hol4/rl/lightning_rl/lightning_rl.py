@@ -1,4 +1,5 @@
 import traceback
+import glob
 import logging
 from models.get_model import get_model
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -86,29 +87,29 @@ reverse_database = {(value[0], value[1]): key for key, value in compat_db.items(
 graph_db = {}
 
 print("Generating premise graph db...")
-for i, t in enumerate(compat_db):
-    graph_db[t] = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc)
+# for i, t in enumerate(compat_db):
+#     graph_db[t] = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc)
 
 # todo reorganise sequence/transformer based data
-# def to_sequence(data, vocab):
-#     data = data.split(" ")
-#     data = torch.LongTensor([vocab[c] for c in data])
-#     return data
-#
-# vocab = {}
-# i = 1
-# for k in compat_db.keys():
-#     tmp = k.split(" ")
-#     for t in tmp:
-#         if t not in vocab:
-#             vocab[t] = i
-#             i += 1
-#
-# for i,t in enumerate(compat_db):
-#     graph_db[t] = to_sequence(t, vocab)
-#
-# graph_db = graph_db, vocab
-#
+def to_sequence(data, vocab):
+    data = data.split(" ")
+    data = torch.LongTensor([vocab[c] for c in data])
+    return data
+
+vocab = {}
+i = 1
+for k in compat_db.keys():
+    tmp = k.split(" ")
+    for t in tmp:
+        if t not in vocab:
+            vocab[t] = i
+            i += 1
+
+for i,t in enumerate(compat_db):
+    graph_db[t] = to_sequence(t, vocab)
+
+graph_db = graph_db, vocab
+
 
 
 with open("data/hol4/data/paper_goals.pk", "rb") as f:
@@ -378,8 +379,8 @@ class TacticZeroLoop(pl.LightningModule):
 
             return loss
 
-        except:
-            logging.debug(f"Error in training: {traceback.print_exc()}")
+        except Exception as e:
+            logging.debug(f"Error in training: {e}")
             return
 
     def validation_step(self, batch, batch_idx):
@@ -460,6 +461,12 @@ class TacticZeroLoop(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.RMSprop(self.parameters(), lr=self.config['lr'])
         return optimizer
+
+    def backward(self, loss, *args, **kwargs) -> None:
+        try:
+            loss.backward()
+        except Exception as e:
+            logging.debug(f"Error in backward {e}")
 
 def get_model_dict(prefix, state_dict):
     return {k[len(prefix)+1:]: v for k, v in state_dict.items()
@@ -552,6 +559,7 @@ transformer_config = {
     "dropout": 0.0
 }
 
+# todo split up encoding premises for GPU memory
 encoder_premise = get_model(transformer_config)
 encoder_goal = get_model(transformer_config)
 ckpt_dir = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/transformer_90_04.ckpt"
@@ -566,6 +574,8 @@ encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
 # notes = "relation_5_step/"
 notes = "transformer_5_step/"
 # notes = "sat_5_step/"
+
+# notes = "test/"
 
 save_dir = '/home/sean/Documents/phd/repo/aitp/experiments/hol4/rl/lightning_rl/experiments/' + notes
 
@@ -586,6 +596,11 @@ experiment = TacticZeroLoop(context_net=context_net, tac_net=tac_net, arg_net=ar
                             induct_net=induct_net,
                             encoder_premise=encoder_premise, encoder_goal=encoder_goal, config=config)
 
+
+
+# state_dict = torch.load("/home/sean/Documents/phd/repo/aitp/experiments/hol4/rl/lightning_rl/experiments/gnn_5_step/checkpoint.ckpt")['state_dict']
+# experiment.load_state_dict(state_dict)
+
 logger = WandbLogger(project="RL Test",
                      name="TacticZero Transformer 5 step",
                      config=config,
@@ -594,16 +609,38 @@ logger = WandbLogger(project="RL Test",
                      )
 
 callbacks = []
-checkpoint_callback = ModelCheckpoint(monitor="val_proven", mode="max", auto_insert_metric_name=True,
-                                      save_weights_only=True, dirpath=save_dir)
+
+checkpoint_callback = ModelCheckpoint(monitor="val_proven", mode="max",
+                                      auto_insert_metric_name=True,
+                                      filename="{epoch}-{val_proven}-{cumulative_proven}",
+                                      # save_weights_only=True,
+                                      save_last=True,
+                                      dirpath=save_dir)
+
 
 callbacks.append(checkpoint_callback)
 
 trainer = pl.Trainer(devices=[0],
                      check_val_every_n_epoch=5,
-                     # val_check_interval=1,
                      # limit_val_batches=30,
                      logger=logger,
                      callbacks=callbacks)
 
-trainer.fit(experiment, module)
+
+
+# import cProfile
+# cProfile.run('trainer.fit(experiment, module)')
+
+# trainer.fit(experiment, module)#, ckpt_path="/home/sean/Documents/phd/repo/aitp/experiments/hol4/rl/lightning_rl/experiments/gnn_5_step/checkpoint.ckpt")
+
+try:
+    trainer.fit(experiment, module)
+except Exception as e:
+    print (f"Error in fit {e}")
+    print (f"Reloading..")
+
+    # ckpt_dir = save_dir + "last.ckpt"
+    # experiment.load_state_dict(torch.load(ckpt_dir + "last.ckpt")['state_dict'])
+    # trainer.fit(experiment, module, ckpt_path=ckpt_dir)
+
+    trainer.fit(experiment, module)#, ckpt_path=ckpt_dir)

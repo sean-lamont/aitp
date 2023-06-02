@@ -59,6 +59,7 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, da
     # graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
 
     if data_type == 'graph':
+        # todo listcomp takes ages below with graph_to_torch.. maybe add to graph_db every new expression, or to a tmp_db for a given goal?
         graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
         loader = DataLoader(graphs, batch_size=len(graphs))
         batch = next(iter(loader))
@@ -155,11 +156,14 @@ class RLData(pl.LightningDataModule):
     #     return loader(self.test_goals, collate_fn=self.setup_goal)
 
     def transfer_batch_to_device(self, batch, device, dataloader_idx):
-        if batch is None:
-            return None
+        # if batch is None:
+        #     return None
 
-        goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env = batch
-        allowed_fact_batch = allowed_fact_batch.to(device)
+        try:
+            goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env = batch
+            allowed_fact_batch = allowed_fact_batch.to(device)
+        except:
+            return None
 
         return goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env
 
