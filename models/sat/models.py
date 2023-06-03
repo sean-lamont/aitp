@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from models.positional_encodings import get_magnetic_Laplacian, MagLapNet
 from torch_geometric.data import Data
 from einops import rearrange
 import copy
@@ -115,6 +116,9 @@ class GraphTransformer(nn.Module):
             for i in range(max_seq_len):
                 self.classifier.append(nn.Linear(d_model, num_class))
 
+
+        self.pe = MagLapNet()
+
     def forward(self, data, return_attn=False):
         x, edge_index, edge_attr = data.x, data.edge_index, data.edge_attr
 
@@ -141,6 +145,10 @@ class GraphTransformer(nn.Module):
         degree = data.degree if hasattr(data, 'degree') else None
 
         output = self.embedding(x) if node_depth is None else self.embedding(x, node_depth.view(-1,))
+
+        pe = self.pe(get_magnetic_Laplacian((edge_index)))
+
+        output = output + pe
             
         if self.abs_pe and abs_pe is not None:
             # abs_pe = self.embedding_abs_pe(abs_pe)

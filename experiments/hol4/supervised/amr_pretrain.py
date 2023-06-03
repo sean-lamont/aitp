@@ -78,7 +78,7 @@ exp_config = {
     "val_size": 4096,
     "logging": False,
     # "checkpoint_dir": "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints",
-    "checkpoint_dir": "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints",
+    "checkpoint_dir": "/home/sean/Documents/phd/aitp/experiments/hol4/supervised/model_checkpoints",
     "device": "cuda:0",
     "max_errors": 1000,
     "val_frequency": 2048,
@@ -103,7 +103,8 @@ h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/repo/ait
 
 # hol4 for relations
 hol4_data_config = {"source": "hol4", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/hol4/torch_data"}
-hol4_graph_data_config = {"source": "hol4_graph", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/hol4/graph_torch_data"}
+hol4_graph_data_config = {"source": "hol4_graph", "data_dir": "/home/sean/Documents/phd/aitp/data/hol4/graph_torch_data"}
+# hol4_graph_data_config = {"source": "hol4_graph", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/hol4/graph_torch_data"}
 hol4_sequence_data_config = {"source": "hol4_sequence", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/hol4/sequence_torch_data"}
 
 relation_att_exp = SeparateEncoderPremiseSelection(config={"model_config": relation_config,
@@ -127,7 +128,7 @@ sat_exp = SeparateEncoderPremiseSelection(config={"model_config": sat_config,
                                                            "data_config": hol4_graph_data_config,
                                                            "project": "hol4_premise_selection",
                                                           "notes": "",
-                                                          "name": "SAT FormulaNet"})
+                                                          "name": "SAT FormulaNet + MagLap"})
 
 
 formula_net_exp = SeparateEncoderPremiseSelection(config={"model_config": formula_net_config,
@@ -152,8 +153,8 @@ amr_exp = SeparateEncoderPremiseSelection(config={"model_config": amr_config,
 
 
 # amr_exp.run_lightning()
-# sat_exp.run_lightning()
-relation_att_exp.run_lightning()
+sat_exp.run_lightning()
+# relation_att_exp.run_lightning()
 # formula_net_exp.run_lightning()
 # transformer_experiment.run_lightning()
 # digae_exp.run_lightning()

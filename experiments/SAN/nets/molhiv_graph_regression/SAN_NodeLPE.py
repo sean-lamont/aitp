@@ -11,8 +11,6 @@ from ogb.graphproppred.mol_encoder import AtomEncoder, BondEncoder
     Graph Transformer with edge features
     
 """
-from layers.graph_transformer_layer import GraphTransformerLayer
-from layers.mlp_readout_layer import MLPReadout
 
 class SAN_NodeLPE(nn.Module):
     def __init__(self, net_params):
