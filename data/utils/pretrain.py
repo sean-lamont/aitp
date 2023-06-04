@@ -143,7 +143,7 @@ class SeparateEncoderPremiseSelection:
                              config=self.config,
                              notes=self.config['notes'],
                              # log_model="all",
-                             offline=True,
+                             # offline=True,
                              )
 
         callbacks = []

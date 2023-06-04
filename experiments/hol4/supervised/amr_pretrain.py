@@ -8,10 +8,10 @@ from lightning import LightningApp
 VOCAB_SIZE = 1004
 
 # HOLStep vocab
-# VOCAB_SIZE = 1909 + 4
+#VOCAB_SIZE = 1909 + 4
 
 # HOL4 transformer
-VOCAB_SIZE = 1300
+# VOCAB_SIZE = 1300
 
 
 sat_config = {
@@ -99,7 +99,7 @@ digae_config = {
 
 
 # h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/utils/holstep_full"}
-h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/utils/processed_data"}
+h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/aitp/data/utils/processed_data"}
 
 # hol4 for relations
 hol4_data_config = {"source": "hol4", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/hol4/torch_data"}
@@ -151,9 +151,9 @@ amr_exp = SeparateEncoderPremiseSelection(config={"model_config": amr_config,
                                                            "project": "test_project",
                                                            "name": "amr"})
 
-import cProfile
+# import cProfile
 
-cProfile.run('sat_exp.run_lightning()', sort = 'cumtime')
+# cProfile.run('sat_exp.run_lightning()', sort = 'cumtime')
 
 
 # amr_exp.run_lightning()

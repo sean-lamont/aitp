@@ -1,4 +1,5 @@
 import torch_geometric.loader.dataloader
+from tqdm import tqdm
 from torch_geometric.data import Batch
 from models.positional_encodings import get_magnetic_Laplacian
 from pymongo import MongoClient
@@ -148,7 +149,7 @@ class HOL4DataModuleGraph(LightningDataModule):
             expr_dict = {v['_id']: (v['theory'], v['name'], v['dep_id'], v['type'], v['plain_expression']) for v in
                          meta.find({})}
 
-            train_data = [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']], v['y'])) for v in split.find({})
+            train_data = [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']], v['y'])) for v in tqdm(split.find({}))
                           if
                           v['split'] == 'train']
             val_data = [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']], v['y'])) for v in split.find({}) if
@@ -167,27 +168,27 @@ class HOL4DataModuleGraph(LightningDataModule):
         edge_index = torch.LongTensor(data_1['edge_index'])
         edge_attr = torch.LongTensor(data_1['edge_attr'])
 
-        data_1 = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
+        try:
+            eig_vals, (eig_real, eig_imag) = get_magnetic_Laplacian(edge_index)
+        except:
+            eig_vals = torch.zeros(25)
+            eig_real = eig_imag = torch.zeros((x.shape[0], 25))
+
+        data_1 = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, eig_vals=eig_vals, eig_real=eig_real, eig_imag=eig_imag)
 
         x = torch.LongTensor(data_2['onehot'])
         edge_index = torch.LongTensor(data_2['edge_index'])
         edge_attr = torch.LongTensor(data_2['edge_attr'])
-        data_2 = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
 
-        # try:
-        #     eig_vals, (eig_real, eig_imag) = get_magnetic_Laplacian(data_1.edge_index)
-        #     data_1.eig_vals = eig_vals
-        #     data_1.eig_real = eig_real
-        #     data_1.eig_imag = eig_imag
-        #
-        #     eig_vals, (eig_real, eig_imag) = get_magnetic_Laplacian(data_2.edge_index)
-        #     data_2.eig_vals = eig_vals
-        #     data_2.eig_real = eig_real
-        #     data_2.eig_imag = eig_imag
-        #
-        # except:
-        #     pass
-        #
+        try:
+            eig_vals, (eig_real, eig_imag) = get_magnetic_Laplacian(edge_index)
+        except:
+            eig_vals = torch.zeros(25)
+            eig_real = eig_imag = torch.zeros((x.shape[0], 25))
+
+        data_2 = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, eig_vals=eig_vals, eig_real=eig_real,
+                      eig_imag=eig_imag)
+
         return data_1, data_2, y
 
     def setup(self, stage: str) -> None:
@@ -211,56 +212,54 @@ class HOL4DataModuleGraph(LightningDataModule):
     def transfer_batch_to_device(self, batch, device: torch.device, dataloader_idx: int):
         data_1, data_2, y = batch
 
-        data_1 = data_1.to_data_list()
-        data_2 = data_2.to_data_list()
-
-
-        data_1_ = []
-        for i in range(len(data_1)):
-            try:
-                eig_vals, (eig_real, eig_imag) = get_magnetic_Laplacian(data_1[i].edge_index)
-                raise Exception
-            except:
-                eig_vals = torch.zeros(25)
-                eig_real = eig_imag = torch.zeros((data_1[i].num_nodes, 25))
-
-            data_1_.append(Data(x=data_1[i].x,
-                                edge_index=data_1[i].edge_index,
-                                edge_attr=data_1[i].edge_attr,
-                                eig_vals=eig_vals,
-                                eig_real=eig_real,
-                                eig_imag=eig_imag))
-
-        data_1 = Batch.from_data_list(data_1_)
-
-
-        data_2_ = []
-        for i in range(len(data_2)):
-            try:
-                eig_vals, (eig_real, eig_imag) = get_magnetic_Laplacian(data_2[i].edge_index)
-            except:
-                eig_vals = torch.zeros(25)
-                eig_real = eig_imag = torch.zeros((data_2[i].num_nodes, 25))
-
-            data_2_.append(Data(x=data_2[i].x,
-                                edge_index=data_2[i].edge_index,
-                                edge_attr=data_2[i].edge_attr,
-                                eig_vals=eig_vals,
-                                eig_real=eig_real,
-                                eig_imag=eig_imag))
-
-        data_2 = Batch.from_data_list(data_2_)
-
-
-
-
+        # data_1 = data_1.to_data_list()
+        # data_2 = data_2.to_data_list()
+        #
+        #
+        # data_1_ = []
+        # for i in range(len(data_1)):
+        #     try:
+        #         eig_vals, (eig_real, eig_imag) = get_magnetic_Laplacian(data_1[i].edge_index)
+        #     except:
+        #         eig_vals = torch.zeros(25)
+        #         eig_real = eig_imag = torch.zeros((data_1[i].num_nodes, 25))
+        #
+        #     data_1_.append(Data(x=data_1[i].x,
+        #                         edge_index=data_1[i].edge_index,
+        #                         edge_attr=data_1[i].edge_attr,
+        #                         eig_vals=eig_vals,
+        #                         eig_real=eig_real,
+        #                         eig_imag=eig_imag))
+        #
+        # data_1 = Batch.from_data_list(data_1_)
+        #
+        #
+        # data_2_ = []
+        # for i in range(len(data_2)):
+        #     try:
+        #         eig_vals, (eig_real, eig_imag) = get_magnetic_Laplacian(data_2[i].edge_index)
+        #     except:
+        #         eig_vals = torch.zeros(25)
+        #         eig_real = eig_imag = torch.zeros((data_2[i].num_nodes, 25))
+        #
+        #     data_2_.append(Data(x=data_2[i].x,
+        #                         edge_index=data_2[i].edge_index,
+        #                         edge_attr=data_2[i].edge_attr,
+        #                         eig_vals=eig_vals,
+        #                         eig_real=eig_real,
+        #                         eig_imag=eig_imag))
+        #
+        # data_2 = Batch.from_data_list(data_2_)
+        #
+        #
+        #
+        #
         data_1.attention_edge_index = ptr_to_complete_edge_index(data_1.ptr)
         data_2.attention_edge_index = ptr_to_complete_edge_index(data_2.ptr)
 
         data_1 = data_1.to(device)
         data_2 = data_2.to(device)
         y = y.to(device)
-
 
 
         return data_1, data_2, y
