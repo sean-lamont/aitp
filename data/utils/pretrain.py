@@ -1,3 +1,5 @@
+import traceback
+
 from data.utils.dataset import H5DataModule
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from tqdm import tqdm
@@ -52,6 +54,7 @@ class PremiseSelection(pl.LightningModule):
         try:
             preds = self(goal, premise)
         except Exception as e:
+            print (traceback.print_exc())
             print (f"Error in forward: {e}")
             return
         loss = binary_loss(preds, y)

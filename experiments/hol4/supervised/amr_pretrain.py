@@ -151,6 +151,10 @@ amr_exp = SeparateEncoderPremiseSelection(config={"model_config": amr_config,
                                                            "project": "test_project",
                                                            "name": "amr"})
 
+import cProfile
+
+cProfile.run('sat_exp.run_lightning()', sort = 'cumtime')
+
 
 # amr_exp.run_lightning()
 sat_exp.run_lightning()

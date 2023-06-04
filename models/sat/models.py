@@ -11,13 +11,6 @@ from .layers import TransformerEncoderLayer
 from einops import repeat
 
 
-def ptr_to_complete_edge_index(ptr):
-    # print (ptr)
-    from_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat_interleave(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
-    to_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
-    combined_complete_edge_index = torch.vstack((torch.cat(from_lists, dim=0), torch.cat(to_lists, dim=0)))
-    return combined_complete_edge_index
-
 class GraphTransformerEncoder(nn.TransformerEncoder):
     def forward(self, x, edge_index, complete_edge_index,
             subgraph_node_index=None, subgraph_edge_index=None,
@@ -128,8 +121,7 @@ class GraphTransformer(nn.Module):
             subgraph_node_index = data.subgraph_node_idx
             subgraph_edge_index = data.subgraph_edge_index
             subgraph_indicator_index = data.subgraph_indicator 
-            subgraph_edge_attr = data.subgraph_edge_attr if hasattr(data, "subgraph_edge_attr") \
-                                    else None
+            subgraph_edge_attr = data.subgraph_edge_attr if hasattr(data, "subgraph_edge_attr") else None
         else:
             subgraph_node_index = None
             subgraph_edge_index = None
@@ -146,9 +138,11 @@ class GraphTransformer(nn.Module):
 
         output = self.embedding(x) if node_depth is None else self.embedding(x, node_depth.view(-1,))
 
-        pe = self.pe(get_magnetic_Laplacian((edge_index)))
-
-        output = output + pe
+        # todo integrate PE properly
+        # eig_vals, eig_vecs = get_magnetic_Laplacian(edge_index, return_eig=True)
+        if hasattr(data, "eig_vals"):
+            pe = self.pe(data.eig_vals, (data.eig_real, data.eig_imag))
+            output = output + pe
             
         if self.abs_pe and abs_pe is not None:
             # abs_pe = self.embedding_abs_pe(abs_pe)

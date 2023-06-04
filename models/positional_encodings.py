@@ -21,7 +21,7 @@ def get_magnetic_Laplacian(edge_index: torch.LongTensor, edge_weight: Optional[t
                            dtype: Optional[int] = None,
                            num_nodes: Optional[int] = None,
                            q: Optional[float] = 0.25,
-                           return_eig: bool = False,
+                           return_eig: bool = True,
                            k=27):
 
     if normalization is not None:
@@ -88,7 +88,6 @@ def get_magnetic_Laplacian(edge_index: torch.LongTensor, edge_weight: Optional[t
             eig_imag = torch.nn.functional.pad(eig_imag, (0, k - 2 - k_), value=0)
 
         # shape n,k for vecs, shape k for vals
-        #todo pad out to k
         return eig_vals, (eig_real, eig_imag)
 
 
@@ -102,7 +101,7 @@ Code for MagLapNet in Torch
 class MagLapNet(torch.nn.Module):
     def __init__(self,
                  eig_dim: int = 32,
-                 # d_embed: int = 256,
+                 d_embed: int = 256,
                  num_heads: int = 4,
                  n_layers: int = 1,
                  dropout_p: float = 0.2,
@@ -138,6 +137,8 @@ class MagLapNet(torch.nn.Module):
         else:
             self.norm = None
 
+        self.proj = torch.nn.Linear(eig_dim, d_embed)
+
     def forward(self, eigenvalues,
                 eigenvectors):
 
@@ -151,7 +152,7 @@ class MagLapNet(torch.nn.Module):
 
         trans = self.element_mlp(trans_eig)
         if self.use_signnet:
-            trans += self.element_mlp(-trans_eig)
+            trans = trans + self.element_mlp(-trans_eig)
 
         eigenvalues = einops.repeat(eigenvalues, "k -> k 1")
 
@@ -166,13 +167,16 @@ class MagLapNet(torch.nn.Module):
 
         trans = einops.rearrange(trans, "n k d -> k n d")
 
-        PosEnc = self.PE_Transformer(src=trans, src_key_padding_mask=mask)
+        pe = self.PE_Transformer(src=trans, src_key_padding_mask=mask)
 
 
-        PosEnc[torch.transpose(mask, 0, 1)] = float('nan')
+        pe[torch.transpose(mask, 0, 1)] = float('nan')
 
         # Sum pooling
-        return torch.nansum(PosEnc, 0, keepdim=False)
+        pe = torch.nansum(pe, 0, keepdim=False)
+        pe = self.proj(pe)
+
+        return pe
 
         # output = self.re_aggregate_mlp(trans)
         # if self.im_aggregate_mlp is None:
