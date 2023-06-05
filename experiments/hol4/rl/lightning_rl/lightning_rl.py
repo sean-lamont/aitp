@@ -546,24 +546,24 @@ induct_net = FormulaNetEdges(VOCAB_SIZE, EMBEDDING_DIM, 3, global_pool=False, ba
 
 
 # relation
-encoder_premise = AttentionRelations(VOCAB_SIZE, EMBEDDING_DIM)
-encoder_goal = AttentionRelations(VOCAB_SIZE, EMBEDDING_DIM)
-ckpt_dir = "/home/sean/Documents/phd/repo/aitp/sat/hol4/supervised/model_checkpoints/epoch=5-step=41059.ckpt"
-ckpt = torch.load(ckpt_dir)['state_dict']
-encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
-encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
-
+# encoder_premise = AttentionRelations(VOCAB_SIZE, EMBEDDING_DIM)
+# encoder_goal = AttentionRelations(VOCAB_SIZE, EMBEDDING_DIM)
+# ckpt_dir = "/home/sean/Documents/phd/repo/aitp/sat/hol4/supervised/model_checkpoints/epoch=5-step=41059.ckpt"
+# ckpt = torch.load(ckpt_dir)['state_dict']
+# encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
+# encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
+#
 
 # GNN
-# encoder_premise = FormulaNetEdges(VOCAB_SIZE, EMBEDDING_DIM, 3, batch_norm=False)
-# encoder_goal = FormulaNetEdges(VOCAB_SIZE, EMBEDDING_DIM, 3, batch_norm=False)
-# ckpt_dir = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/formula_net_best_91.ckpt"
-# ckpt = torch.load(ckpt_dir)['state_dict']
-# encoder_premise.load_state_dict(get_model_dict_fn(encoder_premise, 'embedding_model_premise', ckpt))
-# encoder_goal.load_state_dict(get_model_dict_fn(encoder_goal, 'embedding_model_goal', ckpt))
-# # encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
-# # encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
-#
+encoder_premise = FormulaNetEdges(VOCAB_SIZE, EMBEDDING_DIM, 3, batch_norm=False)
+encoder_goal = FormulaNetEdges(VOCAB_SIZE, EMBEDDING_DIM, 3, batch_norm=False)
+ckpt_dir = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/formula_net_best_91.ckpt"
+ckpt = torch.load(ckpt_dir)['state_dict']
+encoder_premise.load_state_dict(get_model_dict_fn(encoder_premise, 'embedding_model_premise', ckpt))
+encoder_goal.load_state_dict(get_model_dict_fn(encoder_goal, 'embedding_model_goal', ckpt))
+# encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
+# encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
+
 
 # transformer
 
@@ -594,9 +594,9 @@ encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
 # notes = "transformer_5_step/"
 # notes = "sat_5_step/"
 #
-# notes = "gnn_dynamic_step/"
+notes = "gnn_dynamic_step/"
 # notes = "transformer_dynamic_step/"
-notes = "relation_dynamic_step/"
+# notes = "relation_dynamic_step/"
 
 save_dir = '/home/sean/Documents/phd/repo/aitp/experiments/hol4/rl/lightning_rl/experiments/' + notes
 
@@ -604,8 +604,8 @@ config = {'max_steps': 5,
           'gamma': 0.99,
           'lr': 5e-5,
           'arg_len': 5,
-          'data_type': 'relation',
-          # 'replay_dir': '/home/sean/Documents/phd/repo/aitp/data/hol4/replay_test_gnn.pk',
+          'data_type': 'graph',
+          'replay_dir': save_dir + 'replays',
           'dir_path': save_dir}
 
 
@@ -626,7 +626,9 @@ logger = WandbLogger(project="RL Test",
                      name="TacticZero Relation Dynamic step",
                      config=config,
                      notes=notes,
-                     # offline=True,
+                     id = 'n1oeciah',
+                    resume = 'must',
+                    # offline=True,
                      )
 
 callbacks = []
@@ -653,6 +655,9 @@ trainer = pl.Trainer(devices=[1],
 # cProfile.run('trainer.fit(experiment, module)')
 
 # trainer.fit(experiment, module)#, ckpt_path="/home/sean/Documents/phd/repo/aitp/experiments/hol4/rl/lightning_rl/experiments/gnn_5_step/checkpoint.ckpt")
+ckpt_dir = save_dir + "last.ckpt"
+experiment.load_state_dict(torch.load(ckpt_dir)['state_dict'])
+trainer.fit(experiment, module, ckpt_path=ckpt_dir)
 
 try:
     trainer.fit(experiment, module)
@@ -660,8 +665,5 @@ except Exception as e:
     print (f"Error in fit {e}")
     print (f"Reloading..")
 
-    # ckpt_dir = save_dir + "last.ckpt"
-    # experiment.load_state_dict(torch.load(ckpt_dir + "last.ckpt")['state_dict'])
-    # trainer.fit(experiment, module, ckpt_path=ckpt_dir)
 
     trainer.fit(experiment, module)#, ckpt_path=ckpt_dir)
