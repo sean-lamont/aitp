@@ -47,6 +47,7 @@ class GraphTransformer(nn.Module):
         # print ("r_inductunning")
         self.abs_pe = abs_pe
         self.abs_pe_dim = abs_pe_dim
+
         if abs_pe and abs_pe_dim > 0:
             self.embedding_abs_pe = nn.Embedding(abs_pe_dim, d_model)
             self.embedding_abs_pe = nn.Linear(abs_pe_dim, d_model)

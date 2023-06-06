@@ -91,6 +91,12 @@ class PremiseSelection(pl.LightningModule):
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
         # return optimizer
 
+    def backward(self, loss, *args, **kwargs) -> None:
+        try:
+            loss.backward()
+        except Exception as e:
+            print (f"Error in backward: {e}")
+
 
 def get_experiment(exp_config, model_config):
     if exp_config['experiment'] == 'premise_selection':

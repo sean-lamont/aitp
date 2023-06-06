@@ -43,7 +43,7 @@ def collate_pad(batch):
     mask = torch.cat([mask, torch.zeros(mask.shape[0]).bool().unsqueeze(1)], dim=1)
     return Data(data=x, mask=mask)
 
-def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, data_type='graph'):
+def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, tmp, data_type='graph'):
     fringe_sizes = []
     contexts = []
     reverted = []
@@ -58,9 +58,26 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, da
     # graphs = [graph_db[t] if t in graph_db.keys() else to_sequence(t) for t in reverted]
     # graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
 
+    def hack(x):
+        if data_type == 'graph' or data_type == 'relation':
+            if x in graph_db:
+                return graph_db[x]
+            if x not in tmp:
+                tmp[x] = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(x), token_enc)
+            return tmp[x]
+        else:
+            db, vocab = graph_db
+            if x in db:
+                return graph_db[x]
+            if x not in tmp:
+                tmp[x] = to_sequence(x,vocab)
+            return tmp[x]
+
+
     if data_type == 'graph':
         # todo listcomp takes ages below with graph_to_torch.. maybe add to graph_db every new expression, or to a tmp_db for a given goal?
-        graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
+        graphs = [hack(t) for t in reverted]
+        # graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
         loader = DataLoader(graphs, batch_size=len(graphs))
         batch = next(iter(loader))
         batch.to(device)
@@ -78,13 +95,15 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, da
         representations = torch.unsqueeze(encoder(graphs), 1)
 
     elif data_type == 'sequence':
-        db, vocab = graph_db
-        batch = [to_sequence(t, vocab) for t in reverted]
+        # db, vocab = graph_db
+        # batch = [graph_db[t] if t in graph_db.keys() else to_sequence(t) for t in reverted]
+        # batch = [to_sequence(t, vocab) for t in reverted]
+        batch = [hack(t) for t in reverted]
         data = collate_pad(batch).to(device)
         representations = torch.unsqueeze(encoder(data), 1)
 
 
-    return representations, contexts, fringe_sizes
+    return representations, contexts, fringe_sizes, tmp
 
 class RLData(pl.LightningDataModule):
     def __init__(self, train_goals, test_goals, config, database=None, graph_db=None):
@@ -124,10 +143,12 @@ class RLData(pl.LightningDataModule):
             allowed_fact_batch.edge_attr = allowed_fact_batch.edge_attr.long()
 
         elif self.config['data_type'] == 'relation':
+            # todo split up for memory
             graphs = [self.graph_db[t] for t in candidate_args]
             allowed_fact_batch = data_to_relation(graphs)
 
         elif self.config['data_type'] == 'sequence':
+            # todo split up for memory
             db, vocab = self.graph_db
             batch = [to_sequence(t, vocab) for t in candidate_args]
             allowed_fact_batch = collate_pad(batch)

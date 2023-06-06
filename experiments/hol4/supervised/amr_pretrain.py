@@ -5,10 +5,10 @@ from data.utils.pretrain import SeparateEncoderPremiseSelection
 from lightning import LightningApp
 
 # HOL4 vocab
-VOCAB_SIZE = 1004
+# VOCAB_SIZE = 1004
 
 # HOLStep vocab
-#VOCAB_SIZE = 1909 + 4
+VOCAB_SIZE = 1909 + 4
 
 # HOL4 transformer
 # VOCAB_SIZE = 1300
@@ -20,8 +20,8 @@ sat_config = {
     "vocab_size": VOCAB_SIZE,
     "embedding_dim": 256,
     "dim_feedforward": 256,
-    "num_heads": 2,
-    "num_layers": 2,
+    "num_heads": 8,
+    "num_layers": 4,
     "in_embed": True,
     "se": "formula-net",
     "abs_pe": False,
@@ -71,7 +71,7 @@ amr_config = {
 exp_config = {
     "experiment": "premise_selection",
     "learning_rate": 1e-4,
-    "epochs": 10,
+    "epochs": 20,
     "weight_decay": 1e-6,
     "batch_size": 32,
     "model_save": False,
@@ -98,13 +98,13 @@ digae_config = {
 }
 
 
-# h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/utils/holstep_full"}
-h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/aitp/data/utils/processed_data"}
+h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/utils/holstep_full"}
+# h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/aitp/data/utils/processed_data"}
 
 # hol4 for relations
 hol4_data_config = {"source": "hol4", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/hol4/torch_data"}
-hol4_graph_data_config = {"source": "hol4_graph", "data_dir": "/home/sean/Documents/phd/aitp/data/hol4/graph_torch_data"}
-# hol4_graph_data_config = {"source": "hol4_graph", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/hol4/graph_torch_data"}
+# hol4_graph_data_config = {"source": "hol4_graph", "data_dir": "/home/sean/Documents/phd/aitp/data/hol4/graph_torch_data"}
+hol4_graph_data_config = {"source": "hol4_graph", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/hol4/graph_torch_data"}
 hol4_sequence_data_config = {"source": "hol4_sequence", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/hol4/sequence_torch_data"}
 
 relation_att_exp = SeparateEncoderPremiseSelection(config={"model_config": relation_config,
@@ -125,8 +125,8 @@ transformer_experiment = SeparateEncoderPremiseSelection(config={"model_config":
 
 sat_exp = SeparateEncoderPremiseSelection(config={"model_config": sat_config,
                                                            "exp_config": exp_config,
-                                                           "data_config": hol4_graph_data_config,
-                                                           "project": "hol4_premise_selection",
+                                                           "data_config": h5_data_config,
+                                                           "project": "test_project",
                                                           "notes": "",
                                                           "name": "SAT FormulaNet + MagLap"})
 

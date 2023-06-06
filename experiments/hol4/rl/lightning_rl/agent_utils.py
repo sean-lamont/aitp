@@ -51,12 +51,13 @@ def select_goal_fringe(history,
                        token_enc,
                        context_net,
                        device,
+                       tmp,
                        data_type='graph',
                        replay_fringe=None):
 
-    representations, context_set, fringe_sizes = gather_encoded_content_gnn(history, encoder_goal,
+    representations, context_set, fringe_sizes, tmp = gather_encoded_content_gnn(history, encoder_goal,
                                                                             device, graph_db=graph_db,
-                                                                            token_enc=token_enc, data_type=data_type)
+                                                                            token_enc=token_enc, data_type=data_type, tmp=tmp)
     context_scores = context_net(representations)
     contexts_by_fringe, scores_by_fringe = split_by_fringe(context_set, context_scores, fringe_sizes)
     fringe_scores = []
@@ -80,7 +81,7 @@ def select_goal_fringe(history,
     target_goal = target_context["polished"]["goal"]
     target_representation = representations[context_set.index(target_context)]
 
-    return target_representation, target_goal, fringe, fringe_prob
+    return target_representation, target_goal, fringe, fringe_prob, tmp
 
 def get_term_tac(target_goal, target_representation, tac, term_net, induct_net, device, token_enc, replay_term=None):
     target_graph = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(target_goal), token_enc)
