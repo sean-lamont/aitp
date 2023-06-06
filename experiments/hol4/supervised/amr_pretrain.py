@@ -46,9 +46,9 @@ relation_config = {
     "model_type": "transformer_relation",
     "vocab_size": VOCAB_SIZE,
     # "vocab_size": VOCAB_SIZE + 1,
-    "embedding_dim": 256,
+    "embedding_dim": 512,
     "dim_feedforward": 512,
-    "num_heads": 8,
+    "num_heads": 16,
     "num_layers": 4,
     "dropout": 0.0
 }
@@ -77,8 +77,8 @@ exp_config = {
     "model_save": False,
     "val_size": 4096,
     "logging": False,
-    # "checkpoint_dir": "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints",
-    "checkpoint_dir": "/home/sean/Documents/phd/aitp/experiments/hol4/supervised/model_checkpoints",
+    "checkpoint_dir": "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints",
+    # "checkpoint_dir": "/home/sean/Documents/phd/aitp/experiments/hol4/supervised/model_checkpoints",
     "device": "cuda:0",
     "max_errors": 1000,
     "val_frequency": 2048,
@@ -109,10 +109,10 @@ hol4_sequence_data_config = {"source": "hol4_sequence", "data_dir": "/home/sean/
 
 relation_att_exp = SeparateEncoderPremiseSelection(config={"model_config": relation_config,
                                                            "exp_config": exp_config,
-                                                           "data_config": hol4_data_config,
-                                                           "project": "hol4_premise_selection",
+                                                           "data_config": h5_data_config,
+                                                           "project": "test_project",
                                                            "notes": "",
-                                                           "name": "relation, Adam, Single Embed"})
+                                                           "name": "relation large"})
 
 
 # todo with original sequence for positional encoding
@@ -157,8 +157,8 @@ amr_exp = SeparateEncoderPremiseSelection(config={"model_config": amr_config,
 
 
 # amr_exp.run_lightning()
-sat_exp.run_lightning()
-# relation_att_exp.run_lightning()
+# sat_exp.run_lightning()
+relation_att_exp.run_lightning()
 # formula_net_exp.run_lightning()
 # transformer_experiment.run_lightning()
 # digae_exp.run_lightning()

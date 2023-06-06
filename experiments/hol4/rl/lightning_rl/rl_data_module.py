@@ -68,7 +68,7 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, tm
         else:
             db, vocab = graph_db
             if x in db:
-                return graph_db[x]
+                return db[x]
             if x not in tmp:
                 tmp[x] = to_sequence(x,vocab)
             return tmp[x]
@@ -84,9 +84,9 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, tm
         batch.edge_attr = batch.edge_attr.long()
 
         # for batch norm, when only one goal
-        encoder.eval()
+        # encoder.eval()
         representations = torch.unsqueeze(encoder(batch), 1)
-        encoder.train()
+        # encoder.train()
 
     elif data_type == 'relation':
         graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
@@ -96,7 +96,7 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, tm
 
     elif data_type == 'sequence':
         # db, vocab = graph_db
-        # batch = [graph_db[t] if t in graph_db.keys() else to_sequence(t) for t in reverted]
+        # batch = [db[t] if t in db.keys() else to_sequence(t, vocab) for t in reverted]
         # batch = [to_sequence(t, vocab) for t in reverted]
         batch = [hack(t) for t in reverted]
         data = collate_pad(batch).to(device)

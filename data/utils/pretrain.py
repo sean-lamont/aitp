@@ -193,13 +193,20 @@ class SeparateEncoderPremiseSelection:
         #     name='Checkpoints'
         # )
 
+
         # logger.experiment.log_artifact(artifact)
         # ckpt = torch.load("/home/sean/Documents/phd/repo/aitp/test_project/yqiw2dgr/checkpoints/epoch=6-step=368646.ckpt")
-        # ckpt = torch.load("/home/sean/Documents/phd/repo/aitp/test_project/a2gpqgp1/checkpoints/epoch=19-step=558624.ckpt")
+        # ckpt = torch.load("/experiments/hol4/supervised/model_checkpoints/sat_large_holstep.ckpt")
         # ckpt = ckpt['state_dict']
+
+        # new_dict = {}
+        # for k,v in ckpt.items():
+        #     if 'complete_edge_index' not in k:
+        #         new_dict[k] = v
+        #
         # experiment.load_state_dict(ckpt)
 
-        trainer.test(model=experiment, datamodule=data_module)
+        # trainer.test(model=experiment, datamodule=data_module)
 #
 # def objective(self, trial):
 #     torch.set_float32_matmul_precision('high')
