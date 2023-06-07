@@ -52,7 +52,8 @@ def get_model(model_config):
     elif model_config['model_type'] == 'formula-net-edges':
         return FormulaNetEdges(input_shape=model_config['vocab_size'],
                                         embedding_dim=model_config['embedding_dim'],
-                                               num_iterations=model_config['gnn_layers'])
+                                       num_iterations=model_config['gnn_layers'],
+                                        batch_norm=model_config['batch_norm'] if 'batch_norm' in model_config else True)
 
     elif model_config['model_type'] == 'digae':
         return DigaeEmbedding(model_config['vocab_size'],

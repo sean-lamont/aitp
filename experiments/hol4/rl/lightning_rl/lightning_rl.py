@@ -1,130 +1,18 @@
-import traceback
-import glob
 import logging
-from models.get_model import get_model
-from lightning.pytorch.callbacks import ModelCheckpoint
 from experiments.hol4.rl.lightning_rl.agent_utils import *
-from lightning.pytorch.loggers import WandbLogger
-from tqdm import tqdm
 from experiments.hol4.rl.lightning_rl.rl_data_module import *
-from utils.viz_net_torch import make_dot
-from models.relation_transformer.relation_transformer_new import AttentionRelations
-import einops
-from torch_geometric.data import Data
-from models.tactic_zero.policy_models import ArgPolicy, TacPolicy, TermPolicy, ContextPolicy
-from models.gnn.formula_net.formula_net import FormulaNetEdges, message_passing_gnn_induct
-from models.sat.models import GraphTransformer
 import lightning.pytorch as pl
 import torch.optim
-from data.hol4.ast_def import graph_to_torch_labelled
 from torch.distributions import Categorical
-import torch.nn.functional as F
-from datetime import datetime
-import pickle
-from data.hol4 import ast_def
-from torch_geometric.loader import DataLoader
 import time
 from environments.hol4.new_env import *
-import numpy as np
 import warnings
 warnings.filterwarnings('ignore')
-
 
 # for debugging
 import os
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
-
-
-MORE_TACTICS = True
-if not MORE_TACTICS:
-    thms_tactic = ["simp", "fs", "metis_tac"]
-    thm_tactic = ["irule"]
-    term_tactic = ["Induct_on"]
-    no_arg_tactic = ["strip_tac"]
-else:
-    thms_tactic = ["simp", "fs", "metis_tac", "rw"]
-    thm_tactic = ["irule", "drule"]
-    term_tactic = ["Induct_on"]
-    no_arg_tactic = ["strip_tac", "EQ_TAC"]
-
-tactic_pool = thms_tactic + thm_tactic + term_tactic + no_arg_tactic
-
-
-def revert_with_polish(context):
-    target = context["polished"]
-    assumptions = target["assumptions"]
-    goal = target["goal"]
-    for i in reversed(assumptions):
-        goal = "@ @ C$min$ ==> {} {}".format(i, goal)
-    return goal
-
-
-def split_by_fringe(goal_set, goal_scores, fringe_sizes):
-    # group the scores by fringe
-    fs = []
-    gs = []
-    counter = 0
-    for i in fringe_sizes:
-        end = counter + i
-        fs.append(goal_scores[counter:end])
-        gs.append(goal_set[counter:end])
-        counter = end
-    return gs, fs
-
-
-# todo DB data format/ HDF5 etc...
-
-with open("data/hol4/data/torch_graph_dict.pk", "rb") as f:
-    torch_graph_dict = pickle.load(f)
-
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-with open("data/hol4/data/graph_token_encoder.pk", "rb") as f:
-    token_enc = pickle.load(f)
-
-encoded_graph_db = []
-with open('data/hol4/data/adjusted_db.json') as f:
-    compat_db = json.load(f)
-
-reverse_database = {(value[0], value[1]): key for key, value in compat_db.items()}
-
-graph_db = {}
-
-print("Generating premise graph db...")
-for i, t in enumerate(compat_db):
-    graph_db[t] = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc)
-
-# todo reorganise sequence/transformer based data
-# def to_sequence(data, vocab):
-#     data = data.split(" ")
-#     data = torch.LongTensor([vocab[c] for c in data])
-#     return data
-#
-# vocab = {}
-# i = 1
-# for k in compat_db.keys():
-#     tmp = k.split(" ")
-#     for t in tmp:
-#         if t not in vocab:
-#             vocab[t] = i
-#             i += 1
-#
-# for i,t in enumerate(compat_db):
-#     graph_db[t] = to_sequence(t, vocab)
-#
-# graph_db = graph_db, vocab
-#
-#
-#
-with open("data/hol4/data/paper_goals.pk", "rb") as f:
-    paper_goals = pickle.load(f)
-
-with open("data/hol4/data/valid_goals_shuffled.pk", "rb") as f:
-    valid_goals = pickle.load(f)
-
-train_goals = valid_goals[:int(0.8 * len(valid_goals))]
-test_goals = valid_goals[int(0.8 * len(valid_goals)):]
 
 """
  Torch Lightning TacticZero Loop:
@@ -140,9 +28,14 @@ class TacticZeroLoop(pl.LightningModule):
                  encoder_premise,
                  encoder_goal,
                  config,
+                 graph_db,
+                 token_enc,
+                 tactics,
+                 reverse_database,
                  ):
 
         super().__init__()
+
         self.context_net = context_net
         self.tac_net = tac_net
         self.arg_net = arg_net
@@ -154,6 +47,17 @@ class TacticZeroLoop(pl.LightningModule):
         self.cumulative_proven = []
         self.replayed = 0
         self.val_proved = []
+
+        self.graph_db = graph_db
+        self.token_enc = token_enc
+        self.reverse_database = reverse_database
+
+        self.thms_tactic = tactics['thms_tactic']
+        self.thm_tactic = tactics['thm_tactic']
+        self.term_tactic = tactics['term_tactic']
+        self.no_arg_tactic = tactics['no_arg_tactic']
+
+        self.tactic_pool = tactics['tactic_pool']
 
         self.config = config
         self.dir = self.config['dir_path']
@@ -186,7 +90,6 @@ class TacticZeroLoop(pl.LightningModule):
         encoded_fact_pool = self.encoder_premise(allowed_fact_batch)
 
 
-
         reward_pool = []
         fringe_pool = []
         arg_pool = []
@@ -202,10 +105,11 @@ class TacticZeroLoop(pl.LightningModule):
 
         # dynamic step count: Start at 1, if goal has been proven max_steps is fixed value above that (e.g. 5), if not have counter of current max which grows over time
 
-        if env.goal in self.replays:
-            max_steps = self.replays[env.goal][0] + 5
-        else:
-            max_steps = self.config['max_steps']#self.cur_steps
+        # if env.goal in self.replays:
+        #     max_steps = self.replays[env.goal][0] + 5
+        # else:
+
+        max_steps = self.config['max_steps']#self.cur_steps
 
 
         tmp = {}
@@ -213,12 +117,13 @@ class TacticZeroLoop(pl.LightningModule):
         for t in range(max_steps):
             target_representation, target_goal, fringe, fringe_prob, tmp = select_goal_fringe(history=env.history,
                                                                                          encoder_goal=self.encoder_goal,
-                                                                                         graph_db=graph_db,
-                                                                                         token_enc=token_enc,
+                                                                                         graph_db=self.graph_db,
+                                                                                         token_enc=self.token_enc,
                                                                                          context_net=self.context_net,
                                                                                          device=self.device,
                                                                                         data_type = self.config['data_type'],
                                                                                          tmp=tmp)
+
             fringe_pool.append(fringe_prob)
             tac, tac_prob = get_tac(tac_input=target_representation,
                                     tac_net=self.tac_net,
@@ -226,18 +131,18 @@ class TacticZeroLoop(pl.LightningModule):
 
             tac_pool.append(tac_prob)
 
-            if tactic_pool[tac] in no_arg_tactic:
-                tactic = tactic_pool[tac]
+            if self.tactic_pool[tac] in self.no_arg_tactic:
+                tactic = self.tactic_pool[tac]
                 arg_probs = [torch.tensor(0)]
 
-            elif tactic_pool[tac] == "Induct_on":
+            elif self.tactic_pool[tac] == "Induct_on":
                 tactic, arg_probs = get_term_tac(target_goal=target_goal,
                                                  target_representation=target_representation,
                                                  tac=tac,
                                                  term_net=self.term_net,
                                                  induct_net=self.induct_net,
                                                  device=self.device,
-                                                 token_enc=token_enc)
+                                                 token_enc=self.token_enc)
 
             else:
                 tactic, arg_probs = get_arg_tac(target_representation=target_representation,
@@ -249,7 +154,7 @@ class TacticZeroLoop(pl.LightningModule):
                                                 device=self.device,
                                                 arg_net=self.arg_net,
                                                 arg_len=self.config['arg_len'],
-                                                reverse_database=reverse_database)
+                                                reverse_database=self.reverse_database)
 
             arg_pool.append(arg_probs)
             action = (fringe.item(), 0, tactic)
@@ -257,10 +162,9 @@ class TacticZeroLoop(pl.LightningModule):
             try:
                 reward, done = env.step(action)
             except Exception as e:
-                # print(f"Step exception raised with: {action}, continuing..")
-                # todo negative reward, do we need to reset env at all??
-                # env = HolEnv("T")
-                # return ("Step error", action)
+                # todo reset or continue?
+                 # env = HolEnv("T")
+                 # return ("Step error", action)
                 reward = -1
                 done = False
 
@@ -270,42 +174,28 @@ class TacticZeroLoop(pl.LightningModule):
             if done:
                 if not train_mode:
                     break
-                # print("Goal Proved in {} steps".format(t + 1))
                 self.proven.append([env.polished_goal[0], t + 1])
-                # self.log("cur_proved", len(self.proven), prog_bar=True)
 
                 if env.goal in self.replays.keys():
                     if steps < self.replays[env.goal][0]:
-                        # print("Adding to replay")
                         self.replays[env.goal] = (steps, env.history)
                 else:
                     self.cumulative_proven.append([env.polished_goal[0]])
-                    # print("Initial add to db...")
                     if env.history is not None:
                         self.replays[env.goal] = (steps, env.history)
                     else:
                         print("History is none.")
                         print(env.history)
                         print(env)
-
-                # reward_pool.append(reward)
-                # steps += 1
                 break
 
             if t == max_steps - 1:
-            # if t == self.config['max_steps'] - 1:
                 if not train_mode:
                     break
                 reward = -5
                 reward_pool.append(reward)
-                # print("Failed")
                 if env.goal in self.replays:
-                    # self.replayed += 1
-                    # self.log("cur_replayed", self.replayed, prog_bar=True)
                     return self.run_replay(allowed_arguments_ids, candidate_args, env, encoded_fact_pool)
-
-            # reward_pool.append(reward)
-            # steps += 1
 
         return reward_pool, fringe_pool, arg_pool, tac_pool, steps, done
 
@@ -316,7 +206,6 @@ class TacticZeroLoop(pl.LightningModule):
         # min_rep = reps[rep_lens.index(min(rep_lens))]
         # known_history, known_action_history, reward_history, _ = min_rep
 
-        # print (f"Running replay..")
         reward_pool = []
         fringe_pool = []
         arg_pool = []
@@ -333,8 +222,8 @@ class TacticZeroLoop(pl.LightningModule):
 
             target_representation, target_goal, fringe, fringe_prob, tmp = select_goal_fringe(history=known_history[:t+1],
                                                                                               encoder_goal=self.encoder_goal,
-                                                                                              graph_db=graph_db,
-                                                                                              token_enc=token_enc,
+                                                                                              graph_db=self.graph_db,
+                                                                                              token_enc=self.token_enc,
                                                                                               context_net=self.context_net,
                                                                                               device=self.device,
                                                                                               replay_fringe=true_fringe,
@@ -347,23 +236,23 @@ class TacticZeroLoop(pl.LightningModule):
             true_tactic_text = true_resulting_fringe["by_tactic"]
             true_tac_text, true_args_text = get_replay_tac(true_tactic_text)
 
-            true_tac = torch.tensor([tactic_pool.index(true_tac_text)]).to(self.device)
+            true_tac = torch.tensor([self.tactic_pool.index(true_tac_text)]).to(self.device)
             tac_pool.append(tac_m.log_prob(true_tac))
 
-            assert tactic_pool[true_tac.item()] == true_tac_text
+            assert self.tactic_pool[true_tac.item()] == true_tac_text
 
-            if tactic_pool[true_tac] in no_arg_tactic:
+            if self.tactic_pool[true_tac] in self.no_arg_tactic:
                 arg_probs = [torch.tensor(0)]
                 arg_pool.append(arg_probs)
 
-            elif tactic_pool[true_tac] == "Induct_on":
+            elif self.tactic_pool[true_tac] == "Induct_on":
                 _, arg_probs = get_term_tac(target_goal=target_goal,
                                                  target_representation=target_representation,
                                                  tac=true_tac,
                                                  term_net=self.term_net,
                                                  induct_net=self.induct_net,
                                                  device=self.device,
-                                                 token_enc=token_enc,
+                                                 token_enc=self.token_enc,
                                                  replay_term=true_args_text)
             else:
                 _, arg_probs = get_arg_tac(target_representation=target_representation,
@@ -375,7 +264,7 @@ class TacticZeroLoop(pl.LightningModule):
                                                 device=self.device,
                                                 arg_net=self.arg_net,
                                                 arg_len=self.config['arg_len'],
-                                                reverse_database=reverse_database,
+                                                reverse_database=self.reverse_database,
                                                 replay_arg=true_args_text)
 
             arg_pool.append(arg_probs)
@@ -396,8 +285,8 @@ class TacticZeroLoop(pl.LightningModule):
             return
         try:
             out = self(batch)
+
             if len(out) == 2:
-                # print (f"error in run {out}")
                 logging.debug(f"Error in run: {out}")
                 return
 
@@ -405,18 +294,9 @@ class TacticZeroLoop(pl.LightningModule):
             loss = self.update_params(reward_pool, fringe_pool, arg_pool, tac_pool, steps)
 
             if type(loss) != torch.Tensor:
-                # print (f"error in loss {loss}")
                 logging.debug(f"Error in loss: {loss}")
                 return
-
-            # g = make_dot(loss)
-            # g.view()
-            # loss.backward()
-            # print ([(name, param.grad, torch.nonzero(param.grad).shape[0]) for name, param in self.named_parameters() if "initial_encoder" in name ])
-            # exit()
-
             return loss
-
         except Exception as e:
             logging.debug(f"Error in training: {e}")
             return
@@ -428,30 +308,14 @@ class TacticZeroLoop(pl.LightningModule):
         try:
             out = self(batch, train_mode=False)
             if len(out) == 2:
-                # print (f"error in run {out}")
                 logging.debug(f"Error in run: {out}")
                 return
             reward_pool, fringe_pool, arg_pool, tac_pool, steps, done = out
 
             if done:
                 # todo move train version to train_step with batch_idx
-                # print (f"Done")
-                # print (batch_idx)
                 self.val_proved.append(batch_idx)
-            # loss = self.update_params(reward_pool, fringe_pool, arg_pool, tac_pool, steps)
-
-            # if type(loss) != torch.Tensor:
-                # print (f"error in loss {loss}")
-                # logging.debug(f"Error in loss: {loss}")
-                # return
-
-            # g = make_dot(loss)
-            # g.view()
-            # loss.backward()
-            # print ([(name, param.grad, torch.nonzero(param.grad).shape[0]) for name, param in self.named_parameters() if "initial_encoder" in name ])
-            # exit()
             return
-
         except:
             logging.debug(f"Error in training: {traceback.print_exc()}")
             return
@@ -459,28 +323,17 @@ class TacticZeroLoop(pl.LightningModule):
     def on_train_epoch_end(self):
         self.log_dict({"epoch_proven": len(self.proven),
                         "cumulative_proven": len(self.cumulative_proven)},
-                    prog_bar=True)
-
+                        prog_bar=True)
 
         # todo logging goals, steps etc. proven...
-        # self.logger.log_text(key="Total Proved", columns = ["Goals"], data=self.cumulative_proven)
-        # self.logger.log_text(key="Epoch Proved", columns = ["Goals", "Steps"], data=self.proven)
-
         self.proven = []
-        # self.replayed = 0
         self.save_replays()
 
-        # self.cur_steps = (self.current_epoch // 10) + 2
-
-        # self.log("max_steps", self.cur_steps, prog_bar=True)
-
     def on_validation_epoch_end(self):
-        # print (f"Val done")
         self.log('val_proven', len(self.val_proved), prog_bar=True)
         self.val_proved = []
 
     def update_params(self, reward_pool, fringe_pool, arg_pool, tac_pool, steps):
-        # print("Updating parameters ... ")
         running_add = 0
         for i in reversed(range(steps)):
             if reward_pool[i] == 0:
@@ -488,7 +341,6 @@ class TacticZeroLoop(pl.LightningModule):
             else:
                 running_add = running_add * self.config['gamma'] + reward_pool[i]
                 reward_pool[i] = running_add
-
         total_loss = 0
         for i in range(steps):
             reward = reward_pool[i]
@@ -497,7 +349,6 @@ class TacticZeroLoop(pl.LightningModule):
             tac_loss = -tac_pool[i] * (reward)
             loss = fringe_loss + tac_loss + arg_loss
             total_loss += loss
-
         return total_loss
 
     def configure_optimizers(self):
@@ -510,203 +361,204 @@ class TacticZeroLoop(pl.LightningModule):
         except Exception as e:
             logging.debug(f"Error in backward {e}")
 
-def get_model_dict(prefix, state_dict):
-    return {k[len(prefix)+1:]: v for k, v in state_dict.items()
-            if k.startswith(prefix)}
-
-# hack for now to deal with BatchNorm Loading
-def get_model_dict_fn(model, prefix, state_dict):
-    ret_dict = {}
-    own_state = model.state_dict()
-    for k,v in state_dict.items():
-        if k.startswith(prefix):
-            k = k[len(prefix)+1:]
-            if "mlp.3" in k:
-                k = k.replace('3', '2')
-            if k not in own_state:
-                continue
-            ret_dict[k] = v
-
-    return ret_dict
-
-torch.set_float32_matmul_precision('high')
 
 
-VOCAB_SIZE = 1004
-EMBEDDING_DIM = 256
-
-context_net = ContextPolicy()
-tac_net = TacPolicy(len(tactic_pool))
-arg_net = ArgPolicy(len(tactic_pool), EMBEDDING_DIM)
-term_net = TermPolicy(len(tactic_pool), EMBEDDING_DIM)
-induct_net = FormulaNetEdges(VOCAB_SIZE, EMBEDDING_DIM, 3, global_pool=False, batch_norm=False)
 
 #
-# # SAT
-# sat_config = {
-#     "model_type": "sat",
-#     "num_edge_features":  200,
-#     "vocab_size": VOCAB_SIZE,
-#     "embedding_dim": EMBEDDING_DIM,
-#     "dim_feedforward": 256,
-#     "num_heads": 2,
-#     "num_layers": 2,
-#     "in_embed": True,
-#     "se": "formula-net",
-#     "abs_pe": False,
-#     "abs_pe_dim": 256,
-#     "use_edge_attr": True,
-#     "dropout": 0.,
-#     "gnn_layers": 3,
-#     "directed_attention": False,
-# }
-# encoder_premise = get_model(sat_config)
-# encoder_goal = get_model(sat_config)
-# ckpt_dir = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/sat_91_24.ckpt"
-# ckpt = torch.load(ckpt_dir)['state_dict']
-# encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
-# encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
-
-
-# relation
-# encoder_premise = AttentionRelations(VOCAB_SIZE, EMBEDDING_DIM)
-# encoder_goal = AttentionRelations(VOCAB_SIZE, EMBEDDING_DIM)
-# ckpt_dir = "/home/sean/Documents/phd/repo/aitp/sat/hol4/supervised/model_checkpoints/epoch=5-step=41059.ckpt"
-# ckpt = torch.load(ckpt_dir)['state_dict']
-# encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
-# encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
 #
-
-# GNN
-encoder_premise = FormulaNetEdges(VOCAB_SIZE, EMBEDDING_DIM, 3, batch_norm=False)
-encoder_goal = FormulaNetEdges(VOCAB_SIZE, EMBEDDING_DIM, 3, batch_norm=False)
-
-# ckpt_dir = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/formula_net_best_91.ckpt"
-# ckpt = torch.load(ckpt_dir)['state_dict']
-# encoder_premise.load_state_dict(get_model_dict_fn(encoder_premise, 'embedding_model_premise', ckpt))
-# encoder_goal.load_state_dict(get_model_dict_fn(encoder_goal, 'embedding_model_goal', ckpt))
-
-# encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
-# encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
-
-
-# transformer
+# def get_model_dict(prefix, state_dict):
+#     return {k[len(prefix)+1:]: v for k, v in state_dict.items()
+#             if k.startswith(prefix)}
 #
-# VOCAB_SIZE = 1300
-# transformer_config = {
-#     "model_type": "transformer",
-#     "vocab_size": VOCAB_SIZE,
-#     "embedding_dim": 256,
-#     "dim_feedforward": 512,
-#     "num_heads": 8,
-#     "num_layers": 4,
-#     "dropout": 0.0
-# }
+# # hack for now to deal with BatchNorm Loading
+# def get_model_dict_fn(model, prefix, state_dict):
+#     ret_dict = {}
+#     own_state = model.state_dict()
+#     for k,v in state_dict.items():
+#         if k.startswith(prefix):
+#             k = k[len(prefix)+1:]
+#             if "mlp.3" in k:
+#                 k = k.replace('3', '2')
+#             if k not in own_state:
+#                 continue
+#             ret_dict[k] = v
 #
-# # todo split up encoding premises for GPU memory
-# encoder_premise = get_model(transformer_config)
-# encoder_goal = get_model(transformer_config)
-
-
-
-# ckpt_dir = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/transformer_90_04.ckpt"
-# ckpt = torch.load(ckpt_dir)['state_dict']
-# encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
-# encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
-
-
-
-
-
-
-
-
-
-
-# notes = "gnn_5_step/"
-# notes = "relation_5_step/"
-# notes = "transformer_5_step/"
-# notes = "sat_5_step/"
+#     return ret_dict
 #
-# notes = "gnn_dynamic_step/"
-# notes = "transformer_dynamic_step/"
-# notes = "relation_dynamic_step/"
-
-# notes = "transformer_50_step/"
-notes = "gnn_50_step/"
-# notes = "relation_50_step/"
-
-
-
-save_dir = '/home/sean/Documents/phd/repo/aitp/experiments/hol4/rl/lightning_rl/experiments/' + notes
-
-config = {'max_steps': 50,
-          'gamma': 0.99,
-          'lr': 5e-5,
-          'arg_len': 5,
-          'data_type': 'graph',
-          'replay_dir': save_dir + 'replays',
-          'dir_path': save_dir}
-
-
-module = RLData(train_goals=train_goals, test_goals=test_goals, database=compat_db, graph_db=graph_db,
-                config=config)
-
-
-experiment = TacticZeroLoop(context_net=context_net, tac_net=tac_net, arg_net=arg_net, term_net=term_net,
-                            induct_net=induct_net,
-                            encoder_premise=encoder_premise, encoder_goal=encoder_goal, config=config)
-
-
-
-# state_dict = torch.load("/home/sean/Documents/phd/repo/aitp/experiments/hol4/rl/lightning_rl/experiments/gnn_5_step/checkpoint.ckpt")['state_dict']
-# experiment.load_state_dict(state_dict)
-
-
-gnn_50_id = 'qf5w6qk0'
-transformer_50_id = '6wwliaih'
-relation_50_id = '3u17ha2u'
-
-
-logger = WandbLogger(project="RL Test",
-                     name="TacticZero GNN 50 step",
-                     config=config,
-                     notes=notes,
-                     # id = 'n1oeciah',
-                    id = gnn_50_id,
-                    resume = 'must',
-                    # offline=True,
-                     )
-
-callbacks = []
-
-checkpoint_callback = ModelCheckpoint(monitor="val_proven", mode="max",
-                                      auto_insert_metric_name=True,
-                                      save_top_k=3,
-                                      filename="{epoch}-{val_proven}-{cumulative_proven}",
-                                      # save_weights_only=True,
-                                      save_last=True,
-                                      dirpath=save_dir)
-
-
-callbacks.append(checkpoint_callback)
-
-trainer = pl.Trainer(devices=[1],
-                     check_val_every_n_epoch=5,
-                     # limit_val_batches=30,
-                     logger=logger,
-                     callbacks=callbacks)
-
-
-# trainer.fit(experiment, module)#, ckpt_path="/home/sean/Documents/phd/repo/aitp/experiments/hol4/rl/lightning_rl/experiments/gnn_5_step/checkpoint.ckpt")
-
-ckpt_dir = save_dir + "last.ckpt"
-experiment.load_state_dict(torch.load(ckpt_dir)['state_dict'])
-trainer.fit(experiment, module, ckpt_path=ckpt_dir)
-
-# try:
-#     trainer.fit(experiment, module)
-# except Exception as e:
-#     print (f"Error in fit {e}")
-#     print (f"Reloading..")
-#     trainer.fit(experiment, module)#, ckpt_path=ckpt_dir)
+#
+#
+# VOCAB_SIZE = 1004
+# EMBEDDING_DIM = 256
+#
+# context_net = ContextPolicy()
+# tac_net = TacPolicy(len(tactic_pool))
+# arg_net = ArgPolicy(len(tactic_pool), EMBEDDING_DIM)
+# term_net = TermPolicy(len(tactic_pool), EMBEDDING_DIM)
+# induct_net = FormulaNetEdges(VOCAB_SIZE, EMBEDDING_DIM, 3, global_pool=False, batch_norm=False)
+#
+# #
+# # # SAT
+# # sat_config = {
+# #     "model_type": "sat",
+# #     "num_edge_features":  200,
+# #     "vocab_size": VOCAB_SIZE,
+# #     "embedding_dim": EMBEDDING_DIM,
+# #     "dim_feedforward": 256,
+# #     "num_heads": 2,
+# #     "num_layers": 2,
+# #     "in_embed": True,
+# #     "se": "formula-net",
+# #     "abs_pe": False,
+# #     "abs_pe_dim": 256,
+# #     "use_edge_attr": True,
+# #     "dropout": 0.,
+# #     "gnn_layers": 3,
+# #     "directed_attention": False,
+# # }
+# # encoder_premise = get_model(sat_config)
+# # encoder_goal = get_model(sat_config)
+# # ckpt_dir = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/sat_91_24.ckpt"
+# # ckpt = torch.load(ckpt_dir)['state_dict']
+# # encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
+# # encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
+#
+#
+# # relation
+# # encoder_premise = AttentionRelations(VOCAB_SIZE, EMBEDDING_DIM)
+# # encoder_goal = AttentionRelations(VOCAB_SIZE, EMBEDDING_DIM)
+# # ckpt_dir = "/home/sean/Documents/phd/repo/aitp/sat/hol4/supervised/model_checkpoints/epoch=5-step=41059.ckpt"
+# # ckpt = torch.load(ckpt_dir)['state_dict']
+# # encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
+# # encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
+# #
+#
+# # GNN
+# encoder_premise = FormulaNetEdges(VOCAB_SIZE, EMBEDDING_DIM, 3, batch_norm=False)
+# encoder_goal = FormulaNetEdges(VOCAB_SIZE, EMBEDDING_DIM, 3, batch_norm=False)
+#
+# # ckpt_dir = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/formula_net_best_91.ckpt"
+# # ckpt = torch.load(ckpt_dir)['state_dict']
+# # encoder_premise.load_state_dict(get_model_dict_fn(encoder_premise, 'embedding_model_premise', ckpt))
+# # encoder_goal.load_state_dict(get_model_dict_fn(encoder_goal, 'embedding_model_goal', ckpt))
+#
+# # encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
+# # encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
+#
+#
+# # transformer
+#
+# # VOCAB_SIZE = 1300
+# # transformer_config = {
+# #     "model_type": "transformer",
+# #     "vocab_size": VOCAB_SIZE,
+# #     "embedding_dim": 256,
+# #     "dim_feedforward": 512,
+# #     "num_heads": 8,
+# #     "num_layers": 4,
+# #     "dropout": 0.0
+# # }
+# #
+# # # todo split up encoding premises for GPU memory
+# # encoder_premise = get_model(transformer_config)
+# # encoder_goal = get_model(transformer_config)
+# #
+#
+#
+# # ckpt_dir = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/transformer_90_04.ckpt"
+# # ckpt = torch.load(ckpt_dir)['state_dict']
+# # encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
+# # encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+# # notes = "gnn_5_step/"
+# # notes = "relation_5_step/"
+# # notes = "transformer_5_step/"
+# # notes = "sat_5_step/"
+# #
+# # notes = "gnn_dynamic_step/"
+# # notes = "transformer_dynamic_step/"
+# # notes = "relation_dynamic_step/"
+#
+# # notes = "transformer_50_step/"
+# notes = "gnn_50_step/"
+# # notes = "relation_50_step/"
+#
+#
+#
+# save_dir = '/home/sean/Documents/phd/repo/aitp/experiments/hol4/rl/lightning_rl/experiments/' + notes
+#
+# config = {'max_steps': 50,
+#           'gamma': 0.99,
+#           'lr': 5e-5,
+#           'arg_len': 5,
+#           'data_type': 'graph',
+#           'replay_dir': save_dir + 'replays',
+#           'dir_path': save_dir}
+#
+#
+# module = RLData(train_goals=train_goals, test_goals=test_goals, database=compat_db, graph_db=graph_db,
+#                 config=config)
+#
+#
+# experiment = TacticZeroLoop(context_net=context_net, tac_net=tac_net, arg_net=arg_net, term_net=term_net,
+#                             induct_net=induct_net,
+#                             encoder_premise=encoder_premise, encoder_goal=encoder_goal, config=config, graph_db=graph_db, token_enc=token_enc)
+#
+#
+#
+# # state_dict = torch.load("/home/sean/Documents/phd/repo/aitp/experiments/hol4/rl/lightning_rl/experiments/gnn_5_step/checkpoint.ckpt")['state_dict']
+# # experiment.load_state_dict(state_dict)
+#
+#
+#
+#
+# logger = WandbLogger(project="RL Test",
+#                      name="TacticZero GNN 50 step",
+#                      config=config,
+#                      notes=notes,
+#                      # id = 'n1oeciah',
+#                     id = gnn_50_id,
+#                     resume = 'must',
+#                     # offline=True,
+#                      )
+#
+# callbacks = []
+#
+# checkpoint_callback = ModelCheckpoint(monitor="val_proven", mode="max",
+#                                       auto_insert_metric_name=True,
+#                                       save_top_k=3,
+#                                       filename="{epoch}-{val_proven}-{cumulative_proven}",
+#                                       # save_weights_only=True,
+#                                       save_last=True,
+#                                       dirpath=save_dir)
+#
+#
+# callbacks.append(checkpoint_callback)
+#
+# trainer = pl.Trainer(devices=[1],
+#                      check_val_every_n_epoch=5,
+#                      # limit_val_batches=30,
+#                      logger=logger,
+#                      callbacks=callbacks)
+#
+#
+# # trainer.fit(experiment, module)#, ckpt_path="/home/sean/Documents/phd/repo/aitp/experiments/hol4/rl/lightning_rl/experiments/gnn_5_step/checkpoint.ckpt")
+#
+# ckpt_dir = save_dir + "last.ckpt"
+# experiment.load_state_dict(torch.load(ckpt_dir)['state_dict'])
+# trainer.fit(experiment, module, ckpt_path=ckpt_dir)
+#
+# # try:
+# #     trainer.fit(experiment, module)
+# # except Exception as e:
+# #     print (f"Error in fit {e}")
+# #     print (f"Reloading..")
+# #     trainer.fit(experiment, module)#, ckpt_path=ckpt_dir)

@@ -55,9 +55,6 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, tm
         g = revert_with_polish(e)
         reverted.append(g)
 
-    # graphs = [graph_db[t] if t in graph_db.keys() else to_sequence(t) for t in reverted]
-    # graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
-
     def hack(x):
         if data_type == 'graph' or data_type == 'relation':
             if x in graph_db:
@@ -76,8 +73,8 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, tm
 
     if data_type == 'graph':
         # todo listcomp takes ages below with graph_to_torch.. maybe add to graph_db every new expression, or to a tmp_db for a given goal?
-        graphs = [hack(t) for t in reverted]
-        # graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
+        # graphs = [hack(t) for t in reverted]
+        graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
         loader = DataLoader(graphs, batch_size=len(graphs))
         batch = next(iter(loader))
         batch.to(device)
