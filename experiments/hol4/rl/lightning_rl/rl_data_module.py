@@ -1,4 +1,5 @@
 from torch_geometric.data import Data
+import cProfile
 from torch_geometric.loader import DataLoader
 from torch.utils.data import DataLoader as loader
 import lightning.pytorch as pl
@@ -6,6 +7,13 @@ import torch.optim
 from data.hol4.ast_def import graph_to_torch_labelled
 from data.hol4 import ast_def
 from environments.hol4.new_env import *
+
+def ptr_to_complete_edge_index(ptr):
+    # print (ptr)
+    from_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat_interleave(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
+    to_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
+    combined_complete_edge_index = torch.vstack((torch.cat(from_lists, dim=0), torch.cat(to_lists, dim=0)))
+    return combined_complete_edge_index
 
 def data_to_relation(batch):
     xis = []
@@ -73,8 +81,9 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, tm
 
     if data_type == 'graph':
         # todo listcomp takes ages below with graph_to_torch.. maybe add to graph_db every new expression, or to a tmp_db for a given goal?
-        # graphs = [hack(t) for t in reverted]
-        graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
+        graphs = [hack(t) for t in reverted]
+
+        # graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
         loader = DataLoader(graphs, batch_size=len(graphs))
         batch = next(iter(loader))
         batch.to(device)
@@ -132,23 +141,48 @@ class RLData(pl.LightningDataModule):
         except Exception as e:
             raise Exception(f"Error generating fact pool: {e}")
 
-
+        # return [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
         if self.config['data_type'] == 'graph':
+            allowed_fact_batch = []
             graphs = [self.graph_db[t] for t in candidate_args]
-            loader = DataLoader(graphs, batch_size=len(candidate_args))
-            allowed_fact_batch = next(iter(loader))
-            allowed_fact_batch.edge_attr = allowed_fact_batch.edge_attr.long()
+            loader = DataLoader(graphs, batch_size=32,drop_last=False)
+
+            for batch in loader:
+                batch.edge_attr = batch.edge_attr.long()
+                allowed_fact_batch.append(batch)
+
+            # allowed_fact_batch next(iter(loader))
+            # allowed_fact_batch.edge_attr = allowed_fact_batch.edge_attr.long()
 
         elif self.config['data_type'] == 'relation':
             # todo split up for memory
             graphs = [self.graph_db[t] for t in candidate_args]
-            allowed_fact_batch = data_to_relation(graphs)
+            graphs = [graphs[i:i + 32] for i in range(0, len(graphs), 32)]
+            allowed_fact_batch = [data_to_relation(graph) for graph in graphs]
+
+            # allowed_fact_batch = data_to_relation(graphs)
 
         elif self.config['data_type'] == 'sequence':
             # todo split up for memory
             db, vocab = self.graph_db
-            batch = [to_sequence(t, vocab) for t in candidate_args]
-            allowed_fact_batch = collate_pad(batch)
+            # batch = [to_sequence(t, vocab) for t in candidate_args]
+            # allowed_fact_batch = collate_pad(batch)
+
+            batches = [to_sequence(t, vocab) for t in candidate_args]
+            batches = [batches[i:i + 32] for i in range(0, len(batches), 32)]
+            allowed_fact_batch = [collate_pad(batch) for batch in batches]
+
+
+        elif self.config['data_type'] == 'sat':
+            allowed_fact_batch = []
+            graphs = [self.graph_db[t] for t in candidate_args]
+            loader = DataLoader(graphs, batch_size=32,drop_last=False)
+
+            for batch in loader:
+                batch.edge_attr = batch.edge_attr.long()
+                batch.attention_edge_index = ptr_to_complete_edge_index(batch.ptr)
+                allowed_fact_batch.append(batch)
+
 
         #todo not sure if we need allowed_arguments_ids?
         return allowed_fact_batch, allowed_arguments_ids, candidate_args
@@ -174,13 +208,13 @@ class RLData(pl.LightningDataModule):
     #     return loader(self.test_goals, collate_fn=self.setup_goal)
 
     def transfer_batch_to_device(self, batch, device, dataloader_idx):
-        # if batch is None:
-        #     return None
-
+        if batch is None:
+            return None
         try:
             goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env = batch
-            allowed_fact_batch = allowed_fact_batch.to(device)
-        except:
+            allowed_fact_batch = [x.to(device) for x in allowed_fact_batch]
+        except Exception as e:
+            print (e)
             return None
 
         return goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env

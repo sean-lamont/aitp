@@ -134,13 +134,17 @@ def get_arg_tac(target_representation,
                 reverse_database,
                 replay_arg=None):
 
+
+    # hidden0 = target_representation.clone().detach()
+    # hidden1 = target_representation.clone().detach()
+
     hidden0 = hidden1 = target_representation
     hidden0 = hidden0.to(device)
     hidden1 = hidden1.to(device)
 
     hidden = (hidden0, hidden1)
-    # concatenate the candidates with hidden states.
 
+    # concatenate the candidates with hidden states.
     hc = torch.cat([hidden0.squeeze(), hidden1.squeeze()])
     hiddenl = [hc.unsqueeze(0) for _ in range(num_args)]
     hiddenl = torch.cat(hiddenl)

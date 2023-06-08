@@ -98,7 +98,7 @@ class RLExperiment:
                                  name=self.config['name'],
                                  config=experiment_config,
                                  notes=notes,
-                                 # offline=True,
+                                 offline=True,
                                  )
 
         module = RLData(train_goals=self.config['train_goals'], test_goals=self.config['test_goals'], database=database,
@@ -131,7 +131,9 @@ class RLExperiment:
         trainer = pl.Trainer(devices=self.config['device'],
                              check_val_every_n_epoch=self.config['val_freq'],
                              logger=logger,
-                             callbacks=callbacks)
+                             callbacks=callbacks,
+                             # max_steps=10,
+                             )
 
         if resume:
             ckpt_dir = save_dir + "last.ckpt"
@@ -139,3 +141,4 @@ class RLExperiment:
             trainer.fit(experiment, module, ckpt_path=ckpt_dir)
         else:
             trainer.fit(experiment, module)
+            # trainer.validate(experiment, module)

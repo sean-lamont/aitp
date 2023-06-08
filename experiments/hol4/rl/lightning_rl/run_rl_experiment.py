@@ -10,6 +10,9 @@ import warnings
 warnings.filterwarnings('ignore')
 from experiments.hol4.rl.lightning_rl.rl_experiment import RLExperiment
 
+# for debugging
+# import os
+# os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 ####################################################################################################
 # RELATION
@@ -36,7 +39,7 @@ def run_rl_relation():
     relation_config['exp_type'] = 'relation'
     relation_config['data_type'] = 'relation'
     relation_config['vocab_size'] = VOCAB_SIZE
-    relation_config['notes'] = 'relation_50_step/'
+    relation_config['notes'] = 'relation_50_step_test/'
     relation_config['graph_db'] = premise_db
     relation_config['embedding_dim'] = EMBEDDING_DIM
 
@@ -95,7 +98,7 @@ def run_rl_transformer():
     transformer_config['exp_type'] = 'sequence'
     transformer_config['data_type'] = 'sequence'
     transformer_config['vocab_size'] = VOCAB_SIZE
-    transformer_config['notes'] = 'transformer_50_step/'
+    transformer_config['notes'] = 'transformer_50_step_new/'
     transformer_config['graph_db'] = premise_db
     transformer_config['embedding_dim'] = EMBEDDING_DIM
 
@@ -137,7 +140,7 @@ def run_rl_gnn():
     gnn_config['exp_type'] = 'gnn'
     gnn_config['data_type'] = 'graph'
     gnn_config['vocab_size'] = VOCAB_SIZE
-    gnn_config['notes'] = 'gnn_50_step_test/'
+    gnn_config['notes'] = 'gnn_50_step_new/'
     gnn_config['graph_db'] = premise_db
     gnn_config['embedding_dim'] = EMBEDDING_DIM
 
@@ -211,11 +214,15 @@ if __name__ == '__main__':
         'test_goals': test_goals,
         'token_enc': token_enc,
         'graph_db': None,
-        'device': [1],
+        'device': [0],
         'val_freq': 5,
         'reverse_database': reverse_database
     }
 
     torch.set_float32_matmul_precision('high')
 
+    # import cProfile
+    # cProfile.run('run_rl_gnn()', sort='cumtime')
+
     run_rl_gnn()
+    # run_rl_transformer()
