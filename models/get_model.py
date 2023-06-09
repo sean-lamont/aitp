@@ -20,6 +20,7 @@ def get_model(model_config):
                                 num_layers=model_config['num_layers'],
                                 in_embed=model_config['in_embed'],
                                 se=model_config['se'],
+                                gnn_type=model_config['gnn_type'] if 'gnn_type' in model_config else 'gcn',
                                 abs_pe=model_config['abs_pe'],
                                 abs_pe_dim=model_config['abs_pe_dim'],
                                 use_edge_attr=model_config['use_edge_attr'],

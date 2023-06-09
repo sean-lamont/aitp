@@ -69,6 +69,7 @@ class GraphTransformer(nn.Module):
         self.use_edge_attr = use_edge_attr
         if use_edge_attr:
             edge_dim = kwargs.get('edge_dim', 32)
+            kwargs['edge_dim'] = 32
             if edge_embed:
                 if isinstance(num_edge_features, int):
                     self.embedding_edge = nn.Embedding(num_edge_features, edge_dim)
@@ -79,6 +80,7 @@ class GraphTransformer(nn.Module):
                     out_features=edge_dim, bias=False)
         else:
             kwargs['edge_dim'] = None
+
 
         self.gnn_type = gnn_type
         self.se = se

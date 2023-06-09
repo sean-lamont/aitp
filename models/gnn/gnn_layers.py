@@ -22,7 +22,7 @@ GNN_TYPES = [
 
 EDGE_GNN_TYPES = [
     'gine', 'gcn',
-    'pna', 'pna2', 'pna3', 'mpnn', 'pna4'
+    'pna', 'pna2', 'pna3', 'mpnn', 'pna4', 'di_gcn'
 ]
 
 
@@ -105,6 +105,9 @@ def get_simple_gnn_layer(gnn_type, embed_dim, **kwargs):
                             divide_input=True, edge_dim=edge_dim)
         return layer
 
+    elif gnn_type == "di_gcn":
+        layer = DirectedGCN(embed_dim=embed_dim, edge_dim=edge_dim)
+        return layer
 
     elif gnn_type == "mpnn":
         aggregators = ['sum']
@@ -120,8 +123,8 @@ def get_simple_gnn_layer(gnn_type, embed_dim, **kwargs):
 
 
 class GCNConv(gnn.MessagePassing):
-    def __init__(self, embed_dim, edge_dim):
-        super(GCNConv, self).__init__(aggr='add')
+    def __init__(self, embed_dim, edge_dim, flow='source_to_target'):
+        super(GCNConv, self).__init__(aggr='add', flow=flow)
 
         self.linear = nn.Linear(embed_dim, embed_dim)
         self.root_emb = nn.Embedding(1, embed_dim)
@@ -158,16 +161,22 @@ class GCNConv(gnn.MessagePassing):
 # Combine GCN for in/out nodes
 #
 # '''
-#
-# class DirectedGCN(nn.Module):
-#     def __init__(self, embed_dim, edge_dim):
-#         super().__init__()
-#         self.in_gcn = GCNConv(embed_dim, edge_dim, flow='source_to_target')
-#         self.out_gcn = GCNConv(embed_dim, edge_dim,flow='target_to_source')
-#         self.combine =
-#
-#     def forward(self, x, edge_index, edge_attr):
-#         in_agg = self.in_gcn(x, edge_index, edge_attr)
-#         out_agg = self.out_gcn(x, edge_index, edge_attr)
-#
-#
+
+class DirectedGCN(nn.Module):
+    def __init__(self, embed_dim, edge_dim):
+        super().__init__()
+        self.in_gcn = GCNConv(embed_dim, edge_dim, flow='source_to_target')
+        self.out_gcn = GCNConv(embed_dim, edge_dim,flow='target_to_source')
+        self.combine = nn.Linear(2 * embed_dim, embed_dim)
+        self.relu = nn.ReLU()
+
+
+    def forward(self, x, edge_index, edge_attr):
+
+        in_agg = self.in_gcn(x, edge_index, edge_attr)
+        out_agg = self.out_gcn(x, edge_index, edge_attr)
+
+        return self.relu(self.combine(torch.cat([in_agg, out_agg], dim=-1)))
+
+
+

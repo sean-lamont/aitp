@@ -22,6 +22,7 @@ gcn_config = {
 
 sat_config = {
     "model_type": "sat",
+    'gnn_type': 'di_gcn',
     "num_edge_features":  200,
     "vocab_size": VOCAB_SIZE,
     "embedding_dim": 256,
@@ -29,7 +30,7 @@ sat_config = {
     "num_heads": 1,
     "num_layers": 1,
     "in_embed": True,
-    "se": "formula-net",
+    "se": "pna",
     "abs_pe": False,
     "abs_pe_dim": 256,
     "use_edge_attr": True,
@@ -131,10 +132,10 @@ transformer_experiment = SeparateEncoderPremiseSelection(config={"model_config":
 
 sat_exp = SeparateEncoderPremiseSelection(config={"model_config": sat_config,
                                                            "exp_config": exp_config,
-                                                           "data_config": h5_data_config,
-                                                           "project": "test_project",
+                                                           "data_config": hol4_graph_data_config,
+                                                           "project": "hol4_premise_selection",
                                                           "notes": "",
-                                                          "name": "SAT Small FormulaNet"})
+                                                          "name": "SAT Small DiGCN"})
 
 pna_exp = SeparateEncoderPremiseSelection(config={"model_config": gcn_config,
                                                   "exp_config": exp_config,
