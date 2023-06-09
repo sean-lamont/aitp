@@ -96,6 +96,7 @@ formula_net_config = {
     "vocab_size": VOCAB_SIZE,
     "embedding_dim": 256,
     "gnn_layers": 3,
+    "batch_norm": False
 }
 
 digae_config = {
@@ -147,10 +148,10 @@ gcn_exp = SeparateEncoderPremiseSelection(config={"model_config": gcn_config,
 
 formula_net_exp = SeparateEncoderPremiseSelection(config={"model_config": formula_net_config,
                                                            "exp_config": exp_config,
-                                                           "data_config": h5_data_config,
-                                                           "project": "test_project",
+                                                           "data_config": hol4_graph_data_config,
+                                                           "project": "hol4_premise_selection",
                                                           "notes": "",
-                                                          "name": "formula_net_batch_norm_edges"})
+                                                          "name": "FormulaNet"})
 
 digae_exp = SeparateEncoderPremiseSelection(config={"model_config": digae_config,
                                                           "exp_config": exp_config,
@@ -172,9 +173,9 @@ amr_exp = SeparateEncoderPremiseSelection(config={"model_config": amr_config,
 
 # gcn_exp.run_lightning()
 # amr_exp.run_lightning()
-sat_exp.run_lightning()
+# sat_exp.run_lightning()
 # relation_att_exp.run_lightning()
-# formula_net_exp.run_lightning()
+formula_net_exp.run_lightning()
 # transformer_experiment.run_lightning()
 # digae_exp.run_lightning()
 

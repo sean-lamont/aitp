@@ -329,6 +329,7 @@ class FormulaNetSAT(nn.Module):
         self.final_agg = CombinedAggregation(embedding_dim, batch_norm=batch_norm)
 
     def forward(self, nodes, edges, edge_attr):
+
         for t in range(self.num_iterations):
             fi_sum = self.parent_agg(nodes, edges, edge_attr)
             fo_sum = self.child_agg(nodes, edges, edge_attr)

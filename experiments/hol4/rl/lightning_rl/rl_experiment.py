@@ -33,6 +33,19 @@ def get_model_dict_fn(model, prefix, state_dict):
     return ret_dict
 
 
+def get_model_sat(prefix, state_dict):
+    ret_dict = {}
+    for k, v in state_dict.items():
+        if k.startswith(prefix):
+            if 'complete_edge_index' not in k:
+                k = k[len(prefix) + 1:]
+                ret_dict[k] = v
+    return ret_dict
+# new_dict = {}
+# for k,v in ckpt.items():
+#     if 'complete_edge_index' not in k:
+#         new_dict[k] = v
+
 class RLExperiment:
     def __init__(self, config):
         self.config = config
@@ -44,6 +57,9 @@ class RLExperiment:
         if self.config['exp_type'] == 'gnn':
             encoder_premise.load_state_dict(get_model_dict_fn(encoder_premise, 'embedding_model_premise', ckpt))
             encoder_goal.load_state_dict(get_model_dict_fn(encoder_goal, 'embedding_model_goal', ckpt))
+        elif self.config['exp_type'] == 'sat':
+            encoder_premise.load_state_dict(get_model_sat('embedding_model_premise', ckpt))
+            encoder_goal.load_state_dict(get_model_sat('embedding_model_goal', ckpt))
         else:
             encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
             encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
@@ -98,7 +114,7 @@ class RLExperiment:
                                  name=self.config['name'],
                                  config=experiment_config,
                                  notes=notes,
-                                 offline=True,
+                                 # offline=True,
                                  )
 
         module = RLData(train_goals=self.config['train_goals'], test_goals=self.config['test_goals'], database=database,
@@ -135,7 +151,7 @@ class RLExperiment:
                              # max_steps=10,
                              )
 
-        if resume:
+        if resume and os.path.exists(save_dir + "last.ckpt"):
             ckpt_dir = save_dir + "last.ckpt"
             experiment.load_state_dict(torch.load(ckpt_dir)['state_dict'])
             trainer.fit(experiment, module, ckpt_path=ckpt_dir)

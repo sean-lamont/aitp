@@ -1,7 +1,9 @@
 from experiments.hol4.rl.lightning_rl.agent_utils import *
 from experiments.hol4.rl.lightning_rl.rl_data_module import *
 import torch.optim
+from data.hol4.ast_def import graph_to_torch_labelled
 import pickle
+from data.hol4 import ast_def
 from environments.hol4.new_env import *
 import warnings
 
@@ -12,64 +14,48 @@ from experiments.hol4.rl.lightning_rl.rl_experiment import RLExperiment
 # import os
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
+
 ####################################################################################################
-# TRANSFORMER
+# GNN
 ####################################################################################################
 
-def run_rl_transformer():
-    print("Generating Premise DB..")
+def run_rl_gnn():
     premise_db = {}
 
-    def to_sequence(data, vocab):
-        data = data.split(" ")
-        data = torch.LongTensor([vocab[c] for c in data])
-        return data
-
-    vocab = {}
-    i = 1
-    for k in compat_db.keys():
-        tmp = k.split(" ")
-        for t in tmp:
-            if t not in vocab:
-                vocab[t] = i
-                i += 1
-
+    print("Generating premise graph db...")
     for i, t in enumerate(compat_db):
-        premise_db[t] = to_sequence(t, vocab)
+        premise_db[t] = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc)
 
-    premise_db = premise_db, vocab
-
-    VOCAB_SIZE = 1300
+    VOCAB_SIZE = 1004
     EMBEDDING_DIM = 256
 
     model_config = {
-        "model_type": "transformer",
+        "model_type": "formula-net-edges",
         "vocab_size": VOCAB_SIZE,
-        "embedding_dim": EMBEDDING_DIM,
-        "dim_feedforward": 512,
-        "num_heads": 8,
-        "num_layers": 4,
-        "dropout": 0.0
+        "embedding_dim": 256,
+        "gnn_layers": 3,
+        "batch_norm": False
     }
 
-    transformer_config = default_config
-    transformer_config['name'] = 'Transformer 50 Step'
-    transformer_config['model_config'] = model_config
-    transformer_config[
-        'pretrain_ckpt'] = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/transformer_90_04.ckpt"
-    transformer_config['exp_type'] = 'sequence'
-    transformer_config['data_type'] = 'sequence'
-    transformer_config['vocab_size'] = VOCAB_SIZE
-    transformer_config['notes'] = 'transformer_50_step_new/'
-    transformer_config['graph_db'] = premise_db
-    transformer_config['embedding_dim'] = EMBEDDING_DIM
+    gnn_config = default_config
+    gnn_config['name'] = 'GNN 50 Step'
+    gnn_config['model_config'] = model_config
+    gnn_config[
+        'pretrain_ckpt'] = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/fn.ckpt"
+    gnn_config['exp_type'] = 'sat'
+    gnn_config['data_type'] = 'graph'
+    gnn_config['vocab_size'] = VOCAB_SIZE
+    gnn_config['notes'] = 'gnn_50_step_new/'
+    gnn_config['graph_db'] = premise_db
+    gnn_config['embedding_dim'] = EMBEDDING_DIM
 
-    transformer_config['resume'] = True
-    transformer_config['pretrain'] = False
-    transformer_config['resume_id'] = '3fy5csaj'
+    gnn_config['resume'] = True
+    gnn_config['pretrain'] = False
+    gnn_config['resume_id'] = 'o56d60yn'
 
-    experiment = RLExperiment(transformer_config)
+    experiment = RLExperiment(gnn_config)
     experiment.run()
+
 
 
 if __name__ == '__main__':
@@ -134,7 +120,7 @@ if __name__ == '__main__':
         'test_goals': test_goals,
         'token_enc': token_enc,
         'graph_db': None,
-        'device': [1],
+        'device': [0],
         'val_freq': 5,
         'reverse_database': reverse_database
     }
@@ -144,5 +130,5 @@ if __name__ == '__main__':
     # import cProfile
     # cProfile.run('run_rl_gnn()', sort='cumtime')
 
-    # run_rl_gnn()
-    run_rl_transformer()
+    run_rl_gnn()
+    # run_rl_transformer()

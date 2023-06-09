@@ -64,7 +64,7 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, tm
         reverted.append(g)
 
     def hack(x):
-        if data_type == 'graph' or data_type == 'relation':
+        if data_type == 'graph' or data_type == 'relation' or data_type == 'sat':
             if x in graph_db:
                 return graph_db[x]
             if x not in tmp:
@@ -93,6 +93,19 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, tm
         # encoder.eval()
         representations = torch.unsqueeze(encoder(batch), 1)
         # encoder.train()
+
+    elif data_type == 'sat':
+        # todo listcomp takes ages below with graph_to_torch.. maybe add to graph_db every new expression, or to a tmp_db for a given goal?
+        graphs = [hack(t) for t in reverted]
+
+        # graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
+        loader = DataLoader(graphs, batch_size=len(graphs))
+        batch = next(iter(loader))
+        batch.edge_attr = batch.edge_attr.long()
+        batch.attention_edge_index = ptr_to_complete_edge_index(batch.ptr)
+        batch.to(device)
+        representations = torch.unsqueeze(encoder(batch), 1)
+
 
     elif data_type == 'relation':
         graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]

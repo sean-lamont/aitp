@@ -19,7 +19,7 @@ from experiments.hol4.rl.lightning_rl.rl_experiment import RLExperiment
 # SAT
 ####################################################################################################
 
-def run_rl_gnn():
+def run_rl_sat():
     premise_db = {}
 
     print("Generating premise graph db...")
@@ -30,31 +30,43 @@ def run_rl_gnn():
     EMBEDDING_DIM = 256
 
     model_config = {
-        "model_type": "formula-net-edges",
-        "vocab_size": VOCAB_SIZE,
-        "embedding_dim": EMBEDDING_DIM,
-        "gnn_layers": 3,
-        "batch_norm": False
-    }
+    "model_type": "sat",
+    # 'gnn_type': 'di_gcn',
+    "num_edge_features":  200,
+    "vocab_size": VOCAB_SIZE,
+    "embedding_dim": 256,
+    "dim_feedforward": 256,
+    "num_heads": 4,
+    "num_layers": 2,
+    "in_embed": True,
+    "se": "formula-net",
+    "abs_pe": False,
+    "abs_pe_dim": 256,
+    "use_edge_attr": True,
+    "dropout": 0.,
+    "gnn_layers": 3,
+    "directed_attention": False,
+}
 
-    gnn_config = default_config
-    gnn_config['name'] = 'SAT 50 Step'
-    gnn_config['model_config'] = model_config
-    gnn_config[
-        'pretrain_ckpt'] = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/formula_net_best_91.ckpt"
-    gnn_config['exp_type'] = 'gnn'
-    gnn_config['data_type'] = 'graph'
-    gnn_config['vocab_size'] = VOCAB_SIZE
-    gnn_config['notes'] = 'gnn_50_step_new/'
-    gnn_config['graph_db'] = premise_db
-    gnn_config['embedding_dim'] = EMBEDDING_DIM
+    sat_config = default_config
+    sat_config['name'] = 'SAT 50 Step'
+    sat_config['model_config'] = model_config
+    sat_config[
+        'pretrain_ckpt'] = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/sat_fn.ckpt"
+    sat_config['exp_type'] = 'sat'
+    sat_config['data_type'] = 'sat'
+    sat_config['vocab_size'] = VOCAB_SIZE
+    sat_config['notes'] = 'sat_50_step_new/'
+    sat_config['graph_db'] = premise_db
+    sat_config['embedding_dim'] = EMBEDDING_DIM
 
-    experiment = RLExperiment(gnn_config)
+    sat_config['resume'] = True
+    sat_config['pretrain'] = False
+    sat_config['resume_id'] = 'azf3xowr'
+
+    experiment = RLExperiment(sat_config)
     experiment.run()
 
-    # gnn_config['resume'] = True
-    # gnn_config['pretrain'] = False
-    # gnn_config['resume_id'] = 'qf5w6qk0'
 
 
 if __name__ == '__main__':
@@ -129,5 +141,5 @@ if __name__ == '__main__':
     # import cProfile
     # cProfile.run('run_rl_gnn()', sort='cumtime')
 
-    # run_rl_gnn()
+    run_rl_sat()
     # run_rl_transformer()
