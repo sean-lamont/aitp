@@ -358,7 +358,8 @@ class HolEnv():
                 self.process.expect("val it =")
             except:
                 print("Exception: {} to {} returned no goals".format(tac, raw_goal))
-                exit()
+                return "exception"
+                # exit()
             
             # this (:\r\n) doesn't seem robust
             self.process.expect([": goal list", ":\r\n +goal list"])

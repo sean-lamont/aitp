@@ -151,3 +151,23 @@ class GCNConv(gnn.MessagePassing):
 
     def update(self, aggr_out):
         return aggr_out
+
+#
+# '''
+#
+# Combine GCN for in/out nodes
+#
+# '''
+#
+# class DirectedGCN(nn.Module):
+#     def __init__(self, embed_dim, edge_dim):
+#         super().__init__()
+#         self.in_gcn = GCNConv(embed_dim, edge_dim, flow='source_to_target')
+#         self.out_gcn = GCNConv(embed_dim, edge_dim,flow='target_to_source')
+#         self.combine =
+#
+#     def forward(self, x, edge_index, edge_attr):
+#         in_agg = self.in_gcn(x, edge_index, edge_attr)
+#         out_agg = self.out_gcn(x, edge_index, edge_attr)
+#
+#

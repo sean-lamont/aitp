@@ -5,14 +5,20 @@ from data.utils.pretrain import SeparateEncoderPremiseSelection
 from lightning import LightningApp
 
 # HOL4 vocab
-# VOCAB_SIZE = 1004
+VOCAB_SIZE = 1004
 
 # HOLStep vocab
-VOCAB_SIZE = 1909 + 4
+# VOCAB_SIZE = 1909 + 4
 
 # HOL4 transformer
 # VOCAB_SIZE = 1300
 
+gcn_config = {
+   'model_type': 'gcn',
+    'vocab_size': VOCAB_SIZE,
+   'embedding_dim': 256,
+   'gnn_layers': 3
+}
 
 sat_config = {
     "model_type": "sat",
@@ -20,8 +26,8 @@ sat_config = {
     "vocab_size": VOCAB_SIZE,
     "embedding_dim": 256,
     "dim_feedforward": 256,
-    "num_heads": 8,
-    "num_layers": 4,
+    "num_heads": 1,
+    "num_layers": 1,
     "in_embed": True,
     "se": "formula-net",
     "abs_pe": False,
@@ -128,7 +134,14 @@ sat_exp = SeparateEncoderPremiseSelection(config={"model_config": sat_config,
                                                            "data_config": h5_data_config,
                                                            "project": "test_project",
                                                           "notes": "",
-                                                          "name": "SAT FormulaNet + MagLap"})
+                                                          "name": "SAT Small FormulaNet"})
+
+pna_exp = SeparateEncoderPremiseSelection(config={"model_config": gcn_config,
+                                                  "exp_config": exp_config,
+                                                  "data_config": hol4_graph_data_config,
+                                                  "project": "hol4_premise_selection",
+                                                  "notes": "",
+                                                  "name": "PNA"})
 
 
 formula_net_exp = SeparateEncoderPremiseSelection(config={"model_config": formula_net_config,
@@ -156,9 +169,10 @@ amr_exp = SeparateEncoderPremiseSelection(config={"model_config": amr_config,
 # cProfile.run('sat_exp.run_lightning()', sort = 'cumtime')
 
 
+# pna_exp.run_lightning()
 # amr_exp.run_lightning()
-# sat_exp.run_lightning()
-relation_att_exp.run_lightning()
+sat_exp.run_lightning()
+# relation_att_exp.run_lightning()
 # formula_net_exp.run_lightning()
 # transformer_experiment.run_lightning()
 # digae_exp.run_lightning()

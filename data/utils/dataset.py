@@ -404,6 +404,7 @@ class H5DataModule(pl.LightningDataModule):
         self.data_dir = config['data_dir']
 
     def prepare_data(self):
+        print ("Preparing dataset..")
         if not os.path.isdir(self.data_dir):
             os.mkdir(self.data_dir)
             write_mongo_to_h5(self.data_dir)
@@ -422,8 +423,8 @@ class H5DataModule(pl.LightningDataModule):
             shuffle=False,
             drop_last=True,
             # pin_memory=True,
-            # num_workers=0, collate_fn=lambda x: x)
-            num_workers = 0, collate_fn = collate_to_relation)
+            num_workers=0, collate_fn=lambda x: x)
+            # num_workers = 0, collate_fn = collate_to_relation)
 
     def val_dataloader(self):
         # cycle through
@@ -432,8 +433,8 @@ class H5DataModule(pl.LightningDataModule):
             batch_size=1,
             shuffle=False,
             drop_last=True,
-            # num_workers=0, collate_fn=lambda x: x)
-            num_workers = 0, collate_fn = collate_to_relation)
+            num_workers=0, collate_fn=lambda x: x)
+            # num_workers = 0, collate_fn = collate_to_relation)
 
     def test_dataloader(self):
         return torch.utils.data.DataLoader(
@@ -441,8 +442,8 @@ class H5DataModule(pl.LightningDataModule):
             batch_size=1,
             # shuffle=True,
             drop_last=True,
-            # num_workers=0, collate_fn=lambda x: x)
-            num_workers = 0, collate_fn = collate_to_relation)
+            num_workers=0, collate_fn=lambda x: x)
+            # num_workers = 0, collate_fn = collate_to_relation)
 
     def transfer_batch_to_device(self, batch, device, dataloader_idx):
         data_1, data_2, y = batch

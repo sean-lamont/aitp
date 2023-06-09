@@ -1,5 +1,4 @@
 import pickle
-import time
 import numpy as np
 from torch_geometric.data import Data
 import torch
@@ -298,8 +297,7 @@ def nodes_list_to_senders_receivers_labelled(node_list):
             senders.append(i)
             receivers.append(node_list.index(child))
             edge_labels.append(j)
-    # return senders, receivers, edge_labels
-    return senders, receivers, np.array(edge_labels)
+    return senders, receivers, edge_labels
 
 def nodes_list(g, result=[]):
     result.append(g)
@@ -345,10 +343,8 @@ def graph_to_torch(g, token_enc=None):
 
 def graph_to_torch_labelled(g, token_enc=None):
     node_list = nodes_list(g, result=[])
-
 #    senders, receivers = nodes_list_to_senders_receivers(node_list)
     senders, receivers, edge_labels = nodes_list_to_senders_receivers_labelled(node_list)
-
 
     # define labels before renaming to keep original variables for induction
     labels = [x.node.value for x in node_list]
@@ -368,15 +364,14 @@ def graph_to_torch_labelled(g, token_enc=None):
 
     node_features = token_enc.transform(node_features)
 
-    # edges = torch.tensor([senders, receivers], dtype=torch.long)
-    edges = torch.as_tensor(np.array([senders, receivers]), dtype=torch.long)
+    edges = torch.tensor([senders, receivers], dtype=torch.long)
 
+    #old:
+    # nodes = sp_to_torch(node_features)
 
     # new:
     # returning only the one-hot tensors
     coo = node_features.tocoo()
+    nodes = torch.LongTensor(coo.col)
 
-    # nodes = torch.LongTensor(coo.col)
-    nodes = torch.as_tensor(coo.col)
-
-    return Data(x=nodes, edge_index=edges, edge_attr=torch.as_tensor(edge_labels, dtype=torch.long), labels=labels)
+    return Data(x=nodes, edge_index=edges, edge_attr=torch.LongTensor(edge_labels), labels=labels)

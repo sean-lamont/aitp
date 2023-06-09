@@ -11,6 +11,7 @@ from .layers import TransformerEncoderLayer
 from einops import repeat
 
 
+
 class GraphTransformerEncoder(nn.TransformerEncoder):
     def forward(self, x, edge_index, complete_edge_index,
             subgraph_node_index=None, subgraph_edge_index=None,
@@ -142,6 +143,7 @@ class GraphTransformer(nn.Module):
         # todo integrate PE properly
         # eig_vals, eig_vecs = get_magnetic_Laplacian(edge_index, return_eig=True)
         if hasattr(data, "eig_vals"):
+            print ("yes")
             pe = self.pe(data.eig_vals, (data.eig_real, data.eig_imag))
             output = output + pe
             
@@ -161,11 +163,6 @@ class GraphTransformer(nn.Module):
 
         if self.global_pool == 'cls' and self.use_global_pool:
             bsz = len(data.ptr) - 1
-            # print (data.ptr.shape)
-            # print (data.ptr)
-            # print (len(data.batch))
-
-
             if complete_edge_index is not None:
                 new_index = torch.vstack((torch.arange(data.num_nodes).to(data.batch), data.batch + data.num_nodes))
                 new_index2 = torch.vstack((new_index[1], new_index[0]))

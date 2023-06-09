@@ -4,6 +4,7 @@ from models.relation_transformer.relation_transformer_new import AttentionRelati
 from models.gnn.digae.digae_model import DigaeEmbedding
 from models.sat.models import GraphTransformer
 from models.amr.amr import AMRTransformer
+from models.gnn.pna import GCNGNN
 
 
 '''
@@ -61,6 +62,11 @@ def get_model(model_config):
             model_config['embedding_dim'],
             model_config['embedding_dim'])
 
+    elif model_config['model_type'] == 'gcn':
+        return GCNGNN(model_config['vocab_size'],
+                      model_config['embedding_dim'],
+                      model_config['gnn_layers'],
+                      )
 
     elif model_config['model_type'] == 'transformer':
         return TransformerWrapper(ntoken=model_config['vocab_size'],
