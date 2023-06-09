@@ -14,7 +14,7 @@ VOCAB_SIZE = 1004
 # VOCAB_SIZE = 1300
 
 gcn_config = {
-   'model_type': 'gcn',
+   'model_type': 'di_gcn',
     'vocab_size': VOCAB_SIZE,
    'embedding_dim': 256,
    'gnn_layers': 3
@@ -22,15 +22,15 @@ gcn_config = {
 
 sat_config = {
     "model_type": "sat",
-    'gnn_type': 'di_gcn',
+    # 'gnn_type': 'di_gcn',
     "num_edge_features":  200,
     "vocab_size": VOCAB_SIZE,
     "embedding_dim": 256,
     "dim_feedforward": 256,
-    "num_heads": 1,
-    "num_layers": 1,
+    "num_heads": 4,
+    "num_layers": 2,
     "in_embed": True,
-    "se": "pna",
+    "se": "formula-net",
     "abs_pe": False,
     "abs_pe_dim": 256,
     "use_edge_attr": True,
@@ -135,14 +135,14 @@ sat_exp = SeparateEncoderPremiseSelection(config={"model_config": sat_config,
                                                            "data_config": hol4_graph_data_config,
                                                            "project": "hol4_premise_selection",
                                                           "notes": "",
-                                                          "name": "SAT Small DiGCN"})
+                                                          "name": "SAT Med FormulaNet"})
 
-pna_exp = SeparateEncoderPremiseSelection(config={"model_config": gcn_config,
+gcn_exp = SeparateEncoderPremiseSelection(config={"model_config": gcn_config,
                                                   "exp_config": exp_config,
                                                   "data_config": hol4_graph_data_config,
                                                   "project": "hol4_premise_selection",
                                                   "notes": "",
-                                                  "name": "PNA"})
+                                                  "name": "DiGCN"})
 
 
 formula_net_exp = SeparateEncoderPremiseSelection(config={"model_config": formula_net_config,
@@ -170,7 +170,7 @@ amr_exp = SeparateEncoderPremiseSelection(config={"model_config": amr_config,
 # cProfile.run('sat_exp.run_lightning()', sort = 'cumtime')
 
 
-# pna_exp.run_lightning()
+# gcn_exp.run_lightning()
 # amr_exp.run_lightning()
 sat_exp.run_lightning()
 # relation_att_exp.run_lightning()

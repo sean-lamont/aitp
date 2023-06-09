@@ -334,4 +334,5 @@ class FormulaNetSAT(nn.Module):
             fo_sum = self.child_agg(nodes, edges, edge_attr)
             node_update = self.final_agg(nodes + fi_sum + fo_sum)
             nodes = nodes + node_update
+
         return nodes

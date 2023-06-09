@@ -1,9 +1,7 @@
 from experiments.hol4.rl.lightning_rl.agent_utils import *
 from experiments.hol4.rl.lightning_rl.rl_data_module import *
 import torch.optim
-from data.hol4.ast_def import graph_to_torch_labelled
 import pickle
-from data.hol4 import ast_def
 from environments.hol4.new_env import *
 import warnings
 
@@ -15,45 +13,9 @@ from experiments.hol4.rl.lightning_rl.rl_experiment import RLExperiment
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 ####################################################################################################
-# RELATION
-####################################################################################################
-def run_rl_relation():
-    premise_db = {}
-
-    print("Generating premise graph db...")
-    for i, t in enumerate(compat_db):
-        premise_db[t] = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc)
-
-    VOCAB_SIZE = 1004
-    EMBEDDING_DIM = 256
-
-    model_config = {'model_type': 'transformer_relation',
-                    'vocab_size': VOCAB_SIZE,
-                    'embedding_dim': EMBEDDING_DIM}
-
-    relation_config = default_config
-    relation_config['name'] = 'Relation 50 Step'
-    relation_config['model_config'] = model_config
-    relation_config[
-        'pretrain_ckpt'] = "/home/sean/Documents/phd/repo/aitp/sat/hol4/supervised/model_checkpoints/epoch=5-step=41059.ckpt"
-    relation_config['exp_type'] = 'relation'
-    relation_config['data_type'] = 'relation'
-    relation_config['vocab_size'] = VOCAB_SIZE
-    relation_config['notes'] = 'relation_50_step_test/'
-    relation_config['graph_db'] = premise_db
-    relation_config['embedding_dim'] = EMBEDDING_DIM
-
-    # relation_config['resume'] = True
-    # relation_config['pretrain'] = False
-    # relation_50_id = '3u17ha2u'
-
-    experiment = RLExperiment(relation_config)
-    experiment.run()
-
-
-####################################################################################################
 # TRANSFORMER
 ####################################################################################################
+
 def run_rl_transformer():
     print("Generating Premise DB..")
     premise_db = {}
@@ -108,59 +70,6 @@ def run_rl_transformer():
 
     experiment = RLExperiment(transformer_config)
     experiment.run()
-
-
-####################################################################################################
-# GNN
-####################################################################################################
-
-def run_rl_gnn():
-    premise_db = {}
-
-    print("Generating premise graph db...")
-    for i, t in enumerate(compat_db):
-        premise_db[t] = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc)
-
-    VOCAB_SIZE = 1004
-    EMBEDDING_DIM = 256
-
-    model_config = {
-        "model_type": "sat",
-        'gnn_type': 'di_gcn',
-        "num_edge_features": 200,
-        "vocab_size": VOCAB_SIZE,
-        "embedding_dim": 256,
-        "dim_feedforward": 256,
-        "num_heads": 1,
-        "num_layers": 1,
-        "in_embed": True,
-        "se": "pna",
-        "abs_pe": False,
-        "abs_pe_dim": 256,
-        "use_edge_attr": True,
-        "dropout": 0.,
-        "gnn_layers": 3,
-        "directed_attention": False,
-    }
-
-    sat_config = default_config
-    sat_config['name'] = ' 50 Step'
-    sat_config['model_config'] = model_config
-    sat_config[
-        'pretrain_ckpt'] = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/formula_net_best_91.ckpt"
-    sat_config['exp_type'] = 'sat'
-    sat_config['data_type'] = 'sat'
-    sat_config['vocab_size'] = VOCAB_SIZE
-    sat_config['notes'] = 'sat_50_step_new/'
-    sat_config['graph_db'] = premise_db
-    sat_config['embedding_dim'] = EMBEDDING_DIM
-
-    experiment = RLExperiment(sat_config)
-    experiment.run()
-
-    # gnn_config['resume'] = True
-    # gnn_config['pretrain'] = False
-    # gnn_config['resume_id'] = 'qf5w6qk0'
 
 
 if __name__ == '__main__':

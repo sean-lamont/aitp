@@ -174,7 +174,7 @@ class SeparateEncoderPremiseSelection:
             enable_progress_bar=True,
             log_every_n_steps=500,
             # accelerator='gpu',
-            devices=[0],
+            devices=[1],
             # strategy='ddp_find_unused_parameters_true',
             # todo figure out why, e.g. https://github.com/Lightning-AI/lightning/issues/11242
             # hack to fix ddp hanging error..
