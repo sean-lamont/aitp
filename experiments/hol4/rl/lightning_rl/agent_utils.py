@@ -1,41 +1,15 @@
 import traceback
-from lightning.pytorch.loggers import WandbLogger
-from tqdm import tqdm
 from experiments.hol4.rl.lightning_rl.rl_data_module import *
-from utils.viz_net_torch import make_dot
-from models.relation_transformer.relation_transformer_new import AttentionRelations
 import einops
-from torch_geometric.data import Data
-from models.tactic_zero.policy_models import ArgPolicy, TacPolicy, TermPolicy, ContextPolicy
-from models.gnn.formula_net.formula_net import FormulaNetEdges, message_passing_gnn_induct
-import lightning.pytorch as pl
 import torch.optim
 from data.hol4.ast_def import graph_to_torch_labelled
 from torch.distributions import Categorical
 import torch.nn.functional as F
-from datetime import datetime
-import pickle
 from data.hol4 import ast_def
-from torch_geometric.loader import DataLoader
-import time
 from environments.hol4.new_env import *
-import numpy as np
+
 import warnings
 warnings.filterwarnings('ignore')
-
-MORE_TACTICS = True
-if not MORE_TACTICS:
-    thms_tactic = ["simp", "fs", "metis_tac"]
-    thm_tactic = ["irule"]
-    term_tactic = ["Induct_on"]
-    no_arg_tactic = ["strip_tac"]
-else:
-    thms_tactic = ["simp", "fs", "metis_tac", "rw"]
-    thm_tactic = ["irule", "drule"]
-    term_tactic = ["Induct_on"]
-    no_arg_tactic = ["strip_tac", "EQ_TAC"]
-
-tactic_pool = thms_tactic + thm_tactic + term_tactic + no_arg_tactic
 
 def get_tac(tac_input, tac_net, device):
     tac_probs = tac_net(tac_input)
@@ -134,9 +108,6 @@ def get_arg_tac(target_representation,
                 reverse_database,
                 replay_arg=None):
 
-
-    # hidden0 = target_representation.clone().detach()
-    # hidden1 = target_representation.clone().detach()
 
     hidden0 = hidden1 = target_representation
     hidden0 = hidden0.to(device)

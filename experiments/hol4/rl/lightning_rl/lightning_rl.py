@@ -7,13 +7,15 @@ from torch.distributions import Categorical
 import time
 from environments.hol4.new_env import *
 import warnings
+
 warnings.filterwarnings('ignore')
 
-# # for debugging
+"""
 
-"""
  Torch Lightning TacticZero Loop:
+ 
 """
+
 
 class TacticZeroLoop(pl.LightningModule):
     def __init__(self,
@@ -78,27 +80,24 @@ class TacticZeroLoop(pl.LightningModule):
     def forward(self, batch, train_mode=True):
         goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env = batch
 
-
         # todo with split batches
         encodings = [self.encoder_premise(fact_batch) for fact_batch in allowed_fact_batch]
-        encoded_fact_pool = torch.cat(encodings, dim = 0)
-
+        encoded_fact_pool = torch.cat(encodings, dim=0)
 
         # encoded_fact_pool = self.encoder_premise(allowed_fact_batch)
-
 
         reward_pool = []
         fringe_pool = []
         arg_pool = []
         tac_pool = []
         steps = 0
-        start_t = time.time()
+        # start_t = time.time()
 
         # todo stats per goal? save to experiment directory?
 
         # todo 1 - eps replay? I.e run replay only with prob 1 - eps
 
-       # todo learnable step count? I.e. Model predicts num steps up to max, then if it proves within step gets a large reward, else punished?
+        # todo learnable step count? I.e. Model predicts num steps up to max, then if it proves within step gets a large reward, else punished?
 
         # dynamic step count: Start at 1, if goal has been proven max_steps is fixed value above that (e.g. 5), if not have counter of current max which grows over time
 
@@ -106,20 +105,20 @@ class TacticZeroLoop(pl.LightningModule):
         #     max_steps = self.replays[env.goal][0] + 5
         # else:
 
-        max_steps = self.config['max_steps']#self.cur_steps
-
+        max_steps = self.config['max_steps']  # self.cur_steps
 
         tmp = {}
 
         for t in range(max_steps):
             target_representation, target_goal, fringe, fringe_prob, tmp = select_goal_fringe(history=env.history,
-                                                                                         encoder_goal=self.encoder_goal,
-                                                                                         graph_db=self.graph_db,
-                                                                                         token_enc=self.token_enc,
-                                                                                         context_net=self.context_net,
-                                                                                         device=self.device,
-                                                                                        data_type = self.config['data_type'],
-                                                                                         tmp=tmp)
+                                                                                              encoder_goal=self.encoder_goal,
+                                                                                              graph_db=self.graph_db,
+                                                                                              token_enc=self.token_enc,
+                                                                                              context_net=self.context_net,
+                                                                                              device=self.device,
+                                                                                              data_type=self.config[
+                                                                                                  'data_type'],
+                                                                                              tmp=tmp)
 
             fringe_pool.append(fringe_prob)
             tac, tac_prob = get_tac(tac_input=target_representation,
@@ -154,15 +153,14 @@ class TacticZeroLoop(pl.LightningModule):
                                                 reverse_database=self.reverse_database)
 
             arg_pool.append(arg_probs)
-            # action = (fringe.item(), 0, tactic)
             action = (fringe.detach(), 0, tactic)
 
             try:
                 reward, done = env.step(action)
             except Exception as e:
                 # todo reset or continue?
-                 # env = HolEnv("T")
-                 # return ("Step error", action)
+                # env = HolEnv("T")
+                # return ("Step error", action)
                 reward = -1
                 done = False
 
@@ -198,6 +196,7 @@ class TacticZeroLoop(pl.LightningModule):
         return reward_pool, fringe_pool, arg_pool, tac_pool, steps, done
 
     def run_replay(self, allowed_arguments_ids, candidate_args, env, encoded_fact_pool):
+
         # todo graph replay:
         # reps = self.replays[env.goal]
         # rep_lens = [len(rep[0]) for rep in reps]
@@ -216,17 +215,19 @@ class TacticZeroLoop(pl.LightningModule):
 
         for t in range(len(known_history) - 1):
             true_resulting_fringe = known_history[t + 1]
-            true_fringe = torch.tensor([true_resulting_fringe["parent"]], device=self.device)#.to(self.device)
+            true_fringe = torch.tensor([true_resulting_fringe["parent"]], device=self.device)  # .to(self.device)
 
-            target_representation, target_goal, fringe, fringe_prob, tmp = select_goal_fringe(history=known_history[:t+1],
-                                                                                              encoder_goal=self.encoder_goal,
-                                                                                              graph_db=self.graph_db,
-                                                                                              token_enc=self.token_enc,
-                                                                                              context_net=self.context_net,
-                                                                                              device=self.device,
-                                                                                              replay_fringe=true_fringe,
-                                                                                              data_type=self.config['data_type'],
-                                                                                                tmp=tmp)
+            target_representation, target_goal, fringe, fringe_prob, tmp = select_goal_fringe(
+                history=known_history[:t + 1],
+                encoder_goal=self.encoder_goal,
+                graph_db=self.graph_db,
+                token_enc=self.token_enc,
+                context_net=self.context_net,
+                device=self.device,
+                replay_fringe=true_fringe,
+                data_type=self.config['data_type'],
+                tmp=tmp)
+
             fringe_pool.append(fringe_prob)
             tac_probs = self.tac_net(target_representation)
             tac_m = Categorical(tac_probs)
@@ -234,11 +235,13 @@ class TacticZeroLoop(pl.LightningModule):
             true_tactic_text = true_resulting_fringe["by_tactic"]
             true_tac_text, true_args_text = get_replay_tac(true_tactic_text)
 
-            true_tac = torch.tensor([self.tactic_pool.index(true_tac_text)], device=self.device)#.to(self.device)
+            true_tac = torch.tensor([self.tactic_pool.index(true_tac_text)], device=self.device)  # .to(self.device)
             tac_pool.append(tac_m.log_prob(true_tac))
 
-            assert self.tactic_pool[true_tac.detach()] == true_tac_text
-            # assert self.tactic_pool[true_tac.item()] == true_tac_text
+            # assert self.tactic_pool[true_tac.detach()] == true_tac_text
+
+            if self.tactic_pool[true_tac.detach()] == true_tac_text:
+                raise Exception
 
             if self.tactic_pool[true_tac] in self.no_arg_tactic:
                 arg_probs = [torch.tensor(0)]
@@ -246,25 +249,25 @@ class TacticZeroLoop(pl.LightningModule):
 
             elif self.tactic_pool[true_tac] == "Induct_on":
                 _, arg_probs = get_term_tac(target_goal=target_goal,
-                                                 target_representation=target_representation,
-                                                 tac=true_tac,
-                                                 term_net=self.term_net,
-                                                 induct_net=self.induct_net,
-                                                 device=self.device,
-                                                 token_enc=self.token_enc,
-                                                 replay_term=true_args_text)
+                                            target_representation=target_representation,
+                                            tac=true_tac,
+                                            term_net=self.term_net,
+                                            induct_net=self.induct_net,
+                                            device=self.device,
+                                            token_enc=self.token_enc,
+                                            replay_term=true_args_text)
             else:
                 _, arg_probs = get_arg_tac(target_representation=target_representation,
-                                                num_args=len(allowed_arguments_ids),
-                                                encoded_fact_pool=encoded_fact_pool,
-                                                tac=true_tac,
-                                                candidate_args=candidate_args,
-                                                env=env,
-                                                device=self.device,
-                                                arg_net=self.arg_net,
-                                                arg_len=self.config['arg_len'],
-                                                reverse_database=self.reverse_database,
-                                                replay_arg=true_args_text)
+                                           num_args=len(allowed_arguments_ids),
+                                           encoded_fact_pool=encoded_fact_pool,
+                                           tac=true_tac,
+                                           candidate_args=candidate_args,
+                                           env=env,
+                                           device=self.device,
+                                           arg_net=self.arg_net,
+                                           arg_len=self.config['arg_len'],
+                                           reverse_database=self.reverse_database,
+                                           replay_arg=true_args_text)
 
             arg_pool.append(arg_probs)
             reward = true_resulting_fringe["reward"]
@@ -273,7 +276,6 @@ class TacticZeroLoop(pl.LightningModule):
 
         # print (f"Replay took {steps}")
         return reward_pool, fringe_pool, arg_pool, tac_pool, steps, False
-
 
     def save_replays(self):
         torch.save(self.replays, self.replay_dir)
@@ -315,14 +317,15 @@ class TacticZeroLoop(pl.LightningModule):
                 # todo move train version to train_step with batch_idx
                 self.val_proved.append(batch_idx)
             return
+
         except:
             logging.debug(f"Error in training: {traceback.print_exc()}")
             return
 
     def on_train_epoch_end(self):
         self.log_dict({"epoch_proven": len(self.proven),
-                        "cumulative_proven": len(self.cumulative_proven)},
-                        prog_bar=True)
+                       "cumulative_proven": len(self.cumulative_proven)},
+                      prog_bar=True)
 
         # todo logging goals, steps etc. proven...
         self.proven = []

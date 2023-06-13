@@ -1,4 +1,5 @@
 from experiments.hol4.rl.lightning_rl.lightning_rl import TacticZeroLoop
+from global_config import GLOBAL_PATH
 from models.get_model import get_model
 from lightning.pytorch.callbacks import ModelCheckpoint
 from experiments.hol4.rl.lightning_rl.agent_utils import *
@@ -41,10 +42,7 @@ def get_model_sat(prefix, state_dict):
                 k = k[len(prefix) + 1:]
                 ret_dict[k] = v
     return ret_dict
-# new_dict = {}
-# for k,v in ckpt.items():
-#     if 'complete_edge_index' not in k:
-#         new_dict[k] = v
+
 
 class RLExperiment:
     def __init__(self, config):
