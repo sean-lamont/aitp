@@ -1,11 +1,10 @@
-from experiments.hol4.rl.lightning_rl.agent_utils import *
-from experiments.hol4.rl.lightning_rl.rl_data_module import *
-import torch.optim
 from data.hol4.ast_def import graph_to_torch_labelled
 import pickle
 from data.hol4 import ast_def
 from environments.hol4.new_env import *
 import warnings
+
+from global_config import GLOBAL_PATH
 
 warnings.filterwarnings('ignore')
 from experiments.hol4.rl.lightning_rl.rl_experiment import RLExperiment
@@ -41,7 +40,7 @@ def run_rl_gnn():
     gnn_config['name'] = 'GNN 50 Step'
     gnn_config['model_config'] = model_config
     gnn_config[
-        'pretrain_ckpt'] = "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/fn.ckpt"
+        'pretrain_ckpt'] = GLOBAL_PATH + "experiments/hol4/supervised/model_checkpoints/fn.ckpt"
     gnn_config['exp_type'] = 'sat'
     gnn_config['data_type'] = 'graph'
     gnn_config['vocab_size'] = VOCAB_SIZE
@@ -94,7 +93,7 @@ if __name__ == '__main__':
         'tactic_pool': thms_tactic + thm_tactic + term_tactic + no_arg_tactic
     }
 
-    dir = '/home/sean/Documents/phd/repo/aitp/experiments/hol4/rl/lightning_rl/experiments/'
+    dir = GLOBAL_PATH + 'experiments/hol4/rl/lightning_rl/experiments/'
 
     default_config = {
         'model_config': None,

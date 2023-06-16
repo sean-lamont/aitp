@@ -1,8 +1,7 @@
-import wandb
+from global_config import GLOBAL_PATH
 # import optuna
 import cProfile
 from data.utils.pretrain import SeparateEncoderPremiseSelection
-from lightning import LightningApp
 
 # HOL4 vocab
 # VOCAB_SIZE = 1004
@@ -87,7 +86,7 @@ exp_config = {
     "model_save": False,
     "val_size": 4096,
     "logging": False,
-    "checkpoint_dir": "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints",
+    "checkpoint_dir": GLOBAL_PATH + "experiments/hol4/supervised/model_checkpoints",
     # "checkpoint_dir": "/home/sean/Documents/phd/aitp/experiments/hol4/supervised/model_checkpoints",
     "device": [1],
     "max_errors": 1000,
@@ -109,14 +108,14 @@ digae_config = {
 }
 
 
-h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/utils/holstep_full"}
+h5_data_config = {"source": "h5", "data_dir": GLOBAL_PATH + "data/utils/holstep_full"}
 # h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/aitp/data/utils/processed_data"}
 
 # hol4 for relations
-hol4_data_config = {"source": "hol4", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/hol4/torch_data"}
+hol4_data_config = {"source": "hol4", "data_dir": GLOBAL_PATH + "data/hol4/torch_data"}
 # hol4_graph_data_config = {"source": "hol4_graph", "data_dir": "/home/sean/Documents/phd/aitp/data/hol4/graph_torch_data"}
-hol4_graph_data_config = {"source": "hol4_graph", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/hol4/graph_torch_data"}
-hol4_sequence_data_config = {"source": "hol4_sequence", "data_dir": "/home/sean/Documents/phd/repo/aitp/data/hol4/sequence_torch_data"}
+hol4_graph_data_config = {"source": "hol4_graph", "data_dir": GLOBAL_PATH + "data/hol4/graph_torch_data"}
+hol4_sequence_data_config = {"source": "hol4_sequence", "data_dir": GLOBAL_PATH + "data/hol4/sequence_torch_data"}
 
 relation_att_exp = SeparateEncoderPremiseSelection(config={"model_config": relation_config,
                                                            "exp_config": exp_config,
