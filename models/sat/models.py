@@ -41,13 +41,18 @@ class GraphTransformer(nn.Module):
                  batch_norm=False, abs_pe=False, abs_pe_dim=0,k_hop=2,
                  gnn_type="graph", se="gnn", use_edge_attr=False, num_edge_features=4,
                  in_embed=True, edge_embed=True, use_global_pool=True, max_seq_len=None,
-                 global_pool='mean', **kwargs):
+                 global_pool='mean', small_inner = False, **kwargs):
         super().__init__()
 
+        self.small_inner = small_inner
         # self.pos_encoder = PositionalEncoding(d_model, dropout, max_len=256)
         # print ("r_inductunning")
         self.abs_pe = abs_pe
         self.abs_pe_dim = abs_pe_dim
+
+        if self.small_inner:
+            d_model = d_model // 2
+            self.expand_proj = nn.Sequential(nn.Linear(d_model, d_model * 2), nn.GELU())
 
         if abs_pe and abs_pe_dim > 0:
             self.embedding_abs_pe = nn.Embedding(abs_pe_dim, d_model)
@@ -115,6 +120,7 @@ class GraphTransformer(nn.Module):
 
 
         self.pe = MagLapNet()
+        # self.complete_edge_index = None
 
     def forward(self, data, return_attn=False):
         x, edge_index, edge_attr = data.x, data.edge_index, data.edge_attr
@@ -194,6 +200,10 @@ class GraphTransformer(nn.Module):
             ptr=data.ptr,
             return_attn=return_attn
         )
+
+
+        if self.small_inner:
+            output = self.expand_proj(output)
 
         # print (f"Output shape: {output.shape} \n")
         # readout step

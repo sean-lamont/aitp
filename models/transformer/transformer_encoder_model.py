@@ -36,13 +36,22 @@ Wrapper for transformer taking in tuple with first element as data, second as ma
 
 class TransformerWrapper(nn.Module):
     def __init__(self, ntoken: int, d_model: int, nhead: int, d_hid: int,
-                 nlayers: int, dropout: float = 0.5, enc=True, in_embed=False, global_pool=True):
+                 nlayers: int, dropout: float = 0.5, enc=True, in_embed=False, global_pool=True, small_inner=False):
 
         super().__init__()
 
+
+        self.global_pool = global_pool
+
+        self.small_inner = small_inner
+
+        if self.small_inner:
+            d_model = d_model // 2
+            self.expand_proj = nn.Sequential(nn.Linear(d_model, d_model * 2), nn.GELU())
+
         self.transformer_embedding = TransformerEmbedding(ntoken=None, d_model=d_model, nhead=nhead, d_hid=d_hid,
                                                           nlayers=nlayers, dropout=dropout, enc=enc,
-                                                          global_pool=global_pool, in_embed=in_embed)
+                                                          global_pool=False, in_embed=in_embed)
 
         self.embedding = nn.Embedding(ntoken, d_model, padding_idx=0)
 
@@ -61,7 +70,17 @@ class TransformerWrapper(nn.Module):
         cls_tokens = einops.repeat(self.cls_token, '() d -> 1 b d', b=x.shape[1])
         x = torch.cat([x, cls_tokens], dim=0)
 
-        return self.transformer_embedding(x, mask)
+        out = self.transformer_embedding(x, mask)
+
+        if self.small_inner:
+            out = self.expand_proj(out)
+
+        if self.global_pool:
+            return torch.max(out, dim=1)[0]
+
+        return out
+
+
 
 
 

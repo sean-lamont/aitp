@@ -306,6 +306,8 @@ class H5DataLoader(torchdata.datapipes.iter.IterDataPipe):
                                batch=batch1[i, :num_nodes1],
                                ptr=ptr1[i],
                                # attention_edge_index=attention_edge_1[i],
+                                  # attention_edge_index=attention_edge_1[i],
+                                attention_edge_index = ptr_to_complete_edge_index(ptr1[i]),
                                softmax_idx=edge_ptr1[i])
 
                     data_2 = Data(x=x2[i, :num_nodes2],
@@ -314,7 +316,8 @@ class H5DataLoader(torchdata.datapipes.iter.IterDataPipe):
                              batch=batch2[i, :num_nodes2],
                              ptr=ptr2[i],
                             # attention_edge_index=attention_edge_2[i],
-                            softmax_idx=edge_ptr2[i])
+                              attention_edge_index=ptr_to_complete_edge_index(ptr2[i]),
+                              softmax_idx=edge_ptr2[i])
 
                     y_i = y[i]
 
@@ -446,7 +449,8 @@ class H5DataModule(pl.LightningDataModule):
             # num_workers = 0, collate_fn = collate_to_relation)
 
     def transfer_batch_to_device(self, batch, device, dataloader_idx):
-        data_1, data_2, y = batch
+        data_1, data_2, y = batch[0]
+        # data_1, data_2, y = batch
         data_1 = data_1.to(device)
         data_2 = data_2.to(device)
         y = y.to(device)

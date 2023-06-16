@@ -1,6 +1,7 @@
 from models.transformer.transformer_encoder_model import TransformerEmbedding, TransformerWrapper
 from models.gnn.formula_net.formula_net import FormulaNet, FormulaNetEdges
 from models.relation_transformer.relation_transformer_new import AttentionRelations
+from models.relation_transformer.relation_transformer_small import AttentionRelationSmall
 from models.gnn.digae.digae_model import DigaeEmbedding
 from models.sat.models import GraphTransformer
 from models.amr.amr import AMRTransformer
@@ -26,7 +27,8 @@ def get_model(model_config):
                                 use_edge_attr=model_config['use_edge_attr'],
                                 num_edge_features=model_config['num_edge_features'],
                                 dropout=model_config['dropout'],
-                                k_hop=model_config['gnn_layers'])
+                                k_hop=model_config['gnn_layers'],
+                                small_inner=model_config['small_inner'] if 'small_inner' in model_config else False)
 
 
     if model_config['model_type'] == 'amr':
@@ -83,10 +85,18 @@ def get_model(model_config):
                                     nhead=model_config['num_heads'],
                                     nlayers=model_config['num_layers'],
                                     dropout=model_config['dropout'],
-                                    d_hid=model_config['dim_feedforward'])
+                                    d_hid=model_config['dim_feedforward'],
+                                    small_inner = model_config['small_inner'] if 'small_inner' in model_config else False)
 
     elif model_config['model_type'] == 'transformer_relation':
         return AttentionRelations(ntoken=model_config['vocab_size'],
+                                  dropout=model_config['dropout'] if 'dropout' in model_config else 0.0,
+                                  num_heads=model_config['num_heads'] if 'num_heads' in model_config else 8,
+                                  num_layers=model_config['num_layers'] if 'num_layers' in model_config else 4,
+                                  embed_dim=model_config['embedding_dim'])
+
+    elif model_config['model_type'] == 'transformer_relation_small':
+        return AttentionRelationSmall(ntoken=model_config['vocab_size'],
                                   dropout=model_config['dropout'] if 'dropout' in model_config else 0.0,
                                   num_heads=model_config['num_heads'] if 'num_heads' in model_config else 8,
                                   num_layers=model_config['num_layers'] if 'num_layers' in model_config else 4,

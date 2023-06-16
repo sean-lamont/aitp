@@ -5,10 +5,10 @@ from data.utils.pretrain import SeparateEncoderPremiseSelection
 from lightning import LightningApp
 
 # HOL4 vocab
-VOCAB_SIZE = 1004
+# VOCAB_SIZE = 1004
 
 # HOLStep vocab
-# VOCAB_SIZE = 1909 + 4
+VOCAB_SIZE = 1909 + 4
 
 # HOL4 transformer
 # VOCAB_SIZE = 1300
@@ -30,13 +30,14 @@ sat_config = {
     "num_heads": 4,
     "num_layers": 2,
     "in_embed": True,
-    "se": "formula-net",
+    "se": "pna",
     "abs_pe": False,
     "abs_pe_dim": 256,
     "use_edge_attr": True,
     "dropout": 0.,
     "gnn_layers": 3,
     "directed_attention": False,
+    'small_inner': True
 }
 
 transformer_config = {
@@ -44,18 +45,20 @@ transformer_config = {
     "vocab_size": VOCAB_SIZE,
     "embedding_dim": 256,
     "dim_feedforward": 512,
-    "num_heads": 2,
-    "num_layers": 2,
-    "dropout": 0.0
+    "num_heads": 8,
+    "num_layers": 4,
+    "dropout": 0.0,
+    "small_inner": True
 }
 
 relation_config = {
-    "model_type": "transformer_relation",
+    # "model_type": "transformer_relation",
+    "model_type": "transformer_relation_small",
     "vocab_size": VOCAB_SIZE,
     # "vocab_size": VOCAB_SIZE + 1,
-    "embedding_dim": 512,
+    "embedding_dim": 256,
     "dim_feedforward": 512,
-    "num_heads": 16,
+    "num_heads": 8,
     "num_layers": 4,
     "dropout": 0.0
 }
@@ -86,7 +89,7 @@ exp_config = {
     "logging": False,
     "checkpoint_dir": "/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints",
     # "checkpoint_dir": "/home/sean/Documents/phd/aitp/experiments/hol4/supervised/model_checkpoints",
-    "device": "cuda:0",
+    "device": [1],
     "max_errors": 1000,
     "val_frequency": 2048,
 }
@@ -120,7 +123,7 @@ relation_att_exp = SeparateEncoderPremiseSelection(config={"model_config": relat
                                                            "data_config": h5_data_config,
                                                            "project": "test_project",
                                                            "notes": "",
-                                                           "name": "relation large"})
+                                                           "name": "relation inner small"})
 
 
 # todo with original sequence for positional encoding
@@ -128,15 +131,15 @@ transformer_experiment = SeparateEncoderPremiseSelection(config={"model_config":
                                                                  "exp_config": exp_config,
                                                                  "data_config": hol4_sequence_data_config,
                                                                  "project": "hol4_premise_selection",
-                                                                 "notes": "Transformer + Sinusoidal PE",
-                                                                 "name": "Transformer + Sinusoidal PE"})
+                                                                 "notes": "",
+                                                                 "name": "Transformer Small Inner + Max Pool"})
 
 sat_exp = SeparateEncoderPremiseSelection(config={"model_config": sat_config,
                                                            "exp_config": exp_config,
-                                                           "data_config": hol4_graph_data_config,
-                                                           "project": "hol4_premise_selection",
+                                                           "data_config": h5_data_config,
+                                                           "project": "test_project",
                                                           "notes": "",
-                                                          "name": "SAT Med FormulaNet"})
+                                                          "name": "SAT GCN Small Inner"})
 
 gcn_exp = SeparateEncoderPremiseSelection(config={"model_config": gcn_config,
                                                   "exp_config": exp_config,
@@ -173,9 +176,9 @@ amr_exp = SeparateEncoderPremiseSelection(config={"model_config": amr_config,
 
 # gcn_exp.run_lightning()
 # amr_exp.run_lightning()
-# sat_exp.run_lightning()
+sat_exp.run_lightning()
 # relation_att_exp.run_lightning()
-formula_net_exp.run_lightning()
+# formula_net_exp.run_lightning()
 # transformer_experiment.run_lightning()
 # digae_exp.run_lightning()
 
