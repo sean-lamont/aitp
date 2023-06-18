@@ -1,4 +1,6 @@
 import logging
+import traceback
+
 from experiments.hol4.rl.lightning_rl.agent_utils import *
 from experiments.hol4.rl.lightning_rl.rl_data_module import *
 import lightning.pytorch as pl
@@ -238,10 +240,10 @@ class TacticZeroLoop(pl.LightningModule):
             true_tac = torch.tensor([self.tactic_pool.index(true_tac_text)], device=self.device)  # .to(self.device)
             tac_pool.append(tac_m.log_prob(true_tac))
 
-            # assert self.tactic_pool[true_tac.detach()] == true_tac_text
+            assert self.tactic_pool[true_tac.detach()] == true_tac_text
 
-            if self.tactic_pool[true_tac.detach()] == true_tac_text:
-                raise Exception
+            # if self.tactic_pool[true_tac.detach()] != true_tac_text:
+            #     raise Exception
 
             if self.tactic_pool[true_tac] in self.no_arg_tactic:
                 arg_probs = [torch.tensor(0)]
@@ -298,7 +300,10 @@ class TacticZeroLoop(pl.LightningModule):
                 logging.debug(f"Error in loss: {loss}")
                 return
             return loss
+
         except Exception as e:
+            # print ("error!!!")
+            # traceback.print_exc()
             logging.debug(f"Error in training: {e}")
             return
 

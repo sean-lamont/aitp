@@ -415,7 +415,8 @@ class H5DataModule(pl.LightningDataModule):
     def setup(self, stage: str):
         if stage == "fit":
             self.train_pipe = build_h5_datapipe("train*", self.data_dir)
-            self.val_pipe = build_h5_datapipe("val*",self.data_dir, cycle=True)
+            # self.val_pipe = build_h5_datapipe("val*",self.data_dir, cycle=True)
+            self.val_pipe = build_h5_datapipe("test*", self.data_dir, cycle=True)
         if stage == "test":
             self.test_pipe = build_h5_datapipe("test*", self.data_dir)
 

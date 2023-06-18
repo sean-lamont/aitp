@@ -29,7 +29,7 @@ sat_config = {
     "num_heads": 4,
     "num_layers": 2,
     "in_embed": True,
-    "se": "pna",
+    "se": "formula-net",
     "abs_pe": False,
     "abs_pe_dim": 256,
     "use_edge_attr": True,
@@ -88,7 +88,7 @@ exp_config = {
     "logging": False,
     "checkpoint_dir": GLOBAL_PATH + "experiments/hol4/supervised/model_checkpoints",
     # "checkpoint_dir": "/home/sean/Documents/phd/aitp/experiments/hol4/supervised/model_checkpoints",
-    "device": [1],
+    "device": [0],
     "max_errors": 1000,
     "val_frequency": 2048,
 }
@@ -138,7 +138,7 @@ sat_exp = SeparateEncoderPremiseSelection(config={"model_config": sat_config,
                                                            "data_config": h5_data_config,
                                                            "project": "test_project",
                                                           "notes": "",
-                                                          "name": "SAT GCN Small Inner"})
+                                                          "name": "SAT Test"})
 
 gcn_exp = SeparateEncoderPremiseSelection(config={"model_config": gcn_config,
                                                   "exp_config": exp_config,

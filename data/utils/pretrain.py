@@ -156,8 +156,19 @@ class SeparateEncoderPremiseSelection:
 
         # todo update model artifacts manually
 
-        checkpoint_callback = ModelCheckpoint(monitor="acc", mode="max", auto_insert_metric_name=True,
-                                              save_weights_only=True, dirpath=self.exp_config['checkpoint_dir'])
+        # checkpoint_callback = ModelCheckpoint(monitor="acc", mode="max", auto_insert_metric_name=True,
+        #                                       save_weights_only=True, dirpath=self.exp_config['checkpoint_dir'])
+
+        checkpoint_callback = ModelCheckpoint(monitor="acc", mode="max",
+                                              auto_insert_metric_name=True,
+                                              save_top_k=3,
+                                              filename="{epoch}-{acc}",
+                                              save_on_train_epoch_end=True,
+                                              save_last=True,
+                                              save_weights_only=True,
+                                              dirpath=self.exp_config['checkpoint_dir'])
+
+
         callbacks.append(checkpoint_callback)
 
         # early_stop_callback = EarlyStopping(monitor="acc", min_delta=0.00, patience=10, verbose=False,
@@ -197,15 +208,19 @@ class SeparateEncoderPremiseSelection:
         # logger.experiment.log_artifact(artifact)
         # ckpt = torch.load("/home/sean/Documents/phd/repo/aitp/test_project/yqiw2dgr/checkpoints/epoch=6-step=368646.ckpt")
         # ckpt = torch.load("/experiments/hol4/supervised/model_checkpoints/sat_large_holstep.ckpt")
-        # ckpt = ckpt['state_dict']
 
+        # ckpt = torch.load("/home/sean/Documents/phd/repo/aitp/experiments/hol4/supervised/model_checkpoints/epoch=7-step=461831.ckpt")
+        #
+        # ckpt = ckpt['state_dict']
+        #
         # new_dict = {}
         # for k,v in ckpt.items():
         #     if 'complete_edge_index' not in k:
         #         new_dict[k] = v
         #
-        # experiment.load_state_dict(ckpt)
-
+        # experiment.load_state_dict(new_dict)
+        #
+        #
         # trainer.test(model=experiment, datamodule=data_module)
 #
 # def objective(self, trial):
