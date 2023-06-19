@@ -93,7 +93,8 @@ class RLExperiment:
                              'data_type': self.config['data_type'],
                              'dir_path': save_dir}
 
-        if not resume and pretrain:
+        if pretrain:
+            print ("Loading pretrained encoder models..")
             self.load_pretrained_encoders(encoder_premise, encoder_goal)
 
         if resume:
@@ -150,6 +151,7 @@ class RLExperiment:
                              )
 
         if resume and os.path.exists(save_dir + "last.ckpt"):
+            print ("Resuming experiment from last checkpoint..")
             ckpt_dir = save_dir + "last.ckpt"
             # if self.config['exp_type'] != 'sat':
 
