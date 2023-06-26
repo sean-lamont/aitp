@@ -78,7 +78,7 @@
         \item HOLStep~\cite{kaliszyk_holstep_2017}
         \item MIZAR~\cite{jakubuv_mizar_2023, grabowski_four_2015}
         \item CoqGym~\cite{yang_learning_2019}
-        \item PISA~\cite{lu_survey_nodate}
+        \item PISA~\cite{jiang_lisa_2021}
         \item LeanStep~\cite{han_proof_2021}
         \item Lean-Gym~\cite{polu_formal_2022}
         \item mini-F2F~\cite{zheng_minif2f_2021}
@@ -90,40 +90,40 @@
 
     \subsubsection{Approaches}
 
-    The high level goal for automating ITP is straightforward: Given a goal, generate a valid proof in the ITP system.
-    Despite this apparent simplicity, the approaches used in the literature vary greatly.
-
-    Expression modelling
-        Graph (LSTM, GNN)
-        Sequence (LSTM, Tree LSTM, Transformer)
-
-    Upstream task
-        Premise selection
-        Tactic Selection
-
-    Proof guidance
-        BFS
-        Fringe
-        MCTS
-
-    Learning approach
-        Supervised
-        Semi Supervised
-        Fine-tune
-        End to end RL
-
-    Embedding + upstream task, or GPT decoder for direct prediction
-
-
-    Proof guidance (hypertree, bfs, fringes),
-    supervised learning for model + guidance (google + meta),
-    end to end RL (tacticzero)
-
-    LLMs (Greedy reasoning, poor at proof search, premise selection done in natural language, harder than explicit pairwise comparision)
-
-    Direct interaction is a more representative task, but can create a performance bottleneck due to the required environment interaction.
-    Given the number of ITPs available, like for like comparison between approaches is difficult.
-
+%    The high level goal for automating ITP is straightforward: Given a goal, generate a valid proof in the ITP system.
+%    Despite this apparent simplicity, the approaches used in the literature vary greatly.
+%
+%    Expression modelling
+%        Graph (LSTM, GNN)
+%        Sequence (LSTM, Tree LSTM, Transformer)
+%
+%    Upstream task
+%        Premise selection
+%        Tactic Selection
+%
+%    Proof guidance
+%        BFS
+%        Fringe
+%        MCTS
+%
+%    Learning approach
+%        Supervised
+%        Semi Supervised
+%        Fine-tune
+%        End to end RL
+%
+%    Embedding + upstream task, or GPT decoder for direct prediction
+%
+%
+%    Proof guidance (hypertree, bfs, fringes),
+%    supervised learning for model + guidance (google + meta),
+%    end to end RL (tacticzero)
+%
+%    LLMs (Greedy reasoning, poor at proof search, premise selection done in natural language, harder than explicit pairwise comparision)
+%
+%    Direct interaction is a more representative task, but can create a performance bottleneck due to the required environment interaction.
+%    Given the number of ITPs available, like for like comparison between approaches is difficult.
+%
 
     \section{Proposed Research}\label{sec:proposed-research}
 
