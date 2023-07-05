@@ -1,12 +1,8 @@
 import traceback
-
-from data.utils.dataset import H5DataModule
-from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
-from tqdm import tqdm
 import wandb
-import os
+from lightning.pytorch.callbacks import ModelCheckpoint
+from data.utils.dataset import H5DataModule, HOLStepSequenceModule
 import warnings
-
 warnings.filterwarnings('ignore')
 import lightning.pytorch as pl
 from data.hol4.mongo_to_torch import HOL4DataModule, HOL4DataModuleGraph, HOL4SequenceModule
@@ -15,8 +11,8 @@ from models.get_model import get_model
 from models.gnn.formula_net.formula_net import BinaryClassifier
 import torch
 from collections import namedtuple
-
 data_tuple = namedtuple('data_tuple', 'graph_dict, expr_dict, train_data, val_data, test_data')
+
 
 def binary_loss(preds, targets):
     return -1. * torch.sum(targets * torch.log(preds) + (1 - targets) * torch.log((1. - preds)))
@@ -54,8 +50,8 @@ class PremiseSelection(pl.LightningModule):
         try:
             preds = self(goal, premise)
         except Exception as e:
-            print (traceback.print_exc())
-            print (f"Error in forward: {e}")
+            print(traceback.print_exc())
+            print(f"Error in forward: {e}")
             return
         loss = binary_loss(preds, y)
         # loss = torch.nn.functional.cross_entropy(preds, y)
@@ -95,7 +91,7 @@ class PremiseSelection(pl.LightningModule):
         try:
             loss.backward()
         except Exception as e:
-            print (f"Error in backward: {e}")
+            print(f"Error in backward: {e}")
 
 
 def get_experiment(exp_config, model_config):
@@ -108,10 +104,7 @@ def get_experiment(exp_config, model_config):
     else:
         raise NotImplementedError
 
-    # todo combine into one experiment class, which generates experiment and data from config i.e. get_exp, get_data
 
-
-# todo MongoDB
 def get_data(data_config):
     if data_config['source'] == 'h5':
         return H5DataModule(config=data_config)
@@ -121,14 +114,16 @@ def get_data(data_config):
         return HOL4DataModuleGraph(dir=data_config['data_dir'])
     if data_config['source'] == 'hol4_sequence':
         return HOL4SequenceModule(dir=data_config['data_dir'])
+    if data_config['source'] == 'holstep_sequence':
+        return HOLStepSequenceModule(dir=data_config['data_dir'])
     else:
         raise NotImplementedError
-
 
 
 '''
 Premise selection experiment with separate encoders for goal and premise
 '''
+
 
 class SeparateEncoderPremiseSelection:
     def __init__(self, config):
@@ -139,11 +134,8 @@ class SeparateEncoderPremiseSelection:
 
     def run_lightning(self):
         torch.set_float32_matmul_precision('high')
-
         experiment = get_experiment(self.exp_config, self.model_config)
-
         data_module = get_data(self.data_config)
-
         logger = WandbLogger(project=self.config['project'],
                              name=self.config['name'],
                              config=self.config,
@@ -151,14 +143,9 @@ class SeparateEncoderPremiseSelection:
                              # log_model="all",
                              # offline=True,
                              )
-
         callbacks = []
 
         # todo update model artifacts manually
-
-        # checkpoint_callback = ModelCheckpoint(monitor="acc", mode="max", auto_insert_metric_name=True,
-        #                                       save_weights_only=True, dirpath=self.exp_config['checkpoint_dir'])
-
         checkpoint_callback = ModelCheckpoint(monitor="acc", mode="max",
                                               auto_insert_metric_name=True,
                                               save_top_k=3,
@@ -168,14 +155,10 @@ class SeparateEncoderPremiseSelection:
                                               save_weights_only=True,
                                               dirpath=self.exp_config['checkpoint_dir'])
 
-
         callbacks.append(checkpoint_callback)
 
         # early_stop_callback = EarlyStopping(monitor="acc", min_delta=0.00, patience=10, verbose=False,
         #                                     mode="max")
-
-
-
 
         trainer = pl.Trainer(
             max_epochs=self.exp_config['epochs'],
@@ -193,7 +176,7 @@ class SeparateEncoderPremiseSelection:
             # profiler='pytorch',
             enable_checkpointing=True,
             callbacks=callbacks,
-            )
+        )
 
         trainer.fit(model=experiment, datamodule=data_module)
 
@@ -203,7 +186,6 @@ class SeparateEncoderPremiseSelection:
         #     local_path=self.exp_config['checkpoint_dir'],
         #     name='Checkpoints'
         # )
-
 
         # logger.experiment.log_artifact(artifact)
         # ckpt = torch.load("/home/sean/Documents/phd/repo/aitp/test_project/yqiw2dgr/checkpoints/epoch=6-step=368646.ckpt")
