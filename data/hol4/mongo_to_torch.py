@@ -1,14 +1,93 @@
-import torch_geometric.loader.dataloader
-from tqdm import tqdm
-from torch_geometric.data import Batch
-from models.positional_encodings import get_magnetic_Laplacian
-from pymongo import MongoClient
-from torch_geometric.data import Data
-from torch.utils.data import DataLoader
-from collections import namedtuple
-import torch
 import os
+
+import torch
+import torch_geometric.loader.dataloader
 from lightning.pytorch import LightningDataModule
+from pymongo import MongoClient
+from torch.utils.data import DataLoader
+from torch_geometric.data import Batch
+from torch_geometric.data import Data
+from tqdm import tqdm
+
+
+def get_directed_edge_index(num_nodes, edge_idx):
+    if num_nodes == 1:
+        return torch.LongTensor([[], []])
+
+    from_idx = []
+    to_idx = []
+
+    for i in range(0, num_nodes):
+        # to_idx = [i]
+        try:
+            ancestor_nodes, _, self_idx, _ = torch_geometric.utils.k_hop_subgraph(i, num_hops=num_nodes,
+                                                                                  edge_index=edge_idx)
+            # print (f"ancestor nodes for {i}: {ancestor_nodes}")
+        except:
+            print(f"exception {i, num_nodes, edge_idx}")
+
+        # ancestor_nodes = ancestor_nodes.item()
+        found_nodes = list(ancestor_nodes.numpy())
+        if i in found_nodes:
+            found_nodes.remove(i)
+
+        if found_nodes is not None:
+            for node in found_nodes:
+                to_idx.append(i)
+                from_idx.append(node)
+
+        children_nodes, _, self_idx, _ = torch_geometric.utils.k_hop_subgraph(i, num_hops=num_nodes,
+                                                                              edge_index=edge_idx,
+                                                                              flow='target_to_source')
+
+        found_nodes = list(children_nodes.numpy())
+        if i in found_nodes:
+            found_nodes.remove(i)
+
+        if found_nodes is not None:
+            for node in found_nodes:
+                to_idx.append(i)
+                from_idx.append(node)
+
+    return torch.tensor([from_idx, to_idx], dtype=torch.long)
+
+
+# probably slow, could recursively do k-hop subgraph with k = 1 instead
+def get_depth_from_graph(num_nodes, edge_index):
+    from_idx = edge_index[0]
+    to_idx = edge_index[1]
+
+    # find source node
+    all_nodes = torch.arange(num_nodes)
+    source_node = [x for x in all_nodes if x not in to_idx]
+
+    assert len(source_node) == 1
+
+    source_node = source_node[0]
+
+    depths = torch.zeros(num_nodes, dtype=torch.long)
+
+    prev_depth_nodes = [source_node]
+
+    for i in range(1, num_nodes):
+        all_i_depth_nodes, _, _, _ = torch_geometric.utils.k_hop_subgraph(source_node.item(), num_hops=i,
+                                                                          edge_index=edge_index,
+                                                                          flow='target_to_source')
+        i_depth_nodes = [j for j in all_i_depth_nodes if j not in prev_depth_nodes]
+
+        for node_idx in i_depth_nodes:
+            depths[node_idx] = i
+
+        prev_depth_nodes = all_i_depth_nodes
+
+    return depths
+
+
+class DirectedData(Data):
+    def __inc__(self, key, value, *args, **kwargs):
+        if key == 'attention_edge_index':
+            return self.num_nodes
+        return super().__inc__(key, value, *args, **kwargs)
 
 
 def ptr_to_complete_edge_index(ptr):
@@ -17,6 +96,12 @@ def ptr_to_complete_edge_index(ptr):
     to_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
     combined_complete_edge_index = torch.vstack((torch.cat(from_lists, dim=0), torch.cat(to_lists, dim=0)))
     return combined_complete_edge_index
+
+
+'''
+Relation Attention Data Module
+'''
+
 
 class HOL4DataModule(LightningDataModule):
     def __init__(self, dir, batch_size=32):
@@ -127,6 +212,13 @@ class HOL4DataModule(LightningDataModule):
         return DataLoader(self.test_data, batch_size=self.batch_size, collate_fn=self.collate_pad)
 
 
+'''
+
+Data Module for Graph based Models (Currently GNNs and Structure Aware Attention)
+
+'''
+
+
 class HOL4DataModuleGraph(LightningDataModule):
     def __init__(self, dir, batch_size=32):
         super().__init__()
@@ -149,62 +241,111 @@ class HOL4DataModuleGraph(LightningDataModule):
             expr_dict = {v['_id']: (v['theory'], v['name'], v['dep_id'], v['type'], v['plain_expression']) for v in
                          meta.find({})}
 
-            train_data = [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']], v['y'])) for v in tqdm(split.find({}))
-                          if
-                          v['split'] == 'train']
-            val_data = [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']], v['y'])) for v in split.find({}) if
-                        v['split'] == 'valid']
-            test_data = [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']], v['y'])) for v in split.find({})
+            # train_data = [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']], v['y'])) for v in
+            #               tqdm(split.find({}))
+            #               if
+            #               v['split'] == 'train']
+            # val_data = [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']], v['y'])) for v in split.find({}) if
+            #             v['split'] == 'valid']
+            # test_data = [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']], v['y'])) for v in split.find({})
+            #              if v['split'] == 'test']
+            #
+
+            train_data = [(v['conj'], v['stmt'], v['y']) for v in tqdm(split.find({}))
+                          if v['split'] == 'train']
+
+            val_data = [(v['conj'], v['stmt'], v['y']) for v in tqdm(split.find({}))
+                        if v['split'] == 'valid']
+
+            test_data = [(v['conj'], v['stmt'], v['y']) for v in tqdm(split.find({}))
                          if v['split'] == 'test']
+
+            # add attention edge index
+            print("Adding attention edge index")
+            for k, v in tqdm(graph_dict.items()):
+                v['attention_edge_index'] = get_directed_edge_index(len(v['onehot']), torch.LongTensor(v['edge_index']))
+                v['depth'] = get_depth_from_graph(len(v['onehot']), torch.LongTensor(v['edge_index']))
+                graph_dict[k] = v
 
             data = {'graph_dict': graph_dict, 'expr_dict': expr_dict, 'train_data': train_data, 'val_data': val_data,
                     'test_data': test_data}
+
             torch.save(data, self.dir + "/data.pt")
 
-    def to_graph(self, data):
-        data_1, data_2, y = data
-
-        x = torch.LongTensor(data_1['onehot'])
-        edge_index = torch.LongTensor(data_1['edge_index'])
-        edge_attr = torch.LongTensor(data_1['edge_attr'])
-
-        try:
-            eig_vals, (eig_real, eig_imag) = get_magnetic_Laplacian(edge_index)
-        except:
-            eig_vals = torch.zeros(25)
-            eig_real = eig_imag = torch.zeros((x.shape[0], 25))
-
-        data_1 = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, eig_vals=eig_vals, eig_real=eig_real, eig_imag=eig_imag)
-
-        x = torch.LongTensor(data_2['onehot'])
-        edge_index = torch.LongTensor(data_2['edge_index'])
-        edge_attr = torch.LongTensor(data_2['edge_attr'])
-
-        try:
-            eig_vals, (eig_real, eig_imag) = get_magnetic_Laplacian(edge_index)
-        except:
-            eig_vals = torch.zeros(25)
-            eig_real = eig_imag = torch.zeros((x.shape[0], 25))
-
-        data_2 = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, eig_vals=eig_vals, eig_real=eig_real,
-                      eig_imag=eig_imag)
-
-        return data_1, data_2, y
-
+    # def to_graph(self, data):
+    #     data_1, data_2, y = data
+    #
+    #     x = torch.LongTensor(data_1['onehot'])
+    #     edge_index = torch.LongTensor(data_1['edge_index'])
+    #     edge_attr = torch.LongTensor(data_1['edge_attr'])
+    #
+    #     try:
+    #         eig_vals, (eig_real, eig_imag) = get_magnetic_Laplacian(edge_index)
+    #     except:
+    #         eig_vals = torch.zeros(25)
+    #         eig_real = eig_imag = torch.zeros((x.shape[0], 25))
+    #
+    #     data_1 = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, eig_vals=eig_vals, eig_real=eig_real,
+    #                   eig_imag=eig_imag)
+    #
+    #     x = torch.LongTensor(data_2['onehot'])
+    #     edge_index = torch.LongTensor(data_2['edge_index'])
+    #     edge_attr = torch.LongTensor(data_2['edge_attr'])
+    #
+    #     try:
+    #         eig_vals, (eig_real, eig_imag) = get_magnetic_Laplacian(edge_index)
+    #     except:
+    #         eig_vals = torch.zeros(25)
+    #         eig_real = eig_imag = torch.zeros((x.shape[0], 25))
+    #
+    #     data_2 = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, eig_vals=eig_vals, eig_real=eig_real,
+    #                   eig_imag=eig_imag)
+    #
+    #     return data_1, data_2, y
+    #
     def setup(self, stage: str) -> None:
         print("Setting up data loaders..")
         self.data = torch.load(self.dir + "/data.pt")
+        self.graph_dict = self.data['graph_dict']
         if stage == "fit":
             self.train_data = self.data['train_data']
             self.val_data = self.data['val_data']
         if stage == "test":
             self.test_data = self.data['test_data']
 
+    def attention_collate(self, batch):
+        y = torch.LongTensor([b[2] for b in batch])
+        data_1 = [b[0] for b in batch]
+        data_2 = [b[1] for b in batch]
+
+        data_1 = Batch.from_data_list([DirectedData(x=torch.LongTensor(self.graph_dict[d]['onehot']),
+                                                    edge_index=torch.LongTensor(self.graph_dict[d]['edge_index']),
+                                                    edge_attr=torch.LongTensor(self.graph_dict[d]['edge_attr']),
+                                                    attention_edge_index=torch.LongTensor(
+                                                        self.graph_dict[d]['attention_edge_index']),
+                                                    abs_pe=torch.LongTensor(self.graph_dict[d]['depth']))
+                                       for d in data_1])
+
+        data_2 = Batch.from_data_list([DirectedData(x=torch.LongTensor(self.graph_dict[d]['onehot']),
+                                                    edge_index=torch.LongTensor(self.graph_dict[d]['edge_index']),
+                                                    edge_attr=torch.LongTensor(self.graph_dict[d]['edge_attr']),
+                                                    attention_edge_index=torch.LongTensor(
+                                                        self.graph_dict[d]['attention_edge_index']),
+                                                    abs_pe=torch.LongTensor(self.graph_dict[d]['depth']))
+                                       for d in data_2])
+
+        return data_1, data_2, y
+
     def train_dataloader(self):
-        return torch_geometric.loader.dataloader.DataLoader(self.train_data, batch_size=self.batch_size)
+        # return torch_geometric.loader.dataloader.DataLoader(self.train_data, batch_size=self.batch_size)
+
+        return torch.utils.data.dataloader.DataLoader(self.train_data, batch_size=self.batch_size,
+                                                      collate_fn=self.attention_collate)
 
     def val_dataloader(self):
-        return torch_geometric.loader.dataloader.DataLoader(self.val_data, batch_size=self.batch_size)
+        # return torch_geometric.loader.dataloader.DataLoader(self.val_data, batch_size=self.batch_size)
+        return torch.utils.data.dataloader.DataLoader(self.val_data, batch_size=self.batch_size,
+                                                      collate_fn=self.attention_collate)
 
     def test_dataloader(self):
         return torch_geometric.loader.dataloader.DataLoader(self.test_data, batch_size=self.batch_size)
@@ -212,17 +353,24 @@ class HOL4DataModuleGraph(LightningDataModule):
     def transfer_batch_to_device(self, batch, device: torch.device, dataloader_idx: int):
         data_1, data_2, y = batch
 
-        data_1.attention_edge_index = ptr_to_complete_edge_index(data_1.ptr)
-        data_2.attention_edge_index = ptr_to_complete_edge_index(data_2.ptr)
+        # unmasked (full n^2) attention edge index for undirected SAT models
+        # data_1.attention_edge_index = ptr_to_complete_edge_index(data_1.ptr)
+        # data_2.attention_edge_index = ptr_to_complete_edge_index(data_2.ptr)
 
         data_1 = data_1.to(device)
         data_2 = data_2.to(device)
         y = y.to(device)
 
-
         return data_1, data_2, y
 
-# Sequence data class with all tokens (including e.g @ symbols) and keeping position
+
+'''
+
+ Sequence data class with all tokens (including e.g @ symbols) and keeping position
+ 
+'''
+
+
 class HOL4SequenceModule(LightningDataModule):
     def __init__(self, dir, batch_size=32):
         super().__init__()

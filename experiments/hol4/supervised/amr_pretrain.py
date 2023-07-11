@@ -1,42 +1,44 @@
 from global_config import GLOBAL_PATH
-# import optuna
-import cProfile
 from data.utils.pretrain import SeparateEncoderPremiseSelection
+
+# MIZAR vocab
+VOCAB_SIZE = 13420
 
 # HOL4 vocab
 # VOCAB_SIZE = 1004
 
 # HOLStep vocab
-VOCAB_SIZE = 1909 + 4
+# VOCAB_SIZE = 1909 + 4
 
 # HOL4 transformer
 # VOCAB_SIZE = 1300
 
 gcn_config = {
-   'model_type': 'di_gcn',
+    'model_type': 'di_gcn',
     'vocab_size': VOCAB_SIZE,
-   'embedding_dim': 256,
-   'gnn_layers': 3
+    'embedding_dim': 256,
+    'gnn_layers': 3
 }
 
 sat_config = {
     "model_type": "sat",
+    "global_pool": "mean",
     # 'gnn_type': 'di_gcn',
-    "num_edge_features":  200,
+    "num_edge_features": 20,
     "vocab_size": VOCAB_SIZE,
-    "embedding_dim": 256,
+    "embedding_dim": 128,
     "dim_feedforward": 256,
-    "num_heads": 4,
+    "num_heads": 2,
     "num_layers": 2,
     "in_embed": True,
     "se": "formula-net",
+    # "se": "pna",
     "abs_pe": False,
     "abs_pe_dim": 256,
     "use_edge_attr": True,
     "dropout": 0.,
-    "gnn_layers": 3,
-    "directed_attention": False,
-    'small_inner': True
+    "gnn_layers": 2,
+    # 'small_inner': True,
 }
 
 transformer_config = {
@@ -80,7 +82,7 @@ amr_config = {
 exp_config = {
     "experiment": "premise_selection",
     "learning_rate": 1e-4,
-    "epochs": 20,
+    "epochs": 30,
     "weight_decay": 1e-6,
     "batch_size": 32,
     "model_save": False,
@@ -96,9 +98,9 @@ exp_config = {
 formula_net_config = {
     "model_type": "formula-net-edges",
     "vocab_size": VOCAB_SIZE,
-    "embedding_dim": 256,
-    "gnn_layers": 3,
-    "batch_norm": False
+    "embedding_dim": 128,
+    "gnn_layers": 2,
+    "batch_norm": True
 }
 
 digae_config = {
@@ -107,6 +109,21 @@ digae_config = {
     "embedding_dim": 256
 }
 
+gnn_transformer_config = {
+    "batch_norm": True,
+    "model_type": "gnn_transformer",
+    "global_pool": "mean",
+    "num_edges": 20,
+    "edge_dim": 32,
+    "vocab_size": VOCAB_SIZE,
+    "embedding_dim": 128,
+    "dim_feedforward": 256,
+    "num_heads": 4,
+    "num_layers": 4,
+    "abs_pe": True,
+    "dropout": 0.,
+    "gnn_layers": 2,
+}
 
 h5_data_config = {"source": "h5", "data_dir": GLOBAL_PATH + "data/utils/holstep_full"}
 # h5_data_config = {"source": "h5", "data_dir": "/home/sean/Documents/phd/aitp/data/utils/processed_data"}
@@ -114,8 +131,10 @@ h5_data_config = {"source": "h5", "data_dir": GLOBAL_PATH + "data/utils/holstep_
 # hol4 for relations
 hol4_data_config = {"source": "hol4", "data_dir": GLOBAL_PATH + "data/hol4/torch_data"}
 # hol4_graph_data_config = {"source": "hol4_graph", "data_dir": "/home/sean/Documents/phd/aitp/data/hol4/graph_torch_data"}
-hol4_graph_data_config = {"source": "hol4_graph", "data_dir": GLOBAL_PATH + "data/hol4/graph_torch_data"}
+hol4_graph_data_config = {"source": "hol4_graph", "data_dir": GLOBAL_PATH + "data/hol4/graph_attention_data_new"}
 hol4_sequence_data_config = {"source": "hol4_sequence", "data_dir": GLOBAL_PATH + "data/hol4/sequence_torch_data"}
+
+mizar_data_config = {"source": "mizar", "data_dir": GLOBAL_PATH + 'data/mizar'}
 
 relation_att_exp = SeparateEncoderPremiseSelection(config={"model_config": relation_config,
                                                            "exp_config": exp_config,
@@ -123,7 +142,6 @@ relation_att_exp = SeparateEncoderPremiseSelection(config={"model_config": relat
                                                            "project": "test_project",
                                                            "notes": "",
                                                            "name": "relation inner small"})
-
 
 # todo with original sequence for positional encoding
 transformer_experiment = SeparateEncoderPremiseSelection(config={"model_config": transformer_config,
@@ -134,11 +152,11 @@ transformer_experiment = SeparateEncoderPremiseSelection(config={"model_config":
                                                                  "name": "Transformer Small Inner + Max Pool"})
 
 sat_exp = SeparateEncoderPremiseSelection(config={"model_config": sat_config,
-                                                           "exp_config": exp_config,
-                                                           "data_config": h5_data_config,
-                                                           "project": "test_project",
-                                                          "notes": "",
-                                                          "name": "SAT Test"})
+                                                  "exp_config": exp_config,
+                                                  "data_config": mizar_data_config,
+                                                  "project": "mizar_40_premise_selection",
+                                                  "notes": "",
+                                                  "name": "SAT Directed attention 2,2"})
 
 gcn_exp = SeparateEncoderPremiseSelection(config={"model_config": gcn_config,
                                                   "exp_config": exp_config,
@@ -147,47 +165,52 @@ gcn_exp = SeparateEncoderPremiseSelection(config={"model_config": gcn_config,
                                                   "notes": "",
                                                   "name": "DiGCN"})
 
-
 formula_net_exp = SeparateEncoderPremiseSelection(config={"model_config": formula_net_config,
-                                                           "exp_config": exp_config,
-                                                           "data_config": hol4_graph_data_config,
-                                                           "project": "hol4_premise_selection",
+                                                          "exp_config": exp_config,
+                                                          "data_config": mizar_data_config,
+                                                          "project": "mizar_40_premise_selection",
                                                           "notes": "",
                                                           "name": "FormulaNet"})
 
 digae_exp = SeparateEncoderPremiseSelection(config={"model_config": digae_config,
-                                                          "exp_config": exp_config,
-                                                          "data_config": h5_data_config,
-                                                          "project": "test_project",
-                                                            "notes": "",
-                                                          "name": "digae_large"})
+                                                    "exp_config": exp_config,
+                                                    "data_config": h5_data_config,
+                                                    "project": "test_project",
+                                                    "notes": "",
+                                                    "name": "digae_large"})
 
 amr_exp = SeparateEncoderPremiseSelection(config={"model_config": amr_config,
-                                                           "exp_config": exp_config,
-                                                           "data_config": h5_data_config,
-                                                           "project": "test_project",
-                                                           "name": "amr"})
+                                                  "exp_config": exp_config,
+                                                  "data_config": h5_data_config,
+                                                  "project": "test_project",
+                                                  "name": "amr"})
+
+gnn_transformer_exp = SeparateEncoderPremiseSelection(config={"model_config": gnn_transformer_config,
+                                                              "exp_config": exp_config,
+                                                              "data_config": mizar_data_config,
+                                                              "notes": "",
+                                                              "project": "mizar_40_premise_selection",
+                                                              "name": "GNN + Transformer Readout"})
 
 # import cProfile
 
 # cProfile.run('sat_exp.run_lightning()', sort = 'cumtime')
 
 
+gnn_transformer_exp.run_lightning()
+
 # gcn_exp.run_lightning()
 # amr_exp.run_lightning()
-sat_exp.run_lightning()
-# relation_att_exp.run_lightning()
 # formula_net_exp.run_lightning()
+# sat_exp.run_lightning()
+# relation_att_exp.run_lightning()
 # transformer_experiment.run_lightning()
 # digae_exp.run_lightning()
-
-
 
 
 # study =  optuna.create_study(direction='maximize')
 # study.optimize(relation_att_exp.objective, n_trials=2,timeout=100)
 # study.optimize(relation_att_exp.objective,timeout=100)
-
 
 
 # cProfile.run('transformer_experiment.run_dual_encoders()', sort ='cumtime')

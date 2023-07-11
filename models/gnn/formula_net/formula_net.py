@@ -226,7 +226,7 @@ class FormulaNetEdges(nn.Module):
         if in_encoder is not None:
             self.initial_encoder = in_encoder
         else:
-            self.initial_encoder = torch.nn.Embedding(input_shape, embedding_dim)
+            self.initial_encoder = nn.Embedding(input_shape, embedding_dim)
 
         # assume max 200 children
         self.edge_encoder = nn.Embedding(max_edges, edge_dim)
@@ -318,7 +318,7 @@ class message_passing_gnn_induct(nn.Module):
         return nodes
 
 class FormulaNetSAT(nn.Module):
-    def __init__(self, embedding_dim, num_iterations, batch_norm=False):
+    def __init__(self, embedding_dim, num_iterations, batch_norm=True):
         super(FormulaNetSAT, self).__init__()
         self.num_iterations = num_iterations
 

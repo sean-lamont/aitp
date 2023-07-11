@@ -50,7 +50,8 @@ class Attention(gnn.MessagePassing):
             self.structure_extractor = DigaeSE(embed_dim, 64, embed_dim // 2)
 
         elif self.se == "formula-net":
-            self.structure_extractor = FormulaNetSAT(embedding_dim=embed_dim, num_iterations=k_hop)
+            self.structure_extractor = FormulaNetSAT(embedding_dim=embed_dim, num_iterations=k_hop, batch_norm=True)
+            # self.structure_extractor = FormulaNetSAT(embedding_dim=embed_dim, num_iterations=k_hop)
 
         else:
             self.structure_extractor = StructureExtractor(embed_dim, gnn_type=gnn_type,
@@ -157,8 +158,10 @@ class Attention(gnn.MessagePassing):
         return self.out_proj(out), attn
 
     def message(self, v_j, qk_j, qk_i, edge_attr, index, ptr, size_i, return_attn):
-        """Self-attention operation compute the dot-product attention """
 
+        # print (v_j.shape, qk_j.shape, qk_i.shape, index[:20], index.shape, ptr, size_i)
+
+        """Self-attention operation compute the dot-product attention """
         qk_i = rearrange(qk_i, 'n (h d) -> n h d', h=self.num_heads)
         qk_j = rearrange(qk_j, 'n (h d) -> n h d', h=self.num_heads)
         v_j = rearrange(v_j, 'n (h d) -> n h d', h=self.num_heads)
@@ -390,7 +393,9 @@ class TransformerEncoderLayer(nn.TransformerEncoderLayer):
 
         if degree is not None:
             x2 = degree.unsqueeze(-1) * x2
+
         x = x + self.dropout1(x2)
+
         if self.pre_norm:
             x = self.norm2(x)
         else:
