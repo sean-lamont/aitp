@@ -198,7 +198,7 @@ class ParentAggregationEdges(MessagePassing):
         return self.mlp(tmp)
 
     def forward(self, x, edge_index, edge_attr):
-        deg = degree(edge_index[0], x.size(0), dtype=x.dtype)
+        deg = degree(edge_index[1], x.size(0), dtype=x.dtype)
         deg_inv = 1. / deg
         deg_inv[deg_inv == float('inf')] = 0
         return deg_inv.view(-1, 1) * self.propagate(edge_index, x=x, edge_attr=edge_attr)

@@ -153,37 +153,24 @@ class RLExperiment:
         if resume and os.path.exists(save_dir + "last.ckpt"):
             print ("Resuming experiment from last checkpoint..")
             ckpt_dir = save_dir + "last.ckpt"
-            # if self.config['exp_type'] != 'sat':
-
-            state_dict = fix_sat_load(torch.load(ckpt_dir)['state_dict'], experiment)
+            state_dict = load_state(torch.load(ckpt_dir)['state_dict'], experiment)
             ckpt = torch.load(ckpt_dir)
             new_dict = {k:v for k,v in ckpt.items() if k != 'state_dict'}
             new_dict['state_dict'] = state_dict
             torch.save(new_dict, ckpt_dir)
 
             experiment.load_state_dict(state_dict)
-            # else:
-            #     state_dict = fix_sat_load(torch.load(ckpt_dir)['state_dict'])
-            #     experiment.load_state_dict(state_dict)
-
             trainer.fit(experiment, module, ckpt_path=ckpt_dir)
         else:
             trainer.fit(experiment, module)
-            # trainer.validate(experiment, module)
 
 
 # todo(sean) hack for now: remove complete_edge_index only if loading from pretrained model, as it's only instantiated after a forward pass
-def fix_sat_load(state_dict, experiment):
+def load_state(state_dict, experiment):
     own_dict = experiment.state_dict()
     ret_dict = {}
     for k,v in state_dict.items():
         if k not in own_dict:
             continue
         ret_dict[k] = v
-
-    # print ("own not in state")
-    # print ([k for k in own_dict.keys() if k not in state_dict])
-    # print ("state not in own")
-    # print ([k for k in state_dict.keys() if k not in own_dict])
-    # print ([k for k in ret_dict if k not in own_dict])
     return ret_dict

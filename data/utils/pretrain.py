@@ -99,13 +99,7 @@ def get_experiment(exp_config, model_config):
                                 BinaryClassifier(model_config['embedding_dim'] * 2),
                                 lr=exp_config['learning_rate'],
                                 batch_size=exp_config['batch_size'])
-    else:
-        raise NotImplementedError
 
-    # todo combine into one experiment class, which generates experiment and data from config i.e. get_exp, get_data
-
-
-# todo MongoDB
 def get_data(data_config):
     if data_config['source'] == 'h5':
         return H5DataModule(config=data_config)
@@ -119,7 +113,6 @@ def get_data(data_config):
         return MizarDataModule(dir=data_config['data_dir'])
     else:
         raise NotImplementedError
-
 
 
 '''
@@ -158,13 +151,12 @@ class SeparateEncoderPremiseSelection:
                                               save_weights_only=True,
                                               dirpath=self.exp_config['checkpoint_dir'])
 
-
         callbacks.append(checkpoint_callback)
 
         trainer = pl.Trainer(
             max_epochs=self.exp_config['epochs'],
             val_check_interval=self.exp_config['val_frequency'],
-            limit_val_batches=self.exp_config['val_size'] // self.exp_config['batch_size'],
+            # limit_val_batches=self.exp_config['val_size'] // self.exp_config['batch_size'],
             logger=logger,
             enable_progress_bar=True,
             log_every_n_steps=500,

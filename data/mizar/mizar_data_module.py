@@ -1,12 +1,11 @@
-import os
-from tqdm import tqdm
-from pymongo import MongoClient
-from models import get_model
-from torch_geometric.data import Data
-from torch_geometric.data import Batch
-import torch
 import pickle
+from torch.utils.data.dataloader import DataLoader
+import torch
 from lightning.pytorch import LightningDataModule
+from pymongo import MongoClient
+from torch_geometric.data import Batch
+from torch_geometric.data import Data
+from tqdm import tqdm
 
 
 def ptr_to_complete_edge_index(ptr):
@@ -48,33 +47,12 @@ class MizarDataModule(LightningDataModule):
 
         with open(self.dir + '/mizar_data.pk', 'rb') as f:
             self.vocab = pickle.load(f)['vocab']
-        # self.graph_dict = self.data['expr_dict']
-        # self.vocab = self.data['vocab']
 
         self.graph_dict = {v["_id"]:
             v["graph"]
             for v in tqdm(col.find({}))
         }
-        #
-        # self.graph_dict = {v["_id"]:
-        #     {
-        #         'tokens': v["graph"]['tokens'],
-        #         'edge_index': v["graph"]['edge_index'],
-        #         'edge_attr': v["graph"]['edge_attr'],
-        #         'attention_edge_index': v["graph"]['attention_edge_index'],
-        #         'depth': v["graph"]['depth']}
-        #
-        #     for v in tqdm(col.find({}))
-        # }
-        #
 
-        # if stage == "fit":
-        #     self.train_data = self.data['mizar_labels'][:int(0.8 * len(self.data['mizar_labels']))]
-        #     self.val_data = self.data['mizar_labels'][
-        #                     int(0.8 * len(self.data['mizar_labels'])):int(0.9 * len(self.data['mizar_labels']))]
-        # if stage == "test":
-        #     self.test_data = self.data['mizar_labels'][int(0.9 * len(self.data['mizar_labels'])):]
-        #
         if stage == "fit":
             self.train_data = self.data['train_data']
             self.val_data = self.data['val_data']
@@ -111,16 +89,16 @@ class MizarDataModule(LightningDataModule):
         return data_1, data_2, y
 
     def train_dataloader(self):
-        return torch.utils.data.dataloader.DataLoader(self.train_data, batch_size=self.batch_size,
-                                                      collate_fn=self.attention_collate)
+        return DataLoader(self.train_data, batch_size=self.batch_size,
+                                                      collate_fn=self.attention_collate, shuffle=True)
 
     def val_dataloader(self):
-        return torch.utils.data.dataloader.DataLoader(self.val_data, batch_size=self.batch_size,
-                                                      collate_fn=self.attention_collate)
+        return DataLoader(self.val_data, batch_size=self.batch_size,
+                                                      collate_fn=self.attention_collate, shuffle=True)
 
     def test_dataloader(self):
-        return torch.utils.data.dataloader.DataLoader(self.test_data, batch_size=self.batch_size,
-                                                      collate_fn=self.attention_collate())
+        return DataLoader(self.test_data, batch_size=self.batch_size,
+                                                      collate_fn=self.attention_collate)
 
     def transfer_batch_to_device(self, batch, device: torch.device, dataloader_idx: int):
         data_1, data_2, y = batch
@@ -130,35 +108,3 @@ class MizarDataModule(LightningDataModule):
         y = y.to(device)
 
         return data_1, data_2, y
-
-if __name__ == '__main__':
-    module = MizarDataModule('/home/sean/Documents/phd/repo/aitp/data/mizar')
-    module.setup('fit')
-    # graph = next(iter(module.train_dataloader()))[0]
-
-#
-#     sat_config = {
-#         "model_type": "sat",
-#         # 'gnn_type': 'di_gcn',
-#         "num_edge_features": 200,
-#         "vocab_size": 13420,
-#         "embedding_dim": 256,
-#         "dim_feedforward": 256,
-#         "num_heads": 2,
-#         "num_layers": 2,
-#         "in_embed": True,
-#         "se": "formula-net",
-#         # "se": "pna",
-#         "abs_pe": False,
-#         "abs_pe_dim": 128,
-#         "use_edge_attr": True,
-#         "dropout": 0.,
-#         "gnn_layers": 3,
-#         'small_inner': True,
-#
-# }
-#
-#
-#     model = get_model.get_model(sat_config)
-#     model(graph)
-#

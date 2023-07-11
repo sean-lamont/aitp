@@ -393,7 +393,6 @@ def graph_to_dict(g):
     for node in node_list:
         if node.node.value[0] == 'b':
             if node.children != []:
-                print ('varfunc')
                 node.node.value = "VARFUNC"
             else:
                 node.node.value = "VAR"

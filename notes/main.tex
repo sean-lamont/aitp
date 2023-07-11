@@ -15,6 +15,7 @@
 
     \maketitle
 
+
     \section{Overview}\label{sec:overview}
     This research focuses on the automation of Interactive Theorem Proving (ITP) systems through Artificial Intelligence and Machine Learning.
     ITP systems are central to modern formal verification efforts as they allow for more complex proofs than traditional Automated Theorem Proving (ATP) approaches\cite{nawaz_survey_2019, harrison_history_2014}.
@@ -25,7 +26,6 @@
     As a result, progress in the automation of this proof guidance could improve the scalability of formal verification approaches.  \\
 
 
-
 %There is an important distinction to be made between the automation of ITP (which we call "AITP"), and what has historically been referred to as "Automated Theorem Proving" (which we refer to as "ATP").
 
 
@@ -33,7 +33,6 @@
     The application of AI and Machine Learning methods to Mathematical Reasoning is an emerging research area.
     There are different paradigms within this, and\cite{lu_survey_nodate} presents a comprehensive overview with a summary of progress to date.
     The scope of this project, at present, is on the application of AI/ML methods to Interactive Theorem Proving (ITP). \\
-
 
     \subsection{Interactive Theorem Proving}\label{subsec:interactive-theorem-proving}
     Interactive Theorem Proving (ITP) is a method of formal verification where a human guides a proof system at a high level.
@@ -65,8 +64,8 @@
         \item Provably correct hardware design\cite{gupta_formal_1992,kern_formal_2002}
     \end{itemize}
 
-
     \subsection{Current results in Automating ITP}\label{subsec:current-results-in-automating-itp}
+
     \subsubsection{Datasets and benchmarks}
     Progress in the area of ITP automation has been measured with benchmarks spanning several ITP frameworks.
     These benchmarks either measure direct proof performance through an ITP interface, or use datasets constructed from ITP proof traces.
@@ -86,7 +85,6 @@
         \item IsarStep~\cite{li_isarstep_2020}
         \item GamePad~\cite{huang_gamepad_2018}
     \end{itemize}
-
 
     \subsubsection{Approaches}
 
@@ -125,14 +123,43 @@
 %    Given the number of ITPs available, like for like comparison between approaches is difficult.
 %
 
+
     \section{Proposed Research}\label{sec:proposed-research}
 
     \subsection{Comparison of Embedding Architectures}\label{subsec:comparison-of-embedding-architectures}
+
     \subsection{Improving Proof Guidance}\label{subsec:proof-guidance}
+
     \subsection{Open Source Experimentation Framework}\label{subsec:open-source-experimentation-framework}
-         modular and extensible central benchmark and experimentation platform.
+    \begin{itemize}
+        \item AITP large field. Subproblem automated ITP.
+        \item many separate benchmarks across different ITPs.
+        \item many separate models and approaches.
+        \item Some approaches not openly available
+        \item Want to be able to compare approaches easily between different ITP domains
+        \begin{itemize}
+            \item Goal selection approaches (fringes, BFS, DFS, MCTS),
+            \item Embedding approach (Pre-trained + fine tuned LLM, GNN, Tree LSTM, DAG LSTM, Autoencoder)
+            \item tactic selection (Decoder LLM, LSTM, MLP)
+            \item tasks/ training approach ((end to end RL, supervised learning (premise selection, tactic prediction)))
+        \end{itemize}
+        \item We present a unified framework for experimentation in automating ITP. Includes
+        \begin{itemize}
+            \item Modular separation of data, experiments, models and environments.
+            \item Framework uses wandb and pytorch lightning.
+            Allows for easy reproducibility and general logging, checkpointing and data loading capability.
+            \item HOL4 Reinforcement Learning environment, TacticZero algorithm (original, and extended for End-to-End embeddings, no current code available)
+            \item HOL4 Premise selection task (novel)
+            \item HOLStep Premise Selection task
+            \item HOList Environment (Deepmath-light, easy to run, language agnostic)
+            \item MIZAR 40 Premise Selection Task (no previous implementation)
+        \end{itemize}
+        \item Using this, we present a comparison of embedding architectures across these and show..
+        \item modular and extensible central benchmark and experimentation platform.
+    \end{itemize}
+
     \subsection{Extension to large scale verification projects}\label{subsec:extension-to-large-scale-verification-projects}
-        Most work only on formalising pure maths, remains to be seen how it does on a larger project.
+    Most work only on formalising pure maths, remains to be seen how it does on a larger project.
 
 
     \section{Progress and Timeline}\label{sec:progress-and-timeline}
@@ -152,8 +179,10 @@
             \item HOL4 Reinforcement Learning environment, TacticZero algorithm (original, and extended for End-to-End embeddings)
             \item HOL4 Premise selection task
             \item HOLStep Premise Selection task
+            \item HOList Environment
+            \item MIZAR 40 Premise Selection Task
         \end{itemize}
-        \item Currently refactoring HOList benchmark to be easier to run, with PyTorch integration, and not need Google Dependencies.
+        \item Refactored HOList benchmark to be easier to run, with PyTorch integration, and not need Google Dependencies.
     \end{itemize}
 
 
