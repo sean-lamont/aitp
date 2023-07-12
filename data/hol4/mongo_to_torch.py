@@ -1,5 +1,5 @@
 import os
-
+from torch_geometric.transforms import AddRandomWalkPE
 import torch
 import torch_geometric.loader.dataloader
 from lightning.pytorch import LightningDataModule
@@ -10,6 +10,7 @@ from torch_geometric.data import Data
 from tqdm import tqdm
 
 
+
 def get_directed_edge_index(num_nodes, edge_idx):
     if num_nodes == 1:
         return torch.LongTensor([[], []])
@@ -18,15 +19,12 @@ def get_directed_edge_index(num_nodes, edge_idx):
     to_idx = []
 
     for i in range(0, num_nodes):
-        # to_idx = [i]
         try:
             ancestor_nodes, _, self_idx, _ = torch_geometric.utils.k_hop_subgraph(i, num_hops=num_nodes,
                                                                                   edge_index=edge_idx)
-            # print (f"ancestor nodes for {i}: {ancestor_nodes}")
         except:
             print(f"exception {i, num_nodes, edge_idx}")
 
-        # ancestor_nodes = ancestor_nodes.item()
         found_nodes = list(ancestor_nodes.numpy())
         if i in found_nodes:
             found_nodes.remove(i)
@@ -54,7 +52,6 @@ def get_directed_edge_index(num_nodes, edge_idx):
 
 # probably slow, could recursively do k-hop subgraph with k = 1 instead
 def get_depth_from_graph(num_nodes, edge_index):
-    from_idx = edge_index[0]
     to_idx = edge_index[1]
 
     # find source node
@@ -241,16 +238,6 @@ class HOL4DataModuleGraph(LightningDataModule):
             expr_dict = {v['_id']: (v['theory'], v['name'], v['dep_id'], v['type'], v['plain_expression']) for v in
                          meta.find({})}
 
-            # train_data = [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']], v['y'])) for v in
-            #               tqdm(split.find({}))
-            #               if
-            #               v['split'] == 'train']
-            # val_data = [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']], v['y'])) for v in split.find({}) if
-            #             v['split'] == 'valid']
-            # test_data = [self.to_graph((graph_dict[v['conj']], graph_dict[v['stmt']], v['y'])) for v in split.find({})
-            #              if v['split'] == 'test']
-            #
-
             train_data = [(v['conj'], v['stmt'], v['y']) for v in tqdm(split.find({}))
                           if v['split'] == 'train']
 
@@ -272,37 +259,7 @@ class HOL4DataModuleGraph(LightningDataModule):
 
             torch.save(data, self.dir + "/data.pt")
 
-    # def to_graph(self, data):
-    #     data_1, data_2, y = data
-    #
-    #     x = torch.LongTensor(data_1['onehot'])
-    #     edge_index = torch.LongTensor(data_1['edge_index'])
-    #     edge_attr = torch.LongTensor(data_1['edge_attr'])
-    #
-    #     try:
-    #         eig_vals, (eig_real, eig_imag) = get_magnetic_Laplacian(edge_index)
-    #     except:
-    #         eig_vals = torch.zeros(25)
-    #         eig_real = eig_imag = torch.zeros((x.shape[0], 25))
-    #
-    #     data_1 = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, eig_vals=eig_vals, eig_real=eig_real,
-    #                   eig_imag=eig_imag)
-    #
-    #     x = torch.LongTensor(data_2['onehot'])
-    #     edge_index = torch.LongTensor(data_2['edge_index'])
-    #     edge_attr = torch.LongTensor(data_2['edge_attr'])
-    #
-    #     try:
-    #         eig_vals, (eig_real, eig_imag) = get_magnetic_Laplacian(edge_index)
-    #     except:
-    #         eig_vals = torch.zeros(25)
-    #         eig_real = eig_imag = torch.zeros((x.shape[0], 25))
-    #
-    #     data_2 = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, eig_vals=eig_vals, eig_real=eig_real,
-    #                   eig_imag=eig_imag)
-    #
-    #     return data_1, data_2, y
-    #
+
     def setup(self, stage: str) -> None:
         print("Setting up data loaders..")
         self.data = torch.load(self.dir + "/data.pt")
@@ -318,21 +275,28 @@ class HOL4DataModuleGraph(LightningDataModule):
         data_1 = [b[0] for b in batch]
         data_2 = [b[1] for b in batch]
 
-        data_1 = Batch.from_data_list([DirectedData(x=torch.LongTensor(self.graph_dict[d]['onehot']),
+        data_1 = [DirectedData(x=torch.LongTensor(self.graph_dict[d]['onehot']),
                                                     edge_index=torch.LongTensor(self.graph_dict[d]['edge_index']),
-                                                    edge_attr=torch.LongTensor(self.graph_dict[d]['edge_attr']),
-                                                    attention_edge_index=torch.LongTensor(
-                                                        self.graph_dict[d]['attention_edge_index']),
-                                                    abs_pe=torch.LongTensor(self.graph_dict[d]['depth']))
-                                       for d in data_1])
+                                                    edge_attr=torch.LongTensor(self.graph_dict[d]['edge_attr']), )
+                                       # attention_edge_index=torch.LongTensor(
+                                       #     self.graph_dict[d]['attention_edge_index']),
+                                       # abs_pe=torch.LongTensor(self.graph_dict[d]['depth']))
+                                       for d in data_1]
 
-        data_2 = Batch.from_data_list([DirectedData(x=torch.LongTensor(self.graph_dict[d]['onehot']),
+        data_1 = Batch.from_data_list(data_1)
+
+        data_2 = [DirectedData(x=torch.LongTensor(self.graph_dict[d]['onehot']),
                                                     edge_index=torch.LongTensor(self.graph_dict[d]['edge_index']),
-                                                    edge_attr=torch.LongTensor(self.graph_dict[d]['edge_attr']),
-                                                    attention_edge_index=torch.LongTensor(
-                                                        self.graph_dict[d]['attention_edge_index']),
-                                                    abs_pe=torch.LongTensor(self.graph_dict[d]['depth']))
-                                       for d in data_2])
+                                                    edge_attr=torch.LongTensor(self.graph_dict[d]['edge_attr']), )
+                                       # attention_edge_index=torch.LongTensor(
+                                       #     self.graph_dict[d]['attention_edge_index']),
+                                       # abs_pe=torch.LongTensor(self.graph_dict[d]['depth']))
+                                       for d in data_2]
+
+        data_2 = Batch.from_data_list(data_2)
+
+        data_1.attention_edge_index = ptr_to_complete_edge_index(data_1.ptr)
+        data_2.attention_edge_index = ptr_to_complete_edge_index(data_2.ptr)
 
         return data_1, data_2, y
 
@@ -352,10 +316,6 @@ class HOL4DataModuleGraph(LightningDataModule):
 
     def transfer_batch_to_device(self, batch, device: torch.device, dataloader_idx: int):
         data_1, data_2, y = batch
-
-        # unmasked (full n^2) attention edge index for undirected SAT models
-        # data_1.attention_edge_index = ptr_to_complete_edge_index(data_1.ptr)
-        # data_2.attention_edge_index = ptr_to_complete_edge_index(data_2.ptr)
 
         data_1 = data_1.to(device)
         data_2 = data_2.to(device)

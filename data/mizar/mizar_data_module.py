@@ -38,20 +38,24 @@ class MizarDataModule(LightningDataModule):
 
     def setup(self, stage: str) -> None:
         print("Setting up data loaders..")
-        with open(self.dir + '/mizar_data_.pk', 'rb') as f:
-            self.data = pickle.load(f)
+        # with open(self.dir + '/mizar_data_.pk', 'rb') as f:
+        with open(self.dir + '/mizar_data_new.pk', 'rb') as f:
+                self.data = pickle.load(f)
 
-        db = MongoClient()
-        db = db['mizar']
-        col = db['expression_graphs']
+        self.vocab = self.data['vocab']
+        self.graph_dict = self.data['expr_dict']
 
-        with open(self.dir + '/mizar_data.pk', 'rb') as f:
-            self.vocab = pickle.load(f)['vocab']
+        # db = MongoClient()
+        # db = db['mizar']
+        # col = db['expression_graphs']
 
-        self.graph_dict = {v["_id"]:
-            v["graph"]
-            for v in tqdm(col.find({}))
-        }
+        # with open(self.dir + '/mizar_data.pk', 'rb') as f:
+        #     self.vocab = pickle.load(f)['vocab']
+
+        # self.graph_dict = {v["_id"]:
+        #     v["graph"]
+        #     for v in tqdm(col.find({}))
+        # }
 
         if stage == "fit":
             self.train_data = self.data['train_data']
@@ -67,24 +71,24 @@ class MizarDataModule(LightningDataModule):
         data_1 = Batch.from_data_list(
             [DirectedData(x=torch.LongTensor([self.vocab[a] for a in self.graph_dict[d]['tokens']]),
                           edge_index=torch.LongTensor(self.graph_dict[d]['edge_index']),
-                          edge_attr=torch.LongTensor(self.graph_dict[d]['edge_attr']),
-             attention_edge_index=torch.LongTensor(
-                 self.graph_dict[d]['attention_edge_index']),
-             abs_pe=torch.LongTensor(self.graph_dict[d]['depth']))
+                          edge_attr=torch.LongTensor(self.graph_dict[d]['edge_attr']),)
+             # attention_edge_index=torch.LongTensor(
+             #     self.graph_dict[d]['attention_edge_index']),
+             # abs_pe=torch.LongTensor(self.graph_dict[d]['depth']))
              for d in data_1])
 
         data_2 = Batch.from_data_list(
             [DirectedData(x=torch.LongTensor([self.vocab[a] for a in self.graph_dict[d]['tokens']]),
                           edge_index=torch.LongTensor(self.graph_dict[d]['edge_index']),
-                          edge_attr=torch.LongTensor(self.graph_dict[d]['edge_attr']),
-             attention_edge_index=torch.LongTensor(
-                 self.graph_dict[d]['attention_edge_index']),
-             abs_pe=torch.LongTensor(self.graph_dict[d]['depth']))
+                          edge_attr=torch.LongTensor(self.graph_dict[d]['edge_attr']),)
+             # attention_edge_index=torch.LongTensor(
+             #     self.graph_dict[d]['attention_edge_index']),
+             # abs_pe=torch.LongTensor(self.graph_dict[d]['depth']))
              for d in data_2])
 
         # unmasked (full n^2) attention edge index for undirected SAT models
-        # data_1.attention_edge_index = ptr_to_complete_edge_index(data_1.ptr)
-        # data_2.attention_edge_index = ptr_to_complete_edge_index(data_2.ptr)
+        data_1.attention_edge_index = ptr_to_complete_edge_index(data_1.ptr)
+        data_2.attention_edge_index = ptr_to_complete_edge_index(data_2.ptr)
 
         return data_1, data_2, y
 
@@ -108,3 +112,10 @@ class MizarDataModule(LightningDataModule):
         y = y.to(device)
 
         return data_1, data_2, y
+
+# if __name__ == '__main__':
+#     module = MizarDataModule('./')
+#     module.setup("fit")
+#     print (next(iter(module.train_dataloader())))
+
+

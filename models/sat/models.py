@@ -44,8 +44,6 @@ class GraphTransformer(nn.Module):
         super().__init__()
 
         self.small_inner = small_inner
-        # self.pos_encoder = PositionalEncoding(d_model, dropout, max_len=256)
-        # print ("r_inductunning")
         self.abs_pe = abs_pe
         self.abs_pe_dim = abs_pe_dim
 
@@ -53,14 +51,8 @@ class GraphTransformer(nn.Module):
             d_model = d_model // 2
             self.expand_proj = nn.Sequential(nn.Linear(d_model, d_model * 2), nn.GELU())
 
-        # if abs_pe and abs_pe_dim > 0:
-            # self.embedding_abs_pe = nn.Embedding(abs_pe_dim, d_model)
-            # self.embedding_abs_pe = nn.Sequential(
-            #     nn.Embedding(abs_pe_dim, d_model),
-            #     nn.Dropout(dropout),
-            #     nn.Linear(d_model, d_model),
-            #     nn.GELU()
-            # )
+        if abs_pe and abs_pe_dim > 0:
+            self.embedding_abs_pe = nn.Embedding(abs_pe_dim, d_model)
 
         if in_embed:
             if isinstance(in_size, int):
@@ -120,8 +112,7 @@ class GraphTransformer(nn.Module):
             for i in range(max_seq_len):
                 self.classifier.append(nn.Linear(d_model, num_class))
 
-        self.pe = MagLapNet()
-        # self.complete_edge_index = None
+        # self.pe = MagLapNet()
 
     def forward(self, data, return_attn=False):
         if hasattr(data, 'x'):
@@ -144,27 +135,22 @@ class GraphTransformer(nn.Module):
 
         complete_edge_index = data.attention_edge_index if hasattr(data, 'attention_edge_index') else None
 
-        # self.register_buffer("complete_edge_index", complete_edge_index)
-        # complete_edge_index = self.complete_edge_index
-
         abs_pe = data.abs_pe if hasattr(data, 'abs_pe') else None
         degree = data.degree if hasattr(data, 'degree') else None
 
         output = self.embedding(x) if node_depth is None else self.embedding(x, node_depth.view(-1, ))
 
-        # todo integrate PE properly
-        # eig_vals, eig_vecs = get_magnetic_Laplacian(edge_index, return_eig=True)
-        if hasattr(data, "eig_vals"):
-            pe = self.pe(data.eig_vals, (data.eig_real, data.eig_imag))
-            output = output + pe
+        # # todo integrate PE properly
+        # # eig_vals, eig_vecs = get_magnetic_Laplacian(edge_index, return_eig=True)
+        # if hasattr(data, "eig_vals"):
+        #     pe = self.pe(data.eig_vals, (data.eig_real, data.eig_imag))
+        #     output = output + pe
 
         if self.abs_pe and abs_pe is not None:
-            # abs_pe = self.embedding_abs_pe(abs_pe)
+            abs_pe = self.embedding_abs_pe(abs_pe)
             output = output + abs_pe
 
         if self.use_edge_attr and edge_attr is not None:
-            # print (self.embedding_edge)
-            # print (edge_attr.shape)
             edge_attr = self.embedding_edge(edge_attr)
             if subgraph_edge_attr is not None:
                 subgraph_edge_attr = self.embedding_edge(subgraph_edge_attr)
@@ -189,7 +175,6 @@ class GraphTransformer(nn.Module):
             cls_tokens = repeat(self.cls_token, '() d -> b d', b=bsz)
             output = torch.cat((output, cls_tokens))
 
-        # print (degree)
         output = self.encoder(
             output,
             edge_index,
@@ -207,27 +192,10 @@ class GraphTransformer(nn.Module):
         if self.small_inner:
             output = self.expand_proj(output)
 
-        # print (f"Output shape: {output.shape} \n")
-        # readout step
         if self.use_global_pool:
             if self.global_pool == 'cls':
-                # print (output.shape)
                 output = output[-bsz:]
-                # print (output.shape)
             else:
                 output = gnn.global_max_pool(output, data.batch)
 
-                # output_1 = self.pooling(output, data.batch)
-                # output_2 = gnn.global_max_pool(output, data.batch)
-                # output = torch.cat([output_1, output_2], dim=1)
-
         return output
-
-        # if self.max_seq_len is not None:
-        #     pred_list = []
-        #     for i in range(self.max_seq_len):
-        #         pred_list.append(self.classifier[i](output))
-        #     return pred_list
-        # #
-        # # return self.classifier(output)
-        #

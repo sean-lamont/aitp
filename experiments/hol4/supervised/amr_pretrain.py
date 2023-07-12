@@ -7,10 +7,10 @@ from data.utils.pretrain import SeparateEncoderPremiseSelection
 
 
 # MIZAR vocab
-# VOCAB_SIZE = 13420
+VOCAB_SIZE = 13420
 
 # HOL4 vocab
-VOCAB_SIZE = 1004
+# VOCAB_SIZE = 1004
 
 # HOLStep vocab
 # VOCAB_SIZE = 1909 + 4
@@ -27,6 +27,7 @@ gcn_config = {
 
 sat_config = {
     "model_type": "sat",
+    "batch_norm" : True,
     "global_pool": "mean",
     # 'gnn_type': 'di_gcn',
     "num_edge_features": 20,
@@ -43,7 +44,7 @@ sat_config = {
     "use_edge_attr": True,
     "dropout": 0.,
     "gnn_layers": 2,
-    # 'small_inner': True,
+    'small_inner': False,
 }
 
 transformer_config = {
@@ -88,7 +89,7 @@ exp_config = {
     "experiment": "premise_selection",
     "learning_rate": 1e-4,
     "epochs": 30,
-    "weight_decay": 3e-6,
+    "weight_decay": 1e-6,
     "batch_size": 32,
     "model_save": False,
     "val_size": 4096,
@@ -117,7 +118,7 @@ digae_config = {
 gnn_transformer_config = {
     "batch_norm": True,
     "model_type": "gnn_transformer",
-    "global_pool": "mean",
+    "global_pool": "cls",
     "num_edges": 20,
     "edge_dim": 32,
     "vocab_size": VOCAB_SIZE,
@@ -161,7 +162,7 @@ sat_exp = SeparateEncoderPremiseSelection(config={"model_config": sat_config,
                                                   "data_config": mizar_data_config,
                                                   "project": "mizar_40_premise_selection",
                                                   "notes": "",
-                                                  "name": "SAT Directed attention 2,2"})
+                                                  "name": "SAT"})
 
 gcn_exp = SeparateEncoderPremiseSelection(config={"model_config": gcn_config,
                                                   "exp_config": exp_config,
@@ -175,7 +176,7 @@ formula_net_exp = SeparateEncoderPremiseSelection(config={"model_config": formul
                                                           "data_config": mizar_data_config,
                                                           "project": "mizar_40_premise_selection",
                                                           "notes": "",
-                                                          "name": "FormulaNet"})
+                                                          "name": "FormulaNet Default + LR 5,0.5"})
 
 digae_exp = SeparateEncoderPremiseSelection(config={"model_config": digae_config,
                                                     "exp_config": exp_config,
@@ -192,9 +193,9 @@ amr_exp = SeparateEncoderPremiseSelection(config={"model_config": amr_config,
 
 gnn_transformer_exp = SeparateEncoderPremiseSelection(config={"model_config": gnn_transformer_config,
                                                               "exp_config": exp_config,
-                                                              "data_config": hol4_graph_data_config,
+                                                              "data_config": mizar_data_config,
                                                               "notes": "",
-                                                              "project": "hol4_premise_selection",
+                                                              "project": "mizar_40_premise_selection",
                                                               "name": "GNN + Transformer Readout"})
 
 # import cProfile
@@ -202,11 +203,11 @@ gnn_transformer_exp = SeparateEncoderPremiseSelection(config={"model_config": gn
 # cProfile.run('sat_exp.run_lightning()', sort = 'cumtime')
 
 
-gnn_transformer_exp.run_lightning()
+# gnn_transformer_exp.run_lightning()
 
 # gcn_exp.run_lightning()
 # amr_exp.run_lightning()
-# formula_net_exp.run_lightning()
+formula_net_exp.run_lightning()
 # sat_exp.run_lightning()
 # relation_att_exp.run_lightning()
 # transformer_experiment.run_lightning()

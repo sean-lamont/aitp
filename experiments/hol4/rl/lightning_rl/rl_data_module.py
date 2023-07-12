@@ -1,5 +1,4 @@
 from torch_geometric.data import Data
-import cProfile
 from torch_geometric.loader import DataLoader
 from torch.utils.data import DataLoader as loader
 import lightning.pytorch as pl

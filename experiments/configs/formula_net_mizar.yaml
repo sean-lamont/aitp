@@ -1,0 +1,19 @@
+exp_config:
+  name: "formula_net_mizar"
+  experiment: "premise_selection"
+  directory: "experiments/runs"
+  logging_config:
+    project: "test"
+optimiser_config:
+  learning_rate: 1e-4
+model_config:
+  model_type: 'formula-net-edges'
+  model_attributes:
+    vocab_size: 13420
+    embedding_dim: 128
+    gnn_layers: 2
+    batch_norm: True
+data_config:
+  source: 'mizar'
+  dir: 'data/mizar'
+val_frequency: 128

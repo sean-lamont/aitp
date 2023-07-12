@@ -24,20 +24,18 @@ if __name__ == '__main__':
         for line in lines:
             if line[0] == 'C':
                 conj = line[1:].strip("\n")
-                # if conj not in expression_dict:
-                #     expression_dict[conj] = graph_to_dict(goal_to_graph(conj))
+                if conj not in expression_dict:
+                    expression_dict[conj] = graph_to_dict(goal_to_graph(conj))
             elif line[0] == '-':
                 neg_thm = line[1:].strip("\n")
                 neg_thms.append(neg_thm)
-                # if neg_thm not in expression_dict:
-                #     expression_dict[neg_thm] = graph_to_dict(goal_to_graph(neg_thm))
-                # mizar_labels.append((conj, neg_thm, 0))
+                if neg_thm not in expression_dict:
+                    expression_dict[neg_thm] = graph_to_dict(goal_to_graph(neg_thm))
             elif line[0] == '+':
                 pos_thm = line[1:].strip("\n")
                 pos_thms.append(pos_thm)
-                # if pos_thm not in expression_dict:
-                #     expression_dict[pos_thm] = graph_to_dict(goal_to_graph(pos_thm))
-                # mizar_labels.append((conj, pos_thm, 1))
+                if pos_thm not in expression_dict:
+                    expression_dict[pos_thm] = graph_to_dict(goal_to_graph(pos_thm))
             else:
                 raise Exception("Not valid")
 
@@ -75,24 +73,25 @@ if __name__ == '__main__':
 
 
 
-    # vocab = {}
-    # idx = 0
-    # for i, k in enumerate(expression_dict.keys()):
-    #     polished_goal = [c for c in k.split(" ") if c != '' and c != '\n']
-    #     for tok in polished_goal:
-    #         if tok not in vocab:
-    #             # reserve 0 for padding idx
-    #             vocab[tok] = idx + 1
-    #             idx += 1
-    #
-    # vocab['VAR'] = len(vocab)
-    # vocab['VARFUNC'] = len(vocab)
-    #
+    vocab = {}
+    idx = 0
+    for i, k in enumerate(expression_dict.keys()):
+        polished_goal = [c for c in k.split(" ") if c != '' and c != '\n']
+        for tok in polished_goal:
+            if tok not in vocab:
+                # reserve 0 for padding idx
+                vocab[tok] = idx + 1
+                idx += 1
 
+    vocab['VAR'] = len(vocab)
+    vocab['VARFUNC'] = len(vocab)
+
+
+
+    with open("mizar_data_new.pk", "wb") as f:
+        pickle.dump({'expr_dict': expression_dict, 'train_data': train_pairs, 'val_data': val_pairs,
+                     'test_data': test_pairs, 'vocab': vocab}, f)
 
     # with open("mizar_data_.pk", "wb") as f:
-    #     pickle.dump({'expr_dict': expression_dict, 'mizar_labels': mizar_labels, 'vocab': vocab}, f)
-
-    with open("mizar_data_.pk", "wb") as f:
-        pickle.dump({'train_data': train_pairs, 'val_data': val_pairs, 'test_data': test_pairs}, f)
+    #     pickle.dump({'train_data': train_pairs, 'val_data': val_pairs, 'test_data': test_pairs}, f)
 

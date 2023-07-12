@@ -165,7 +165,6 @@ class RLExperiment:
             trainer.fit(experiment, module)
 
 
-# todo(sean) hack for now: remove complete_edge_index only if loading from pretrained model, as it's only instantiated after a forward pass
 def load_state(state_dict, experiment):
     own_dict = experiment.state_dict()
     ret_dict = {}

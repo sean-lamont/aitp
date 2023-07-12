@@ -276,8 +276,11 @@ def rename(ast):
 
     return ast
 
+
+
 def goal_to_graph(polished_goal):
-    return rename(merge_leaves(process_lambdas(tokens_to_ast(polished_to_tokens_2(polished_goal)))))
+    # return rename(merge_leaves(process_lambdas(tokens_to_ast(polished_to_tokens_2(polished_goal)))))
+    return rename(process_ast(polished_goal))
 
 def goal_to_graph_labelled(polished_goal):
     return merge_leaves(process_lambdas(tokens_to_ast(polished_to_tokens_2(polished_goal))))
@@ -291,6 +294,10 @@ def nodes_list_to_senders_receivers(node_list):
             receivers.append(node_list.index(child))
     return senders, receivers
 
+
+unordered_ops = ['c&', 'c=', 'c<=>', 'c|']
+
+
 def nodes_list_to_senders_receivers_labelled(node_list):
     senders = []
     receivers = []
@@ -299,8 +306,24 @@ def nodes_list_to_senders_receivers_labelled(node_list):
         for j, child in enumerate(node.children):
             senders.append(i)
             receivers.append(node_list.index(child))
-            edge_labels.append(j)
+            if node.node.value in unordered_ops:
+                edge_labels.append(0)
+            else:
+                edge_labels.append(j)
     return senders, receivers, edge_labels
+
+# def nodes_list_to_senders_receivers_labelled(node_list):
+#     senders = []
+#     receivers = []
+#     edge_labels = []
+#     for i, node in enumerate(node_list):
+#         for j, child in enumerate(node.children):
+#             senders.append(i)
+#             receivers.append(node_list.index(child))
+#             edge_labels.append(j)
+#     return senders, receivers, edge_labels
+#
+
 
 def nodes_list(g, result=[]):
     result.append(g)
@@ -309,6 +332,10 @@ def nodes_list(g, result=[]):
         nodes_list(child, result)
 
     return list(set(result))
+
+
+
+
 
 
 # with open("/home/sean/Documents/phd/aitp/data/hol4/graph_token_encoder.pk", "rb") as f:
@@ -415,3 +442,60 @@ def graph_to_dict(g):
     #         }
 
     # return Data(x=nodes, edge_index=edges, edge_attr=torch.LongTensor(edge_labels), labels=labels)
+
+
+
+
+
+
+'''
+
+Add subexpression field to each node, to reduce graph size
+
+'''
+def ast_subexps(ast):
+    val = ast.node.value
+    child_exprs = ""
+    for child in ast.children:
+        child_exprs += ast_subexps(child)
+    ast.subexp = val + child_exprs
+    return val + child_exprs
+
+
+'''
+
+Share subexpressions
+
+'''
+
+def reduce_subexpressions(ast):
+    nodes = nodes_list(ast, [])
+    exprs = [node.subexp for node in nodes]
+
+    dup_nodes = [node for node in nodes if exprs.count(node.subexp) > 1]
+
+    dups = {}
+    for node in dup_nodes:
+        if node.subexp in dups:
+            dups[node.subexp].append(node)
+        else:
+            dups[node.subexp] = [node]
+
+    for nodes in dups.values():
+        first_node = nodes[0]
+        parents_list = [node.parent for node in nodes]
+
+
+        for node in nodes[1:]:
+            assert node not in first_node.parent
+            # replace all references to same variable with first node
+            for parent in node.parent:
+                parent.children[parent.children.index(node)] = first_node
+
+
+
+def process_ast(polished_goal):
+    ast = tokens_to_ast(polished_to_tokens_2(polished_goal))
+    ast_subexps(ast)
+    reduce_subexpressions(ast)
+    return ast
