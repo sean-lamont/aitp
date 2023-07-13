@@ -77,9 +77,17 @@ class ExperimentConfig:
 
 @dataclass
 class DataConfig:
-    source: str
-    dir: str
-    # mongo_db: str #= field(default="")
+    # Defines what DataModule to use
+    type: str = field(default='graph')
+    # Defines where to load data from. Currently, supports either local directories or MongoDB
+    source: str = field(default='directory')
+    # Options for data loading. If directory, specifies directory.
+    # If MongoDB, specifies the database and collections to use
+    data_options: Dict = field(default={}, is_mutable=True)
+    # Specifies the batch size for the data loaders
+    batch_size: int = field(default=32)
+    # Specifies attributes to be included in the data objects, e.g. Positional Encoding
+    attributes: Dict = field(default={}, is_mutable=True)
 
 
 @dataclass
@@ -104,10 +112,10 @@ class PremiseSelectionConfig(GlobalConfig):
     #     return self.directory + '/model_checkpoints'
 
     def __post_init__(self):
-        self.data_config.dir = self.GLOBAL_PATH + self.data_config.dir
+        if self.data_config.source == 'directory':
+            self.data_config.attributes['dir'] = self.GLOBAL_PATH + self.data_config.dir
         if not self.checkpoint_dir:
             self.checkpoint_dir = self.exp_config.directory + '/model_checkpoints'
-
 
 # @dataclass
 # class TacticZeroRLConfig(ExperimentConfig,
@@ -138,12 +146,12 @@ class PremiseSelectionConfig(GlobalConfig):
 #
 
 
-def main():
-    cfg = pyrallis.parse(config_class=PremiseSelectionConfig, config_path='configs/conf.yaml')
-    print(f'{cfg}')
-    print(f'{cfg.model_config.model_attributes["embedding_dim"]}')
-    print(pyrallis.dump(cfg))  # , open('./run_config.yaml','w'))
-
-
-if __name__ == '__main__':
-    main()
+# def main():
+#     cfg = pyrallis.parse(config_class=PremiseSelectionConfig, config_path='configs/conf.yaml')
+#     print(f'{cfg}')
+#     print(f'{cfg.model_config.model_attributes["embedding_dim"]}')
+#     print(pyrallis.dump(cfg))  # , open('./run_config.yaml','w'))
+#
+#
+# if __name__ == '__main__':
+#     main()

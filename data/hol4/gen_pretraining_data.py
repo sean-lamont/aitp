@@ -4,9 +4,7 @@ import pickle
 from data.hol4 import generate_gnn_data
 import os
 
-
 data_dir = "data/hol4/data/"
-# data_dir = "data/"
 data_dir = os.path.join(os.getcwd(),data_dir)
 paper_dir = os.path.join(data_dir, "paper_goals.pk")
 
@@ -47,9 +45,6 @@ unique_thms = list(set(deps.keys()))
 
 paper_goals_polished = [g[0] for g in paper_goals]
 
-# get all theorems from paper dataset compatible with current database
-# todo link with compat_db used in RL
-
 exp_thms = []
 
 for thm in unique_thms:
@@ -58,13 +53,6 @@ for thm in unique_thms:
 
 #remove theorems the RL agent trains/tests on from those used to pretrain the GNN encoder
 gnn_encoder_set = list(set(unique_thms) - set(exp_thms))
-
-# print (len(set(exp_thms)), len(set(unique_thms)), len(gnn_encoder_set))
-
-# train_thms = exp_thms[:int(0.8 * len(exp_thms))]
-# test_thms = exp_thms[int(0.8 * len(exp_thms)):]
-
-#generate gnn data from valid set excluding goals for RL agent
 
 print ("Generating graph dataset for pretraining...")
 

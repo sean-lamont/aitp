@@ -14,13 +14,13 @@ from lightning.pytorch.loggers import WandbLogger
 from models.get_model import get_model
 from models.gnn.formula_net.formula_net import BinaryClassifier
 import torch
-from experiments.pyrallis_test import PremiseSelectionConfig
+from experiments.pyrallis_configs import PremiseSelectionConfig
 
 
-def config_to_dict(namespace):
+def config_to_dict(conf):
     return {
         k: config_to_dict(v) if hasattr(v, '__dict__') else v
-        for k, v in vars(namespace).items()
+        for k, v in vars(conf).items()
     }
 
 
@@ -129,6 +129,8 @@ class SeparateEncoderPremiseSelection:
                              config=config_to_dict(self.config),
                              notes=self.config.exp_config.logging_config.notes,
                              offline=self.config.exp_config.logging_config.offline,
+                             save_dir=self.config.exp_config.directory,
+                             # log_model='all'
                              )
 
         callbacks = []
@@ -145,7 +147,8 @@ class SeparateEncoderPremiseSelection:
         callbacks.append(checkpoint_callback)
 
         trainer = pl.Trainer(
-            max_steps=1024,
+            # val_check_interval=128,
+            # max_steps=256,
             max_epochs=self.config.epochs,
             logger=logger,
             enable_progress_bar=True,

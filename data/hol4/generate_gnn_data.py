@@ -1,3 +1,4 @@
+import pickle
 import re
 from tqdm import tqdm
 from data.hol4.ast_def import *
@@ -250,72 +251,8 @@ def generate_gnn_data(data, train_ratio, val_ratio, rand, data_dir,deps,full_db)
     for goal in tqdm(polished_goals):
         torch_graph_dict[goal] = ast_def.graph_to_torch_labelled(goal_to_graph_labelled(goal), enc)
 
-    one_hot_dict = {}
-
-    # enc_nodes = whole_data[3]
-
-    # print ("Generating one hot labels for expressions in HOL4 graph...")
-    # for key in tqdm(torch_graph_dict):
-    #     one_hot_dict[key] = enc_nodes.transform([[key]])
-
-    # with open(data_dir+"one_hot_dict.pk", "wb") as f:
-    #     pickle.dump(one_hot_dict, f)
-
     with open(data_dir+"torch_graph_dict.pk", "wb") as f:
         pickle.dump(torch_graph_dict, f)
 
     with open(data_dir+"graph_token_encoder.pk", "wb") as f:
         pickle.dump(enc, f)
-
-    # todo add directed edge info + depth info to torch_graph_dict
-
-
-
-
-# if __name__ == "__main__":
-#     print ("Generating GNN premise selection dataset using all theorems from database...")
-#
-#
-#     unique_thms = list(set(deps.keys()))
-#     generate_gnn_data(unique_thms, 0.9, 0.05, True, "")
-
-
-
-# graph-of-graphs
-# edge cases, multiple equivalent polished expressions map to different theory name-numbers e.g. list-8 <-> bool-25
-# can be confirmed from processed_old HOL file include_probability.txt
-
-# # map from polished goal to library-dep key
-# with open("polished_dict.json") as f:
-#     p_d = json.load(f)
-# new_pd = {}
-
-# for key, val in p_d.items():
-
-#     if val[0] == " ":
-#         #new_db.pop(key)
-#         new_pd[key] = val[1:]
-#     else:
-#         new_pd[key] = val
-
-# count = 0
-# for (a, b, y) in train:
-#     try:
-#         if new_pd[b] in deps[new_pd[a]]:
-#             if y == 0:
-#                 print (y)
-#                 print (new_pd[b])
-#                 print (deps[new_pd[a]])
-#     except:
-#         continue
-#     try:
-#         if new_pd[b] not in deps[new_pd[a]]:
-#             if y == 1:
-#                 count += 1
-#                 print (y)
-#                 print (a)
-#                 print (new_pd[b])
-#                 print (new_pd[a])
-#                 print (deps[new_pd[a]])
-#     except:
-#         continue

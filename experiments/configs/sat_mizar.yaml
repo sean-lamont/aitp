@@ -1,0 +1,29 @@
+exp_config:
+  name: "sat_mizar"
+  experiment: "premise_selection"
+  directory: "experiments/runs"
+  logging_config:
+    project: "test"
+optimiser_config:
+  learning_rate: 1e-4
+model_config:
+  model_type: 'sat'
+  model_attributes:
+    vocab_size: 13420
+    embedding_dim: 128
+    batch_norm: True
+    global_pool: 'mean'
+    num_edge_features: 20
+    dim_feedforward: 256
+    num_heads: 2
+    num_layers: 2
+    in_embed: True
+    se: 'formula-net'
+    abs_pe: False
+    use_edge_attr: True
+    dropout: 0.
+    gnn_layers: 2
+    small_inner: False
+data_config:
+  source: 'mizar'
+  dir: 'data/mizar'

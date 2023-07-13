@@ -1,0 +1,21 @@
+exp_config:
+  name: "transformer_hol4"
+  experiment: "premise_selection"
+  directory: "experiments/runs"
+  logging_config:
+    project: "hol4_premise_selection"
+optimiser_config:
+  learning_rate: 1e-4
+model_config:
+  model_type: "transformer"
+  model_attributes:
+    vocab_size: 1300
+    embedding_dim: 256
+    num_heads: 8
+    num_layers: 4
+    dropout: 0.
+    small_inner: True
+data_config:
+  source: "hol4_sequence"
+  dir: "data/hol4/sequence_torch_data"
+val_frequency: 128

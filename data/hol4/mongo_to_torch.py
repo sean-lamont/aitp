@@ -1,5 +1,4 @@
 import os
-from torch_geometric.transforms import AddRandomWalkPE
 import torch
 import torch_geometric.loader.dataloader
 from lightning.pytorch import LightningDataModule

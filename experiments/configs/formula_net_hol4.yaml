@@ -1,0 +1,19 @@
+exp_config:
+  name: "formula_net_hol4"
+  experiment: "premise_selection"
+  directory: "experiments/runs"
+  logging_config:
+    project: "test"
+optimiser_config:
+  learning_rate: 1e-4
+model_config:
+  model_type: "formula-net-edges"
+  model_attributes:
+    vocab_size: 1004
+    embedding_dim: 128
+    gnn_layers: 2
+    batch_norm: True
+data_config:
+  source: "hol4_graph"
+  dir: "data/hol4/graph_attention_data_new"
+val_frequency: 128
