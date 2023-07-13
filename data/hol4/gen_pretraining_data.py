@@ -1,59 +1,61 @@
-from environments.hol4.new_env import *
+from environments.hol4.new_env import HolEnv
 import json
 import pickle
 from data.hol4 import generate_gnn_data
 import os
 
-data_dir = "data/hol4/data/"
-data_dir = os.path.join(os.getcwd(),data_dir)
-paper_dir = os.path.join(data_dir, "paper_goals.pk")
+def gen_pretraining_data():
 
-if os.path.exists(paper_dir):
-    with open(paper_dir, "rb") as f:
-        paper_goals = pickle.load(f)
-else:
-    print("Generating original goals from TacticZero paper...")
+    data_dir = "/home/sean/Documents/phd/repo/aitp/data/hol4/data/"
+    # data_dir = os.path.join(os.getcwd(),data_dir)
+    paper_dir = os.path.join(data_dir, "paper_goals.pk")
 
-    with open(data_dir + "dataset.json") as fp:
-        dataset = json.load(fp)
+    if os.path.exists(paper_dir):
+        with open(paper_dir, "rb") as f:
+            paper_goals = pickle.load(f)
+    else:
+        print("Generating original goals from TacticZero paper...")
 
-    env = HolEnv("T")
-    paper_goals = []
+        with open(data_dir + "dataset.json") as fp:
+            dataset = json.load(fp)
 
-    for goal in dataset:
-        try:
-            p_goal = env.get_polish(goal)
-            paper_goals.append((p_goal[0]["polished"]['goal'], goal))
-        except:
-            print (f"Unable to process Goal {goal}")
+        env = HolEnv("T")
+        paper_goals = []
 
-    print (f"Processed {len(paper_goals)}/{len(dataset)} paper goals")
+        for goal in dataset:
+            try:
+                p_goal = env.get_polish(goal)
+                paper_goals.append((p_goal[0]["polished"]['goal'], goal))
+            except:
+                print (f"Unable to process Goal {goal}")
 
-    with open(data_dir + "paper_goals.pk", "wb") as f:
-        pickle.dump(paper_goals, f)
+        print (f"Processed {len(paper_goals)}/{len(dataset)} paper goals")
 
-with open(data_dir + "dep_data.json") as fp:
-    deps = json.load(fp)
+        with open(data_dir + "paper_goals.pk", "wb") as f:
+            pickle.dump(paper_goals, f)
 
-with open(data_dir + "new_db.json") as fp:
-    full_db = json.load(fp)
+    with open(data_dir + "dep_data.json") as fp:
+        deps = json.load(fp)
 
-with open(data_dir + "include_probability.json") as fp:
-    old_db = json.load(fp)
+    with open(data_dir + "new_db.json") as fp:
+        full_db = json.load(fp)
 
-unique_thms = list(set(deps.keys()))
+    with open(data_dir + "include_probability.json") as fp:
+        old_db = json.load(fp)
 
-paper_goals_polished = [g[0] for g in paper_goals]
+    unique_thms = list(set(deps.keys()))
 
-exp_thms = []
+    paper_goals_polished = [g[0] for g in paper_goals]
 
-for thm in unique_thms:
-    if full_db[thm][2] in paper_goals_polished:
-        exp_thms.append(thm)
+    exp_thms = []
 
-#remove theorems the RL agent trains/tests on from those used to pretrain the GNN encoder
-gnn_encoder_set = list(set(unique_thms) - set(exp_thms))
+    for thm in unique_thms:
+        if full_db[thm][2] in paper_goals_polished:
+            exp_thms.append(thm)
 
-print ("Generating graph dataset for pretraining...")
+    #remove theorems the RL agent trains/tests on from those used to pretrain the GNN encoder
+    gnn_encoder_set = list(set(unique_thms) - set(exp_thms))
 
-generate_gnn_data.generate_gnn_data(gnn_encoder_set, 0.95, 0.05, True, data_dir, deps, full_db)
+    print ("Generating graph dataset for pretraining...")
+
+    generate_gnn_data.generate_gnn_data(gnn_encoder_set, 0.95, 0.05, True, data_dir, deps, full_db)

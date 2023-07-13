@@ -9,6 +9,8 @@ class PositionalEncoding(nn.Module):
 
     def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 512):
         super().__init__()
+        # add 1 in case of CLS token
+        max_len = max_len + 1
         self.dropout = nn.Dropout(p=dropout)
 
         position = torch.arange(max_len).unsqueeze(1)
@@ -36,7 +38,8 @@ Wrapper for transformer taking in tuple with first element as data, second as ma
 
 class TransformerWrapper(nn.Module):
     def __init__(self, ntoken: int, d_model: int, nhead: int, d_hid: int,
-                 nlayers: int, dropout: float = 0.5, enc=True, in_embed=False, global_pool=True, small_inner=False):
+                 nlayers: int, dropout: float = 0.5, enc=True, in_embed=False, global_pool=True, small_inner=False,
+                 max_len=512):
 
         super().__init__()
 
@@ -51,7 +54,7 @@ class TransformerWrapper(nn.Module):
 
         self.transformer_embedding = TransformerEmbedding(ntoken=None, d_model=d_model, nhead=nhead, d_hid=d_hid,
                                                           nlayers=nlayers, dropout=dropout, enc=enc,
-                                                          global_pool=False, in_embed=in_embed)
+                                                          global_pool=False, in_embed=in_embed, max_len=max_len)
 
         self.embedding = nn.Embedding(ntoken, d_model, padding_idx=0)
 
@@ -93,7 +96,7 @@ Transformer Embedding
 
 class TransformerEmbedding(nn.Module):
     def __init__(self, ntoken: int, d_model: int, nhead: int, d_hid: int,
-                 nlayers: int, dropout: float = 0.5, enc=True, in_embed=True, global_pool=True):
+                 nlayers: int, dropout: float = 0.5, enc=True, in_embed=True, global_pool=True, max_len=512):
         super().__init__()
         self.in_embed = in_embed
         self.enc = enc
@@ -101,7 +104,7 @@ class TransformerEmbedding(nn.Module):
         self.model_type = 'Transformer'
 
         if self.enc:
-            self.pos_encoder = PositionalEncoding(d_model, dropout=0)
+            self.pos_encoder = PositionalEncoding(d_model, dropout=0, max_len=max_len)
 
         print(f"dropout {dropout}")
         encoder_layers = TransformerEncoderLayer(d_model, nhead, d_hid, dropout, activation='gelu')

@@ -36,8 +36,8 @@ HOLPATH = "/home/sean/Documents/phd/hol_old/HOL/bin/hol --maxheap=256"
 EXCLUDED_THEORIES = ["min"] #["min", "bool"]
 
 
-with open("/home/sean/Documents/phd/repo/aitp/data/hol4/data/adjusted_db.json") as f:
-    database = json.load(f)
+# with open("/home/sean/Documents/phd/repo/aitp/data/hol4/data/adjusted_db.json") as f:
+#     database = json.load(f)
 
 
 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')

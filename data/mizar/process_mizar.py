@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 if __name__ == '__main__':
     source = 'mongo'
-    add_attention = True
+    add_attention = False
     file_dir = 'nnhpdata'
 
     files = glob.glob(file_dir + '/*')
@@ -30,18 +30,18 @@ if __name__ == '__main__':
         for line in lines:
             if line[0] == 'C':
                 conj = line[1:].strip("\n")
-                if conj not in expression_dict:
-                    expression_dict[conj] = graph_to_dict(goal_to_graph(conj))
+                # if conj not in expression_dict:
+                #     expression_dict[conj] = graph_to_dict(goal_to_graph(conj))
             elif line[0] == '-':
                 neg_thm = line[1:].strip("\n")
                 neg_thms.append(neg_thm)
-                if neg_thm not in expression_dict:
-                    expression_dict[neg_thm] = graph_to_dict(goal_to_graph(neg_thm))
+                # if neg_thm not in expression_dict:
+                #     expression_dict[neg_thm] = graph_to_dict(goal_to_graph(neg_thm))
             elif line[0] == '+':
                 pos_thm = line[1:].strip("\n")
                 pos_thms.append(pos_thm)
-                if pos_thm not in expression_dict:
-                    expression_dict[pos_thm] = graph_to_dict(goal_to_graph(pos_thm))
+                # if pos_thm not in expression_dict:
+                #     expression_dict[pos_thm] = graph_to_dict(goal_to_graph(pos_thm))
             else:
                 raise Exception("Not valid")
 
@@ -119,7 +119,13 @@ if __name__ == '__main__':
     if source == 'mongo':
         print ("Adding Data to MongoDB")
         for conj, stmt, y in tqdm(train_pairs):
-            split_col.insert_one({'conj': conj, 'stmt': stmt, 'y': y})
+            split_col.insert_one({'conj': conj, 'stmt': stmt, 'y': y, 'split':'train'})
+
+        for conj, stmt, y in tqdm(val_pairs):
+            split_col.insert_one({'conj': conj, 'stmt': stmt, 'y': y, 'split':'val'})
+
+        for conj, stmt, y in tqdm(test_pairs):
+            split_col.insert_one({'conj': conj, 'stmt': stmt, 'y': y, 'split':'test'})
 
         for k,v in tqdm(vocab.items()):
             vocab_col.insert_one({'_id': k, 'index': v})

@@ -1,4 +1,7 @@
 import pickle
+import random
+from utils.mongodb_utils import get_batches
+from data.utils.graph_data_utils import ptr_to_complete_edge_index, DirectedData
 import pyrallis
 from experiments.pyrallis_configs import DataConfig
 from abc import abstractmethod
@@ -10,42 +13,59 @@ from torch_geometric.data import Batch
 from torch_geometric.data import Data
 from tqdm import tqdm
 
+class MongoDataset(torch.utils.data.IterableDataset):
+    def __init__(self, cursor, buf_size=4096):
+        super(MongoDataset).__init__()
+        self.cursor = cursor
+        self.batches = get_batches(self.cursor, batch_size=buf_size)
+        self.curr_batches = next(self.batches)
+        self.remaining = len(self.curr_batches)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.remaining == 0:
+            self.curr_batches = next(self.batches)
+            random.shuffle(self.curr_batches)
+            self.remaining = len(self.curr_batches)
+        self.remaining -= 1
+        if self.remaining >= 0:
+            ret = self.curr_batches.pop()
+            # todo parametrise what fields are returned
+            return (ret['conj'], ret['stmt'], ret['y'])
+        else:
+            raise StopIteration
 '''
 @todo:
-Mongo + file setup scripts for everything
+Pyrallis configs for data generation  
 abstract 
 tpr
 
+experiments
+HOL4 with subexpression sharing comparison
+holist
+holstep
+tz with full replays??
+tz with holist setup
+
 add holist to aitp
 holist data module inheritence
-tacticzero rl with pyrallis 
+tacticzero vanilla
+tactizero rl with vocab
+tacticzero rl mongo
 tacticzero rl tidy 
+tacticzero rl with pyrallis 
+tacticzero rl log probs and stats
+logging throughout
+datamodule stats
 lean 
+Dataset/H5? 
 
-
-experiments
-
-    holist
-    holstep
-    tacticzero
-    mizar?
 
 '''
 
 
-def ptr_to_complete_edge_index(ptr):
-    # print (ptr)
-    from_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat_interleave(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
-    to_lists = [torch.arange(ptr[i], ptr[i + 1]).repeat(ptr[i + 1] - ptr[i]) for i in range(len(ptr) - 1)]
-    combined_complete_edge_index = torch.vstack((torch.cat(from_lists, dim=0), torch.cat(to_lists, dim=0)))
-    return combined_complete_edge_index
-
-
-class DirectedData(Data):
-    def __inc__(self, key, value, *args, **kwargs):
-        if key == 'attention_edge_index':
-            return self.num_nodes
-        return super().__inc__(key, value, *args, **kwargs)
 
 
 
@@ -53,7 +73,8 @@ class DirectedData(Data):
 Data Module takes in:
 
     - config, with source, either directory with a data dictionary or a MongoDB collection
-        - if {'source': 'dir', 'attributes': {'dir': directory}} or {'source': mongodb, 'attributes':{'database':.., 'collection':..} 
+        - if {'source': 'dir', 'attributes': {'dir': directory}} 
+                or {'source': mongodb, 'attributes':{'database':.., 'collection':..} 
     - batch_size 
     - attention_edge, pe for graph, max_seq_len for sequence
 
@@ -71,9 +92,9 @@ class PremiseDataModule(LightningDataModule):
         if source == 'mongodb':
             db = MongoClient()
             db = db[self.config.data_options['db']]
-            expr_col = db[self.config.data_options['expressions']]
-            vocab_col = db[self.config.data_options['vocab']]
-            split_col = db[self.config.data_options['split_data']]
+            expr_col = db[self.config.data_options['expression_col']]
+            vocab_col = db[self.config.data_options['vocab_col']]
+            split_col = db[self.config.data_options['split_col']]
 
             self.vocab = {v["_id"]: v["index"]
                           for v in tqdm(vocab_col.find({}))
@@ -81,7 +102,7 @@ class PremiseDataModule(LightningDataModule):
 
             # if dict_in_memory save all expressions to disk, otherwise return cursor
             if self.config.data_options['dict_in_memory']:
-                self.expr_dict = {v["_id"]: self.to_data({x: v["data"][x] for x in self.config.attributes['filter']})
+                self.expr_dict = {v["_id"]: self.to_data({x: v["data"][x] for x in self.config.data_options['filter']})
                                   for v in tqdm(expr_col.find({}))}
 
             else:
@@ -89,15 +110,16 @@ class PremiseDataModule(LightningDataModule):
 
             # if data_in_memory, save all examples to disk
             if self.config.data_options['split_in_memory']:
+                # todo paramatrise what fields are returned
                 self.data = [(v["conj"], v["stmt"], v['y'], v['split'])
                              for v in tqdm(split_col.find({}))]
                 self.train_data = [d for d in self.data if d[3] == 'train']
                 self.val_data = [d for d in self.data if d[3] == 'val']
                 self.test_data = [d for d in self.data if d[3] == 'test']
             else:
-                self.train_data = split_col.find({'split': 'train'})
-                self.val_data = split_col.find({'split': 'val'})
-                self.test_data = split_col.find({'split': 'test'})
+                self.train_data = MongoDataset(split_col.find({'split': 'train'}))
+                self.val_data = MongoDataset(split_col.find({'split': 'val'}))
+                self.test_data = MongoDataset(split_col.find({'split': 'test'}))
 
         elif source == 'directory':
             data_dir = self.config.data_options['directory']
@@ -119,9 +141,10 @@ class PremiseDataModule(LightningDataModule):
     def list_to_data(self, data_list):
         # either stream from database when too large for memory, or we can save all to disk for quick access
         if self.config.source == 'mongodb' and not self.config.data_options['dict_in_memory']:
-            tmp_expr_dict = {v["_id"]: self.to_data({x: v["data"][x] for x in self.config.attributes['filter']})
+            tmp_expr_dict = {v["_id"]: self.to_data({x: v["data"][x] for x in self.config.data_options['filter']})
                              for v in self.expr_col.find({'_id': {'$in': data_list}})}
-            return [self.to_data(tmp_expr_dict[d]) for d in data_list]
+
+            return [tmp_expr_dict[d] for d in data_list]
         else:
             return [self.expr_dict[d] for d in data_list]
 
@@ -135,11 +158,11 @@ class PremiseDataModule(LightningDataModule):
 
     def train_dataloader(self):
         return DataLoader(self.train_data, batch_size=self.config.batch_size,
-                          collate_fn=self.collate_data, shuffle=True)
+                          collate_fn=self.collate_data, shuffle=self.config.shuffle)
 
     def val_dataloader(self):
         return DataLoader(self.val_data, batch_size=self.config.batch_size,
-                          collate_fn=self.collate_data, shuffle=True)
+                          collate_fn=self.collate_data, shuffle=self.config.shuffle)
 
     def test_dataloader(self):
         return DataLoader(self.test_data, batch_size=self.config.batch_size,
@@ -169,20 +192,15 @@ class GraphDataModule(PremiseDataModule):
     '''
 
     def to_data(self, expr):
-        if 'attention_edge_index' not in self.config.attributes or self.config.attributes['attention_edge'] == 'full':
-            data = DirectedData(x=torch.LongTensor([self.vocab[a] for a in expr['tokens']]),
-                                edge_index=torch.LongTensor(expr['edge_index']),
-                                edge_attr=torch.LongTensor(expr['edge_attr']), )
-        elif self.config.attributes['attention_edge'] == 'directed':
-            data = DirectedData(x=torch.LongTensor([self.vocab[a] for a in expr['tokens']]),
-                                edge_index=torch.LongTensor(expr['edge_index']),
-                                edge_attr=torch.LongTensor(expr['edge_attr']),
-                                attention_edge_index=torch.LongTensor(
-                                    self.expr_dict[expr]['attention_edge_index']))
-        else:
-            raise NotImplementedError
+        data = DirectedData(x=torch.LongTensor([self.vocab[a] for a in expr['tokens']]),
+                            edge_index=torch.LongTensor(expr['edge_index']),
+                            edge_attr=torch.LongTensor(expr['edge_attr']), )
+
+        if 'attention_edge' in self.config.attributes and self.config.attributes['attention_edge'] == 'directed':
+            data.attention_edge_index = torch.LongTensor(expr['attention_edge_index'])
+
         if 'pe' in self.config.attributes:
-            data.abs_pe = self.expr_dict[expr][self.config.pe]
+            data.abs_pe = torch.LongTensor(expr[self.config.attributes['pe']])
 
         return data
 
@@ -215,7 +233,7 @@ class SequenceDataModule(PremiseDataModule):
     '''
 
     def to_data(self, expr):
-        return torch.LongTensor([self.vocab[a] for a in self.expr_dict[expr]['tokens']])
+        return torch.LongTensor([self.vocab[a] for a in expr['full_tokens']])
 
     def collate_data(self, batch):
         y = torch.LongTensor([b[2] for b in batch])
@@ -248,7 +266,7 @@ class RelationDataModule(PremiseDataModule):
     '''
 
     def to_data(self, expr):
-        x = [self.vocab[a] for a in expr['tokens']]
+        x = [self.vocab[a] for a in expr['full_tokens']]
         edge_index = expr['edge_index']
         edge_attr = torch.LongTensor(expr['edge_attr'])
         xi = torch.LongTensor([x[i] for i in edge_index[0]])

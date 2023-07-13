@@ -17,8 +17,8 @@ data/hol4/old/*
 
 data/hol4/data/*
 !data/hol4/data/dataset.json
-!data/hol4/data/new_db.json
-!data/hol4/data/paper_goals.pk
+#!data/hol4/data/new_db.json
+#!data/hol4/data/paper_goals.pk
 !data/hol4/data/hol_data.txt
 
 #*.json
@@ -27,15 +27,16 @@ data/hol4/data/*
 #!data/hol4/data/vanilla_tactic_zero/typed_database.json
 #!data/hol4/data/vanilla_tactic_zero/polished_def_dict.json
 
-experiments/hol4/model_checkpoints/*
-!experiments/hol4/model_checkpoints/best_gnn/*
-!experiments/hol4/model_checkpoints/best_vanilla
+experiments/hol4/rl/old/model_checkpoints/*
+!experiments/hol4/rl/old/model_checkpoints/best_gnn/*
+!experiments/hol4/rl/old/model_checkpoints/best_vanilla
 
 experiments/hol4/rl/gnn_pretrained/
 experiments/hol4/rl/traces/
 experiments/hol4/rl/vanilla/
 experiments/hol4/rl/vanilla_enc_models/
 
+experiments/runs
 
 experiments/hol4/rl/old_replays
 __pycache__

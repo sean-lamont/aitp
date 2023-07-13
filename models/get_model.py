@@ -129,24 +129,27 @@ Utility function to fetch model given a configuration dict
 
 def get_model(model_config):
     if model_config.model_type == 'sat':
-        return GraphTransformer(in_size=model_config['vocab_size'],
+        return GraphTransformer(in_size=model_config.model_attributes['vocab_size'],
                                 num_class=2,
-                                batch_norm=model_config['batch_norm'] if 'batch_norm' in model_config else None,
-                                d_model=model_config['embedding_dim'],
-                                dim_feedforward=model_config['dim_feedforward'],
-                                num_heads=model_config['num_heads'],
-                                num_layers=model_config['num_layers'],
-                                in_embed=model_config['in_embed'],
-                                se=model_config['se'],
-                                gnn_type=model_config['gnn_type'] if 'gnn_type' in model_config else 'gcn',
-                                abs_pe=model_config['abs_pe'],
-                                abs_pe_dim=model_config['abs_pe_dim'],
-                                use_edge_attr=model_config['use_edge_attr'],
-                                num_edge_features=model_config['num_edge_features'],
-                                global_pool=model_config['global_pool'],
-                                dropout=model_config['dropout'],
-                                k_hop=model_config['gnn_layers'],
-                                small_inner=model_config['small_inner'] if 'small_inner' in model_config else False)
+                                batch_norm=model_config.model_attributes[
+                                    'batch_norm'] if 'batch_norm' in model_config.model_attributes else None,
+                                d_model=model_config.model_attributes['embedding_dim'],
+                                dim_feedforward=model_config.model_attributes['dim_feedforward'],
+                                num_heads=model_config.model_attributes['num_heads'],
+                                num_layers=model_config.model_attributes['num_layers'],
+                                in_embed=model_config.model_attributes['in_embed'],
+                                se=model_config.model_attributes['se'],
+                                gnn_type=model_config.model_attributes[
+                                    'gnn_type'] if 'gnn_type' in model_config.model_attributes else 'gcn',
+                                abs_pe=model_config.model_attributes['abs_pe'],
+                                abs_pe_dim=model_config.model_attributes['abs_pe_dim'],
+                                use_edge_attr=model_config.model_attributes['use_edge_attr'],
+                                num_edge_features=model_config.model_attributes['num_edge_features'],
+                                global_pool=model_config.model_attributes['global_pool'],
+                                dropout=model_config.model_attributes['dropout'],
+                                k_hop=model_config.model_attributes['gnn_layers'],
+                                small_inner=model_config.model_attributes[
+                                    'small_inner'] if 'small_inner' in model_config.model_attributes else False)
 
     if model_config.model_type == 'amr':
         return AMRTransformer(in_size=model_config['vocab_size'],
@@ -198,13 +201,16 @@ def get_model(model_config):
 
 
     elif model_config.model_type == 'transformer':
-        return TransformerWrapper(ntoken=model_config['vocab_size'],
-                                  d_model=model_config['embedding_dim'],
-                                  nhead=model_config['num_heads'],
-                                  nlayers=model_config['num_layers'],
-                                  dropout=model_config['dropout'],
-                                  d_hid=model_config['dim_feedforward'],
-                                  small_inner=model_config['small_inner'] if 'small_inner' in model_config else False)
+        return TransformerWrapper(ntoken=model_config.model_attributes['vocab_size'],
+                                  d_model=model_config.model_attributes['embedding_dim'],
+                                  nhead=model_config.model_attributes['num_heads'],
+                                  nlayers=model_config.model_attributes['num_layers'],
+                                  dropout=model_config.model_attributes['dropout'],
+                                  d_hid=model_config.model_attributes['dim_feedforward'],
+                                  small_inner=model_config.model_attributes[
+                                      'small_inner'] if 'small_inner' in model_config.model_attributes else False,
+                                  max_len=model_config.model_attributes[
+                                      'max_len'] if 'max_len' in model_config.model_attributes else 512)
 
     elif model_config.model_type == 'transformer_relation':
         return AttentionRelations(ntoken=model_config['vocab_size'],

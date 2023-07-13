@@ -88,6 +88,7 @@ class DataConfig:
     batch_size: int = field(default=32)
     # Specifies attributes to be included in the data objects, e.g. Positional Encoding
     attributes: Dict = field(default={}, is_mutable=True)
+    shuffle: bool = field(default=True)
 
 
 @dataclass
@@ -106,10 +107,6 @@ class PremiseSelectionConfig(GlobalConfig):
     val_frequency: int = field(default=2048)
     checkpoint_dir: str = field(default=None)
     limit_val_batches: bool = field(default=True)
-
-    # @property
-    # def checkpoint_dir(self) -> str:
-    #     return self.directory + '/model_checkpoints'
 
     def __post_init__(self):
         if self.data_config.source == 'directory':

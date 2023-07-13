@@ -4,6 +4,7 @@ import torch
 import networkx as nx
 import matplotlib.pyplot as plt
 
+
 class AST:
     def __init__(self, node, children=[], parent=None):
         self.node = node
@@ -16,11 +17,13 @@ class AST:
             for child in self.children:
                 child._print(depth + 1)
 
+
 class Token:
     def __init__(self, value, type_, arity=None):
         self.value = value
         self.type_ = type_
         self.arity = arity
+
 
 # assume ast has been passed with ast.node as function
 def func_to_ast(ast, tokens, arity):
@@ -46,10 +49,12 @@ def func_to_ast(ast, tokens, arity):
     else:
         return func_to_ast(ast, tokens, arity - 1)
 
+
 def tokens_to_ast(tokens):
     ast = AST(tokens[0], children=[])
     tokens.pop(0)
     return func_to_ast(ast, tokens, ast.node.arity)
+
 
 def polished_to_tokens_2(goal):
     polished_goal = goal.split(" ")
@@ -87,7 +92,7 @@ def polished_to_tokens_2(goal):
 
                 if var[0] == "C":
                     # need to append this and the next as constants are space separated
-                    var = var + polished_goal[0]
+                    var = var + "|" + polished_goal[0]
                     polished_goal.pop(0)
 
                 tokens.append(Token("".join(var), "variable"))
@@ -163,6 +168,7 @@ def add_node(ast, graph):
         graph.add_edge(ast.node, child.node, child=i)
         add_node(child, graph)
 
+
 def add_lambda_children(lambda_ast):
     # child should be '|' with first child of that as variable, and rest as quantified scope
     var = lambda_ast.children[0].node.value
@@ -185,6 +191,7 @@ def add_lambda_children(lambda_ast):
     apply_lambda(sub_tree, var)
     return lambda_ast
 
+
 def process_lambdas(ast):
     ret = []
 
@@ -194,11 +201,13 @@ def process_lambdas(ast):
         for child in ast.children:
             get_lambdas(child)
         return
+
     get_lambdas(ast)
     for l in ret:
         add_lambda_children(l)
 
     return ast
+
 
 def merge_leaves(ast):
     lambda_tokens = []
@@ -260,6 +269,7 @@ def merge_leaves(ast):
 
     return ast
 
+
 def rename(ast):
     if ast.node.value[0] == 'V':
         if ast.children != []:
@@ -272,11 +282,14 @@ def rename(ast):
 
     return ast
 
+
 def goal_to_graph(polished_goal):
     return rename(merge_leaves(process_lambdas(tokens_to_ast(polished_to_tokens_2(polished_goal)))))
 
+
 def goal_to_graph_labelled(polished_goal):
     return merge_leaves(process_lambdas(tokens_to_ast(polished_to_tokens_2(polished_goal))))
+
 
 def nodes_list_to_senders_receivers(node_list):
     senders = []
@@ -287,16 +300,18 @@ def nodes_list_to_senders_receivers(node_list):
             receivers.append(node_list.index(child))
     return senders, receivers
 
-def nodes_list_to_senders_receivers_labelled(node_list):
-    senders = []
-    receivers = []
-    edge_labels = []
-    for i, node in enumerate(node_list):
-        for j, child in enumerate(node.children):
-            senders.append(i)
-            receivers.append(node_list.index(child))
-            edge_labels.append(j)
-    return senders, receivers, edge_labels
+
+# def nodes_list_to_senders_receivers_labelled(node_list):
+#     senders = []
+#     receivers = []
+#     edge_labels = []
+#     for i, node in enumerate(node_list):
+#         for j, child in enumerate(node.children):
+#             senders.append(i)
+#             receivers.append(node_list.index(child))
+#             edge_labels.append(j)
+#     return senders, receivers, edge_labels
+#
 
 def nodes_list(g, result=[]):
     result.append(g)
@@ -340,9 +355,11 @@ def graph_to_torch(g, token_enc=None):
 
     return Data(x=nodes, edge_index=edges)
 
+
+# todo rewrite with vocab
 def graph_to_torch_labelled(g, token_enc=None):
     node_list = nodes_list(g, result=[])
-#    senders, receivers = nodes_list_to_senders_receivers(node_list)
+    #    senders, receivers = nodes_list_to_senders_receivers(node_list)
     senders, receivers, edge_labels = nodes_list_to_senders_receivers_labelled(node_list)
 
     # define labels before renaming to keep original variables for induction
@@ -365,7 +382,7 @@ def graph_to_torch_labelled(g, token_enc=None):
 
     edges = torch.tensor([senders, receivers], dtype=torch.long)
 
-    #old:
+    # old:
     # nodes = sp_to_torch(node_features)
 
     # new:
@@ -374,3 +391,170 @@ def graph_to_torch_labelled(g, token_enc=None):
     nodes = torch.LongTensor(coo.col)
 
     return Data(x=nodes, edge_index=edges, edge_attr=torch.LongTensor(edge_labels), labels=labels)
+
+
+####################################################################################################
+####################################################################################################
+####################################################################################################
+####################################################################################################
+
+
+unordered_ops = ['C$min$|=', 'C$bool$|/\\', 'C$bool$|\\/']
+
+
+def nodes_list_to_senders_receivers_labelled(node_list):
+    senders = []
+    receivers = []
+    edge_labels = []
+    for i, node in enumerate(node_list):
+        for j, child in enumerate(node.children):
+            senders.append(i)
+            receivers.append(node_list.index(child))
+            if node.node.value in unordered_ops:
+                edge_labels.append(0)
+            else:
+                edge_labels.append(j)
+    return senders, receivers, edge_labels
+
+
+# def nodes_list_to_senders_receivers_labelled(node_list):
+#     senders = []
+#     receivers = []
+#     edge_labels = []
+#     for i, node in enumerate(node_list):
+#         for j, child in enumerate(node.children):
+#             senders.append(i)
+#             receivers.append(node_list.index(child))
+#             edge_labels.append(j)
+#     return senders, receivers, edge_labels
+#
+
+
+def graph_to_torch(g, token_enc=None):
+    node_list = nodes_list(g, result=[])
+    senders, receivers = nodes_list_to_senders_receivers(node_list)
+
+    # get the one hot encoding from enc
+    t_f = lambda x: np.array([x.node.value])
+
+    node_features = list(map(t_f, node_list))
+
+    node_features = token_enc.transform(node_features)
+
+    edges = torch.tensor([senders, receivers], dtype=torch.long)
+
+    nodes = sp_to_torch(node_features)
+
+    return Data(x=nodes, edge_index=edges)
+
+
+def graph_to_torch_labelled(g, token_enc=None):
+    node_list = nodes_list(g, result=[])
+    #    senders, receivers = nodes_list_to_senders_receivers(node_list)
+    senders, receivers, edge_labels = nodes_list_to_senders_receivers_labelled(node_list)
+
+    # define labels before renaming to keep original variables for induction
+    labels = [x.node.value for x in node_list]
+
+    # rename variables to be constant
+    for node in node_list:
+        if node.node.value[0] == 'V':
+            if node.children != []:
+                node.node.value = "VARFUNC"
+            else:
+                node.node.value = "VAR"
+
+    # get the one hot encoding from enc
+    t_f = lambda x: np.array([x.node.value])
+
+    node_features = list(map(t_f, node_list))
+
+    node_features = token_enc.transform(node_features)
+
+    edges = torch.tensor([senders, receivers], dtype=torch.long)
+
+    # old:
+    # nodes = sp_to_torch(node_features)
+
+    # new:
+    # returning only the one-hot tensors
+    coo = node_features.tocoo()
+    nodes = torch.LongTensor(coo.col)
+
+    return Data(x=nodes, edge_index=edges, edge_attr=torch.LongTensor(edge_labels), labels=labels)
+
+
+def graph_to_dict(g):
+    node_list = nodes_list(g, result=[])
+    #    senders, receivers = nodes_list_to_senders_receivers(node_list)
+    senders, receivers, edge_labels = nodes_list_to_senders_receivers_labelled(node_list)
+
+    # define labels before renaming to keep original variables for induction
+    labels = [x.node.value for x in node_list]
+
+    # rename variables to be constant
+    for node in node_list:
+        if node.node.value[0] == 'b':
+            if node.children != []:
+                node.node.value = "VARFUNC"
+            else:
+                node.node.value = "VAR"
+
+    tokens = [x.node.value for x in node_list]
+
+    return {'tokens': tokens, 'edge_index': [senders, receivers],
+            'edge_attr': edge_labels, 'labels': labels}
+
+
+'''
+
+Add subexpression field to each node, to reduce graph size
+
+'''
+
+
+def ast_subexps(ast):
+    val = ast.node.value
+    child_exprs = ""
+    for child in ast.children:
+        child_exprs += ast_subexps(child)
+    ast.subexp = val + child_exprs
+    return val + child_exprs
+
+
+'''
+
+Share subexpressions
+
+'''
+
+
+def reduce_subexpressions(ast):
+    nodes = nodes_list(ast, [])
+    exprs = [node.subexp for node in nodes]
+
+    dup_nodes = [node for node in nodes if exprs.count(node.subexp) > 1]
+
+    dups = {}
+    for node in dup_nodes:
+        if node.subexp in dups:
+            dups[node.subexp].append(node)
+        else:
+            dups[node.subexp] = [node]
+
+    for nodes in dups.values():
+        first_node = nodes[0]
+        parents_list = [node.parent for node in nodes]
+
+        for node in nodes[1:]:
+            assert node not in first_node.parent
+            # replace all references to same variable with first node
+            for parent in node.parent:
+                parent.children[parent.children.index(node)] = first_node
+
+
+def process_ast(polished_goal):
+    ast = tokens_to_ast(polished_to_tokens_2(polished_goal))
+    ast_subexps(ast)
+    reduce_subexpressions(ast)
+    return ast
