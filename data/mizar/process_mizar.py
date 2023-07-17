@@ -4,7 +4,6 @@ import torch
 from pymongo import MongoClient
 import random
 import pickle
-
 from ast_def_mizar import goal_to_graph, graph_to_dict
 from tqdm import tqdm
 
@@ -30,18 +29,18 @@ if __name__ == '__main__':
         for line in lines:
             if line[0] == 'C':
                 conj = line[1:].strip("\n")
-                # if conj not in expression_dict:
-                #     expression_dict[conj] = graph_to_dict(goal_to_graph(conj))
+                if conj not in expression_dict:
+                    expression_dict[conj] = graph_to_dict(goal_to_graph(conj))
             elif line[0] == '-':
                 neg_thm = line[1:].strip("\n")
                 neg_thms.append(neg_thm)
-                # if neg_thm not in expression_dict:
-                #     expression_dict[neg_thm] = graph_to_dict(goal_to_graph(neg_thm))
+                if neg_thm not in expression_dict:
+                    expression_dict[neg_thm] = graph_to_dict(goal_to_graph(neg_thm))
             elif line[0] == '+':
                 pos_thm = line[1:].strip("\n")
                 pos_thms.append(pos_thm)
-                # if pos_thm not in expression_dict:
-                #     expression_dict[pos_thm] = graph_to_dict(goal_to_graph(pos_thm))
+                if pos_thm not in expression_dict:
+                    expression_dict[pos_thm] = graph_to_dict(goal_to_graph(pos_thm))
             else:
                 raise Exception("Not valid")
 

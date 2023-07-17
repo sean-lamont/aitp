@@ -1,15 +1,16 @@
+epochs: 20
 exp_config:
-  name: "sat_mizar"
+  name: "sat"
   experiment: "premise_selection"
   directory: "experiments/runs"
   logging_config:
-    project: "mizar40_premise_selection"
+    project: "hol4_premise_selection"
 optimiser_config:
   learning_rate: 1e-4
 model_config:
   model_type: 'sat'
   model_attributes:
-    vocab_size: 13420
+    vocab_size: 2015
     embedding_dim: 256
     batch_norm: True
     global_pool: 'mean'
@@ -32,15 +33,15 @@ data_config:
   data_options:
     split_in_memory: True
     dict_in_memory: True
-    filter: ['tokens', 'edge_attr', 'edge_index',]
-    db: 'mizar40' #'hol4_tactic_zero_new'
+    filter: ['tokens', 'edge_attr', 'edge_index','attention_edge_index']
+    db: 'hol4_tactic_zero_new'#'mizar40'
     expression_col: 'expression_graphs'
     vocab_col: 'vocab'
     split_col: 'split_data'
   #  attributes: None
   batch_size: 32
   attributes:
-    attention_edge: 'full'
+    attention_edge: 'directed'
 #    pe: 'depth'
 #  type: 'graph'
 #  source: 'directory'

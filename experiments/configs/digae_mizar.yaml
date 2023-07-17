@@ -1,19 +1,19 @@
 epochs: 20
 exp_config:
-  name: "formula_net_subexp"
+  name: "DiGAE 3 Iter"
   experiment: "premise_selection"
   directory: "experiments/runs"
   logging_config:
-    project: "hol4_premise_selection"
+    project: "mizar40_premise_selection"
 optimiser_config:
   learning_rate: 1e-4
 model_config:
-  model_type: "formula-net-edges"
+  model_type: "digae"
   model_attributes:
-    vocab_size: 2015
+    num_edges: 200
+    vocab_size: 13420
     embedding_dim: 256
-    gnn_layers: 0
-    batch_norm: False
+    iterations: 1
 data_config:
   type: "graph"
   source: "mongodb" #directory
@@ -22,7 +22,7 @@ data_config:
     split_in_memory: True
     dict_in_memory: True
     filter: ['tokens', 'edge_attr', 'edge_index']
-    db: 'hol4'
+    db: 'mizar40'
     expression_col: 'expression_graphs'
     vocab_col: 'vocab'
     split_col: 'split_data'

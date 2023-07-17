@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 from tqdm import tqdm
 import json
@@ -51,7 +53,7 @@ def add_databases():
 
     # Database used for replicating TacticZero, and for pretraining using HOL4 dependency information.
     # Contains information from the HOL4 standard library up to and including "probabilityTheory"
-    db_name = "hol4_tactic_zero_new"
+    db_name = "hol4"
 
     # Collection containing meta information about an expression (library, theorem name, etc.)
     info_name = "expression_metadata"
@@ -127,4 +129,5 @@ def add_databases():
         info = expression_info_data.insert_one(
             {"_id": k, "theory": v[0], "name": v[1], "dep_id": v[3], "type": v[4], "plain_expression": v[5]})
 
+    random.shuffle(valid_goals)
     info = paper_split.insert_many([{"_id": g[0], "plain": g[1]} for g in valid_goals])

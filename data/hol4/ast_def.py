@@ -494,7 +494,7 @@ def graph_to_dict(g):
 
     # rename variables to be constant
     for node in node_list:
-        if node.node.value[0] == 'b':
+        if node.node.value[0] == 'V':
             if node.children != []:
                 node.node.value = "VARFUNC"
             else:
@@ -557,4 +557,7 @@ def process_ast(polished_goal):
     ast = tokens_to_ast(polished_to_tokens_2(polished_goal))
     ast_subexps(ast)
     reduce_subexpressions(ast)
-    return ast
+    full_tokens = polished_goal.split(" ")
+    ret = graph_to_dict(ast)
+    ret['full_tokens'] = full_tokens
+    return ret

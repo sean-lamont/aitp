@@ -1,4 +1,5 @@
 from sklearn.metrics import roc_auc_score, average_precision_score
+from torch import nn
 import torch
 from torch_geometric.utils import negative_sampling, remove_self_loops, add_self_loops
 from models.gnn.digae.digae_layers import InnerProductDecoder, DirectedInnerProductDecoder, DirectedGCNConvEncoder
@@ -133,40 +134,64 @@ class DirectedGAE(torch.nn.Module):
 
 
 class DigaeSE(torch.nn.Module):
-    def __init__(self, initial_encoder, embedding_dim, hidden_dim, out_dim, encoder=None, decoder=None):
+    def __init__(self, initial_encoder, embedding_dim, hidden_dim, out_dim, self_loops=True, iterations=1):
         super(DigaeSE, self).__init__()
         self.encoder = DirectedGCNConvEncoder(embedding_dim, hidden_dim, out_dim, alpha=0.2, beta=0.8,
-                                              self_loops=True,
-                                              adaptive=False) if encoder is None else encoder
-        self.decoder = DirectedInnerProductDecoder() if decoder is None else decoder
-        self.initial_encoder = initial_encoder
+                                              self_loops=self_loops,
+                                              adaptive=False)
 
-    def forward(self, x, edge_index):
+        self.initial_encoder = initial_encoder
+        self.iterations = iterations
+
+
+
+
+    def forward(self, x, edge_index, edge_attr=None):
+        # edge_attr = None
         u = x.clone()
         v = x.clone()
 
         u = self.initial_encoder(u)
         v = self.initial_encoder(v)
 
-        s, t = self.encoder(u, v, edge_index)
+
+        s, t = self.encoder(u, v, edge_index, edge_attr)
+
+        for _ in range(self.iterations - 1):
+            s, t = self.encoder(s, t, edge_index, edge_attr)
 
         return torch.cat([s, t], dim=1)
 
 
 class DigaeEmbedding(torch.nn.Module):
-    def __init__(self, in_size, embedding_dim, hidden_dim, out_dim, encoder=None, decoder=None):
+    def __init__(self, in_size, embedding_dim, hidden_dim, out_dim,num_edges=None,
+                 self_loops=True, iterations=1):
+
         super(DigaeEmbedding, self).__init__()
 
         self.embed = torch.nn.Embedding(in_size, embedding_dim)
-        self.se = DigaeSE(self.embed, embedding_dim, hidden_dim, out_dim, encoder=None,
-                          decoder=None)
+        self.se = DigaeSE(self.embed, embedding_dim, hidden_dim, out_dim, self_loops=self_loops, iterations=iterations)
+
+        if num_edges:
+            self.edge_embed = torch.nn.Embedding(num_edges, embedding_dim)
+
+        self.self_loops = self_loops
+
 
     def forward(self, data):
         x = data.x
         edge_index = data.edge_index
         batch = data.batch
+        edge_attr = data.edge_attr if hasattr(data, 'edge_attr') else None
 
-        nodes = self.se(x, edge_index)
+
+        if self.self_loops:
+            edge_index, edge_attr = add_self_loops(edge_index, edge_attr, num_nodes=x.size(0), fill_value=100)
+
+        if edge_attr is not None:
+            edge_attr = self.edge_embed(edge_attr)
+
+        nodes = self.se(x, edge_index, edge_attr)
 
         return gmp(nodes, batch)
 

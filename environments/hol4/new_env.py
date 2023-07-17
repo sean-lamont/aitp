@@ -1,18 +1,19 @@
 import json
+import logging
+
 import plotly.graph_objects as go
 from igraph import Graph
 import pexpect
 import torch
 from itertools import count
-from sys import exit
 from time import sleep
 import signal
 import os
-# from sat.hol4.rl.exp_config import *
 from copy import deepcopy
 import re
 
 
+#todo move to config
 MORE_TACTICS = True
 if not MORE_TACTICS:
     thms_tactic = ["simp", "fs", "metis_tac"]
@@ -30,14 +31,12 @@ tactic_pool = thms_tactic + thm_tactic + term_tactic + no_arg_tactic
 
 UNEXPECTED_REWARD = -1000
 
-HOLPATH = "/home/sean/Documents/phd/hol_old/HOL/bin/hol --maxheap=256"
+HOLPATH = "/home/sean/Documents/phd/hol/HOL/bin/hol --maxheap=256"
 #HOLPATH = "/home/sean/Documents/PhD/HOL4/HOL/bin/hol --maxheap=256"
 
 EXCLUDED_THEORIES = ["min"] #["min", "bool"]
 
 
-# with open("/home/sean/Documents/phd/repo/aitp/data/hol4/data/adjusted_db.json") as f:
-#     database = json.load(f)
 
 
 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
@@ -97,7 +96,11 @@ def get_process(pstring):
 
 class HolEnv():
     def __init__(self, goal):
-        
+        with open("/home/sean/Documents/phd/repo/aitp/data/hol4/data/adjusted_db.json") as f:
+            self.database = json.load(f)
+
+        self.reverse_database = {(value[0], value[1]) : key for key, value in self.database.items()}
+
         self.handling = None
         self.using = None
         self.frequency = {}
@@ -108,8 +111,10 @@ class HolEnv():
         
         # experimental feature
         self.process.delaybeforesend = None
+
         # import theories
-        # print("Importing theories...")
+        # logging.debug("Importing theories...")
+
         self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
         self.process.sendline("val _ = set_trace \"types\" 1;".encode("utf-8"))
         for i in self.import_theories:
@@ -118,7 +123,7 @@ class HolEnv():
             sleep(5)
 
         # remove built-in simp lemmas
-        # print("Removing simp lemmas...")
+        # logging.debug("Removing simp lemmas...")
         # # self.process.sendline("delsimps [\"HD\", \"EL_restricted\", \"EL_simp_restricted\"];")
         # self.process.sendline("delsimps {};".format(dels))
         # self.process.sendline("delsimps {};".format(dels2))
@@ -126,11 +131,11 @@ class HolEnv():
         # sleep(1)
         
         # load utils
-        # print("Loading modules...")
+        # logging.debug("Loading modules...")
         self.process.sendline("use \"helper.sml\";")
         # self.process.sendline("val _ = load \"Timeout\";")
         sleep(5)
-        # print("Configuration done.")
+        # logging.debug("Configuration done.")
         self.process.expect('\r\n>')
         # self.process.readline()
         self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
@@ -141,11 +146,6 @@ class HolEnv():
 
         self.goal = goal
 
-        # try:
-        #     self.goal_theory = plain_database[goal][0]
-        # except:
-        #     self.goal_theory = None
-
         self.polished_goal = self.get_polish(self.goal)
 
         self.fringe = {"content": self.polished_goal,
@@ -153,26 +153,27 @@ class HolEnv():
                        "goal": None,
                        "by_tactic":"",
                        "reward": None}
-        # self.handling_theories = parse_theory(self.polished_goal[0]["polished"]["goal"])
+
         # a fringe is a list of the form
         # [((polished assumptions, polished goal),
         #   (assumptions, goal)),
         #   ...]
+
         self.history = [self.fringe]
         self.action_history = [] # list of tuples (id, id, tactic)
         self.subproofs = {}
-        # print("Initialization done. Main goal is:\n{}.".format(self.goal))
+        # logging.debug("Initialization done. Main goal is:\n{}.".format(self.goal))
 
     def toggle_simpset(self, mode, theory):
         if mode == "diminish":
             cmd = "val _ = diminish_srw_ss {};".format([theory])
             cmd = re.sub("'", "\"", cmd)
-            #print("Removing simp lemmas from {}".format(theory))
+            # logging.debug("Removing simp lemmas from {}".format(theory))
             
         else:
             cmd = "val _ = augment_srw_ss {};".format([theory])
             cmd = re.sub("'", "\"", cmd)
-            print("Adding simp lemmas from {}".format(theory))
+            # logging.debug("Adding simp lemmas from {}".format(theory))
             
         # self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
         # # sleep(0.5)
@@ -190,11 +191,10 @@ class HolEnv():
 
     def get_names(self, exps):
         # look up the names of exps
-        # TODO: rewrite this
         names = []
         for e in exps:
-            theorem_name = database[e][1]
-            theory_name = database[e][0]
+            theorem_name = self.database[e][1]
+            theory_name = self.database[e][0]
             full_name = theory_name + "Theory." + theorem_name
             names.append(full_name)
         return names
@@ -238,7 +238,7 @@ class HolEnv():
         # except:
         #     self.goal_theory = None
             
-        # print("Resetting goal to be {}".format(self.goal))
+        # logging.debug("Resetting goal to be {}".format(self.goal))
         self.polished_goal = self.get_polish(self.goal)
         self.fringe = {"content": self.polished_goal,
                        "parent": None,
@@ -253,7 +253,7 @@ class HolEnv():
         if self.frequency:
             self.mean_frequency = sum(self.frequency.values())/len(self.frequency.values())
 
-        # print("Initialization done. Main goal is:\n{}.".format(self.goal))
+        # logging.debug("Initialization done. Main goal is:\n{}.".format(self.goal))
 
     def close(self):    
         pids = get_process("hol")
@@ -293,11 +293,11 @@ class HolEnv():
         data = [{"polished":{"assumptions": e[0][0], "goal":e[0][1]},
                  "plain":{"assumptions": e[1][0], "goal":e[1][1]}}
                 for e in zip(pd, [([], raw_goal)])]
-        return data # list(zip(pd, [([], raw_goal)]))
+        return data
     
     def query(self, raw_goal, tac, limited_time=True):
         # print("content1:{}".format(self.process.before.decode("utf-8")))
-        # print("goal is: {}".format(goal))
+        # print("goal is: {}".format(raw_goal))
         # print("tac is: {}".format(tac))
         self.handling = raw_goal
         self.using = tac
@@ -357,7 +357,7 @@ class HolEnv():
             try:
                 self.process.expect("val it =")
             except:
-                print("Exception: {} to {} returned no goals".format(tac, raw_goal))
+                logging.debug("Exception: {} to {} returned no goals".format(tac, raw_goal))
                 return "exception"
                 # exit()
             
@@ -436,39 +436,15 @@ class HolEnv():
             # there are assumptions
             goal = revert_assumptions(pre_target)
             d = self.query(goal, "rpt strip_tac >> " + tactic)
-            
-            # HOL_key = (goal, "rpt strip_tac >> " + normalize_args(tactic))
-            # HOL_key = (goal, "rpt strip_tac >e " + tactic)
-
-            # if HOL_key in HOL_cache:
-            #     d = HOL_cache[HOL_key]
-            # else:
-            #     d = self.query(goal, "rpt strip_tac >> " + tactic)
-            #     # d = self.query(goal, "rpt strip_tac >> " + normalize_args(tactic))
-            #     HOL_cache[HOL_key] = d
-
         else:
             # no assumptions
             goal = target["goal"]
             d = self.query(goal, tactic)
 
-            # HOL_key = (goal, normalize_args(tactic))
-            # HOL_key = (goal, tactic)
-            # if HOL_key in HOL_cache:
-            #     d = HOL_cache[HOL_key]
-            # else:
-            #     d = self.query(goal, tactic)
-            #     # d = self.query(goal, normalize_args(tactic))
-            #     HOL_cache[HOL_key] = d
-
         if d == "unexpected":
             reward = UNEXPECTED_REWARD
 
         elif d != "exception" and d != "timeout":
-            # print("origin: {}".format(pre_target))
-            # print("new: {}".format(d))
-            # print([pre_target]==d)
-
             # progress has been made
             if [pre_target] != d:
                 new_content = deepcopy(target_fringe["content"])
@@ -490,7 +466,7 @@ class HolEnv():
                     self.subproofs[coordinate] = [{"subgoals": d,"via": tactic}]
                     
                 new_fringe = {"content": new_content,
-                              "parent": fringe_id,
+                              "parent": fringe_id.tolist(),
                               "goal": goal_id,
                               "by_tactic": tactic,
                               "reward": None}
@@ -520,22 +496,8 @@ class HolEnv():
                     # new_fringe.update({"reward": reward})
                     new_fringe["reward"] = reward
                     self.history.append(new_fringe)
-                    
-                    # get its name
-                    # name = thms[new]
-                    # p = self.get_polish(new)
-                    # entry = {p[0]["polished"]["goal"]: name}
-                    # new_facts.update(entry)
-                    # fact = p[0]["polished"]["goal"]
-                    # print(fact not in fact_pool)
-                    # if ALLOW_NEW_FACTS:
-                    #     if fact not in fact_pool:
-                    #         fact_pool.append(fact)
-                    #         # print(len(fact_pool))
-
                     return reward, True
                 
-                # new_fringe.update({"reward": reward})
                 new_fringe["reward"] = reward
                 self.history.append(new_fringe)
                 
@@ -554,7 +516,29 @@ class HolEnv():
                 self.action_history.append(action)
                 
         return reward, False
-        
+
+
+    def gen_fact_pool(self, goal):
+        allowed_theories = list(set(re.findall(r'C\$(\w+)\$ ', goal[0])))
+        goal_theory = self.database[goal[0]][0]
+        polished_goal = self.fringe["content"][0]["polished"]["goal"]
+        try:
+            allowed_arguments_ids = []
+            candidate_args = []
+            for i, t in enumerate(self.database):
+                theory_allowed = self.database[t][0] in allowed_theories
+                diff_theory = self.database[t][0] != goal_theory
+                prev_theory = int(self.database[t][3]) < int(self.database[polished_goal][3])
+                if theory_allowed and (diff_theory or prev_theory):
+                    allowed_arguments_ids.append(i)
+                    candidate_args.append(t)
+            self.toggle_simpset("diminish", goal_theory)
+            # logging.debug("Removed simpset of {}".format(goal_theory))
+
+        except Exception as e:
+            raise Exception(f"Error generating fact pool: {e}")
+
+        return allowed_arguments_ids, candidate_args
 
 def extract_proof(history):
     qed = history[-1]
@@ -846,6 +830,7 @@ def draw_tree(history):#, output_graph=False):
     fig.write_html('first_figure.html', auto_open=True)
 
 def split_by_fringe(goal_set, goal_scores, fringe_sizes):
+
     # group the scores by fringe
     fs = []
     gs = []

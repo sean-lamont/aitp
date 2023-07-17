@@ -106,7 +106,6 @@ class TransformerEmbedding(nn.Module):
         if self.enc:
             self.pos_encoder = PositionalEncoding(d_model, dropout=0, max_len=max_len)
 
-        print(f"dropout {dropout}")
         encoder_layers = TransformerEncoderLayer(d_model, nhead, d_hid, dropout, activation='gelu')
 
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)

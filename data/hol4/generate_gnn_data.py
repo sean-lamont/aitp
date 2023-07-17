@@ -252,9 +252,9 @@ def generate_gnn_data(data, train_ratio, val_ratio, rand, data_dir,deps,full_db)
     for goal in tqdm(polished_goals):
         # torch_graph_dict[goal] = ast_def.graph_to_torch_labelled(goal_to_graph_labelled(goal), enc)
 
-        data_dict = ast_def.graph_to_dict(process_ast(goal))
+        data_dict = process_ast(goal)
 
-        data_dict['full_tokens'] = goal.split(" ")
+        # data_dict['full_tokens'] = goal.split(" ")
 
         attention_edge_index = get_directed_edge_index(len(data_dict['tokens']),
                                                        torch.LongTensor(data_dict['edge_index'])).tolist()

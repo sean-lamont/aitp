@@ -1,11 +1,11 @@
 """
 Utilities for graph data with Pytorch Geometric
 """
-from torch_geometric.data import Data
+import torch.nn
+from torch_geometric.data import Data, Batch
 import torch
 import torch_geometric
 import logging
-
 
 """
 DirectedData class, used for batches with attention_edge_index in SAT models
@@ -111,3 +111,70 @@ def get_depth_from_graph(num_nodes, edge_index):
         prev_depth_nodes = all_i_depth_nodes
 
     return depths
+
+
+def list_to_sequence(data_list, max_len):
+    data_list = torch.nn.utils.rnn.pad_sequence(data_list)
+    data_list = data_list[:max_len]
+    mask = (data_list == 0).T
+    mask = torch.cat([mask, torch.zeros(mask.shape[0]).bool().unsqueeze(1)], dim=1)
+    return (data_list, mask)
+
+
+def list_to_relation(data_list, max_len):
+    xis = [d[0] for d in data_list][:max_len]
+    xjs = [d[1] for d in data_list][:max_len]
+    edge_attrs = [d[2] for d in data_list][:max_len]
+
+    xi = torch.nn.utils.rnn.pad_sequence(xis)
+    xj = torch.nn.utils.rnn.pad_sequence(xjs)
+    edge_attr_ = torch.nn.utils.rnn.pad_sequence(edge_attrs)
+
+    mask = (xi == 0).T
+    mask = torch.cat([mask, torch.zeros(mask.shape[0]).bool().unsqueeze(1)], dim=1)
+
+    return Data(xi=xi, xj=xj, edge_attr_=edge_attr_, mask=mask)
+
+
+def list_to_graph(data_list, attributes):
+    data_list = Batch.from_data_list(data_list)
+    if 'attention_edge' in attributes and attributes['attention_edge'] == 'full':
+        data_list.attention_edge_index = ptr_to_complete_edge_index(data_list.ptr)
+    return data_list
+
+
+def to_data(expr, data_type, vocab, config):
+    if data_type == 'graph':
+        data = DirectedData(x=torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in expr['tokens']]),
+                            edge_index=torch.LongTensor(expr['edge_index']),
+                            edge_attr=torch.LongTensor(expr['edge_attr']), )
+        if 'attention_edge' in config.attributes and config.attributes['attention_edge'] == 'directed':
+            data.attention_edge_index = torch.LongTensor(expr['attention_edge_index'])
+        if 'pe' in config.attributes:
+            data.abs_pe = torch.LongTensor(expr[config.attributes['pe']])
+        return data
+
+    elif data_type == 'sequence':
+        return torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in expr['full_tokens']])
+
+    elif data_type == 'fixed':
+        return expr
+
+    elif data_type == 'relation':
+        x = [vocab[a] if a in vocab else vocab['UNK'] for a in expr['tokens']]
+        edge_index = expr['edge_index']
+        edge_attr = torch.LongTensor(expr['edge_attr'])
+        xi = torch.LongTensor([x[i] for i in edge_index[0]])
+        xj = torch.LongTensor([x[i] for i in edge_index[1]])
+        return (xi, xj, edge_attr)
+
+
+def list_to_data(batch, config):
+    if config.type == 'graph':
+        return list_to_graph(batch, config.attributes)
+    elif config.type == 'sequence':
+        return list_to_sequence(batch, config.attributes['max_len'])
+    elif config.type == 'relation':
+        return list_to_relation(batch, config.attributes['max_len'])
+    elif config.type == 'fixed':
+        return batch

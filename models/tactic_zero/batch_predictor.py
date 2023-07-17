@@ -77,7 +77,8 @@ class BatchPredictor(object):
         src_id_seqs = []
         for seq in src_seqs:
             padding = [0 for _ in range(max_length-len(seq))]
-            s = [self.src_vocab.stoi[tok] for tok in seq]
+            # s = [self.src_vocab.stoi[tok] for tok in seq]
+            s = [self.src_vocab.stoi[tok] if tok in self.src_vocab.stoi else self.src_vocab.stoi['<unk>'] for tok in seq]
             s.extend(padding)
             src_id_seqs.append(torch.LongTensor(s))
         

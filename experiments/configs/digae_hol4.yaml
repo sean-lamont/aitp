@@ -1,6 +1,6 @@
 epochs: 20
 exp_config:
-  name: "formula_net_subexp"
+  name: "DiGAE Edges"
   experiment: "premise_selection"
   directory: "experiments/runs"
   logging_config:
@@ -8,12 +8,12 @@ exp_config:
 optimiser_config:
   learning_rate: 1e-4
 model_config:
-  model_type: "formula-net-edges"
+  model_type: "digae"
   model_attributes:
     vocab_size: 2015
     embedding_dim: 256
-    gnn_layers: 0
-    batch_norm: False
+    num_edges: 200
+    iterations: 1
 data_config:
   type: "graph"
   source: "mongodb" #directory

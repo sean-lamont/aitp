@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from torch_geometric.nn import MessagePassing
 from torch_geometric.utils import add_self_loops, degree
 
+
 ################################################################################
 # DECODER for UNDDIRECTED models
 ################################################################################
@@ -66,7 +67,7 @@ class GCNEncoder(torch.nn.Module):
 # DIRECTED model layers: alpha, beta are supplied, BASIC version
 ################################################################################
 class DirectedGCNConv(MessagePassing):
-    def __init__(self, in_channels, out_channels, alpha=1.0, beta=0.0, self_loops=True, adaptive=False):
+    def __init__(self, in_channels, out_channels, alpha=1.0, beta=0.0, self_loops=False, adaptive=False):
         super(DirectedGCNConv, self).__init__(aggr='add')
         self.lin = torch.nn.Linear(in_channels, out_channels)
 
@@ -83,9 +84,7 @@ class DirectedGCNConv(MessagePassing):
         self.self_loops = self_loops
         self.adaptive = adaptive
 
-    def forward(self, x, edge_index):
-        if self.self_loops is True:
-            edge_index, _ = add_self_loops(edge_index, num_nodes=x.size(0))
+    def forward(self, x, edge_index, edge_attr=None):
         x = self.lin(x)
         row, col = edge_index
 
@@ -102,103 +101,63 @@ class DirectedGCNConv(MessagePassing):
         out_norm = out_norm_inv[row]
         norm = in_norm * out_norm
 
-        return self.propagate(edge_index, x=x, norm=norm)
-
-    def message(self, x_j, norm):
-        return norm.view(-1, 1) * x_j
+        return self.propagate(edge_index, x=x, norm=norm, edge_attr=edge_attr)
 
 
-class DirectedGCNConvEdge(MessagePassing):
-    def __init__(self, in_channels, out_channels, alpha=1.0, beta=0.0, self_loops=True, adaptive=False):
-        super(DirectedGCNConvEdge, self).__init__(aggr='add')
-        self.lin = torch.nn.Linear(in_channels, out_channels)
-
-        # if adaptive is True:
-        #     self.alpha = torch.nn.Parameter(torch.Tensor([alpha]))
-        #     self.beta  = torch.nn.Parameter(torch.Tensor([beta]))
-        # else:
-        #     self.alpha      = alpha
-        #     self.beta       = beta
-
-        self.alpha = alpha
-        self.beta = beta
-
-        self.self_loops = self_loops
-        self.adaptive = adaptive
-
-    def forward(self, x, edge_index, edge_attr):
-        if self.self_loops is True:
-            edge_index, _ = add_self_loops(edge_index, num_nodes=x.size(0))
-        x = self.lin(x)
-        row, col = edge_index
-
-        in_degree = degree(col)
-        out_degree = degree(row)
-
-        alpha = self.alpha
-        beta = self.beta
-
-        in_norm_inv = pow(in_degree, -alpha)
-        out_norm_inv = pow(out_degree, -beta)
-
-        in_norm = in_norm_inv[col]
-        out_norm = out_norm_inv[row]
-        norm = in_norm * out_norm
-
-        return self.propagate(edge_index, x=x, norm=norm)
-
-    def message(self, x_j, norm):
-        return norm.view(-1, 1) * x_j
+    def message(self, x_j, edge_attr, norm):
+        if edge_attr is not None:
+            return norm.view(-1, 1) * (x_j + edge_attr)
+        else:
+            return norm.view(-1, 1) * x_j
 
 class SourceGCNConvEncoder(nn.Module):
 
-    def __init__(self, in_channels, hidden_channels, out_channels, alpha=1.0, beta=0.0, self_loops=True,
+    def __init__(self, in_channels, hidden_channels, out_channels, alpha=1.0, beta=0.0, self_loops=False,
                  adaptive=False):
         super(SourceGCNConvEncoder, self).__init__()
         self.conv1 = DirectedGCNConv(in_channels, hidden_channels, alpha, beta, self_loops, adaptive)
         self.conv2 = DirectedGCNConv(hidden_channels, out_channels, alpha, beta, self_loops, adaptive)
 
-    def forward(self, x, edge_index):
-        x = F.relu(self.conv1(x, edge_index))
-        # x = self.conv1(x, edge_index)
-
-        # x = F.dropout(x, p=0.5, training=self.training)
-        x = self.conv2(x, torch.flip(edge_index, [0]))
+    def forward(self, x, edge_index, edge_attr=None):
+        x = F.relu(self.conv1(x, edge_index, edge_attr))
+        x = self.conv2(x, torch.flip(edge_index, [0]), edge_attr)
 
         return x
 
 
 class TargetGCNConvEncoder(nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels, alpha=1.0, beta=0.0, self_loops=True,
+    def __init__(self, in_channels, hidden_channels, out_channels, alpha=1.0, beta=0.0, self_loops=False,
                  adaptive=False):
         super(TargetGCNConvEncoder, self).__init__()
         self.conv1 = DirectedGCNConv(in_channels, hidden_channels, alpha, beta, self_loops, adaptive)
         self.conv2 = DirectedGCNConv(hidden_channels, out_channels, alpha, beta, self_loops, adaptive)
 
-    def forward(self, x, edge_index):
-        x = F.relu(self.conv1(x, torch.flip(edge_index, [0])))
-        x = self.conv2(x, edge_index)
+    def forward(self, x, edge_index, edge_attr=None):
+        x = F.relu(self.conv1(x, torch.flip(edge_index, [0]), edge_attr))
+        x = self.conv2(x, edge_index, edge_attr)
         return x
 
 
 class DirectedGCNConvEncoder(nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels, alpha=1.0, beta=0.0, self_loops=True,
+    def __init__(self, in_channels, hidden_channels, out_channels, alpha=1.0, beta=0.0, self_loops=False,
                  adaptive=False):
         super(DirectedGCNConvEncoder, self).__init__()
         self.source_conv = SourceGCNConvEncoder(in_channels, hidden_channels, out_channels, alpha, beta, self_loops,
                                                 adaptive)
         self.target_conv = TargetGCNConvEncoder(in_channels, hidden_channels, out_channels, alpha, beta, self_loops,
                                                 adaptive)
-    def forward(self, s, t, edge_index):
-        s = self.source_conv(s, edge_index)
-        t = self.target_conv(t, edge_index)
+
+    def forward(self, s, t, edge_index, edge_attr=None):
+        s = self.source_conv(s, edge_index, edge_attr)
+        t = self.target_conv(t, edge_index, edge_attr)
         return s, t
+
 
 ################################################################################
 # DIRECTED models: single layer
 ################################################################################
 class SingleLayerSourceGCNConvEncoder(nn.Module):
-    def __init__(self, in_channels, out_channels, alpha=1.0, beta=0.0, self_loops=True, adaptive=False):
+    def __init__(self, in_channels, out_channels, alpha=1.0, beta=0.0, self_loops=False, adaptive=False):
         super(SingleLayerSourceGCNConvEncoder, self).__init__()
         self.conv = DirectedGCNConv(in_channels, out_channels, alpha, beta, self_loops, adaptive)
 
@@ -206,14 +165,16 @@ class SingleLayerSourceGCNConvEncoder(nn.Module):
         x = self.conv(x, torch.flip(edge_index, [0]))
         return x
 
+
 class SingleLayerTargetGCNConvEncoder(nn.Module):
-    def __init__(self, in_channels, out_channels, alpha=1.0, beta=0.0, self_loops=True, adaptive=False):
+    def __init__(self, in_channels, out_channels, alpha=1.0, beta=0.0, self_loops=False, adaptive=False):
         super(SingleLayerTargetGCNConvEncoder, self).__init__()
         self.conv = DirectedGCNConv(in_channels, out_channels, alpha, beta, self_loops, adaptive)
 
     def forward(self, x, edge_index):
         x = self.conv(x, edge_index)
         return x
+
 
 class SingleLayerDirectedGCNConvEncoder(nn.Module):
     def __init__(self, in_channels, out_channels, alpha=1.0, beta=0.0, self_loops=True, adaptive=False):
@@ -226,6 +187,7 @@ class SingleLayerDirectedGCNConvEncoder(nn.Module):
         t_1 = self.target_conv(s_0, edge_index)
         return s_1, t_1
 
+
 class DummyEncoder(nn.Module):
     def __init__(self):
         super(DummyEncoder, self).__init__()
@@ -233,6 +195,7 @@ class DummyEncoder(nn.Module):
 
     def forward(self, x, edge_index):
         return x
+
 
 class DummyPairEncoder(nn.Module):
     def __init__(self):

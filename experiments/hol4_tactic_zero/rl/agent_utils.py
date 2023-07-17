@@ -1,4 +1,4 @@
-from experiments.hol4.rl.rl_data_module import *
+from experiments.hol4_tactic_zero.rl.rl_data_module import *
 import einops
 import torch.optim
 from data.hol4.ast_def import graph_to_torch_labelled
@@ -18,15 +18,16 @@ def get_tac(tac_input, tac_net, device):
     tac_tensor = tac.to(device)
     return tac_tensor, tac_prob
 
-def select_goal_fringe(history,
-                       encoder_goal,
-                       graph_db,
-                       token_enc,
-                       context_net,
-                       device,
-                       tmp,
-                       data_type='graph',
-                       replay_fringe=None):
+def get_goal(history,
+
+             encoder_goal,
+             graph_db,
+             token_enc,
+             context_net,
+             device,
+             tmp,
+             data_type='graph',
+             replay_fringe=None):
 
     representations, context_set, fringe_sizes, tmp = gather_encoded_content_gnn(history, encoder_goal,
                                                                             device, graph_db=graph_db,
@@ -153,7 +154,6 @@ def get_arg_tac(target_representation,
                     exit()
                 theory_name = name_parser[0][:-6]  # get rid of the "Theory" substring
                 theorem_name = name_parser[1]
-                # todo not sure if reverse_database will work...
                 true_arg_exp = reverse_database[(theory_name, theorem_name)]
             else:
                 name_parser = replay_arg.split(".")

@@ -1,7 +1,7 @@
 import os
+import traceback
 import warnings
 
-from pyrallis.argparsing import Namespace
 import pyrallis
 import wandb
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -86,6 +86,7 @@ class PremiseSelection(pl.LightningModule):
         self.log("acc", acc, batch_size=self.batch_size, prog_bar=True)
         return
 
+    #todo define from config
     def configure_optimizers(self):
         # optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
@@ -167,7 +168,6 @@ def main():
     cfg = pyrallis.parse(config_class=PremiseSelectionConfig)
     experiment = SeparateEncoderPremiseSelection(cfg)
     experiment.run()
-
 
 if __name__ == '__main__':
     main()

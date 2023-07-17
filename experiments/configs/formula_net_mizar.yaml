@@ -1,5 +1,5 @@
 exp_config:
-  name: "formula_net_mizar"
+  name: "formula_net 256"
   experiment: "premise_selection"
   directory: "experiments/runs"
   logging_config:
