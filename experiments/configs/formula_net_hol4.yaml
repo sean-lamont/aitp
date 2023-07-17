@@ -1,6 +1,6 @@
 epochs: 20
 exp_config:
-  name: "formula_net_subexp"
+  name: "FormulaNet 1 Layer + BatchNorm"
   experiment: "premise_selection"
   directory: "experiments/runs"
   logging_config:
@@ -12,8 +12,8 @@ model_config:
   model_attributes:
     vocab_size: 2015
     embedding_dim: 256
-    gnn_layers: 0
-    batch_norm: False
+    gnn_layers: 1
+    batch_norm: True
 data_config:
   type: "graph"
   source: "mongodb" #directory

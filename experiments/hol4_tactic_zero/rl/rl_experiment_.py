@@ -4,7 +4,7 @@ from pymongo import MongoClient
 from experiments.premise_selection import config_to_dict
 from experiments.pyrallis_configs import TacticZeroRLConfig
 import pyrallis
-from experiments.hol4_tactic_zero.rl.tactic_zero_module import HOL4TacticZero
+from experiments.hol4_tactic_zero.rl.hol4_tactic_zer import HOL4TacticZero
 from models.get_model import get_model
 from lightning.pytorch.callbacks import ModelCheckpoint
 from experiments.hol4_tactic_zero.rl.agent_utils import *

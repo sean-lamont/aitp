@@ -1,6 +1,6 @@
 epochs: 20
 exp_config:
-  name: "sat"
+  name: "Directed SAT PE"
   experiment: "premise_selection"
   directory: "experiments/runs"
   logging_config:
@@ -33,7 +33,7 @@ data_config:
   data_options:
     split_in_memory: True
     dict_in_memory: True
-    filter: ['tokens', 'edge_attr', 'edge_index',]
+    filter: ['tokens', 'edge_attr', 'edge_index','attention_edge_index']#, 'depth']
     db: 'hol4'#'mizar40'
     expression_col: 'expression_graphs'
     vocab_col: 'vocab'
@@ -41,8 +41,9 @@ data_config:
   #  attributes: None
   batch_size: 32
   attributes:
-    attention_edge: 'full'
+    attention_edge: 'directed'#full
 #    pe: 'depth'
+
 #  type: 'graph'
 #  source: 'directory'
 #  data_options:
