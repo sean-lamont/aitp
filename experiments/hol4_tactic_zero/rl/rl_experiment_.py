@@ -1,54 +1,26 @@
-import logging
-from pymongo import MongoClient
-
-from experiments.premise_selection import config_to_dict
-from experiments.pyrallis_configs import TacticZeroRLConfig
-import pyrallis
-from experiments.hol4_tactic_zero.rl.hol4_tactic_zer import HOL4TacticZero
-from models.get_model import get_model
-from lightning.pytorch.callbacks import ModelCheckpoint
-from experiments.hol4_tactic_zero.rl.agent_utils import *
-from lightning.pytorch.loggers import WandbLogger
-from experiments.hol4_tactic_zero.rl.tactic_zero_data_module import *
-from models.tactic_zero.policy_models import ArgPolicy, TacPolicy, TermPolicy, ContextPolicy
-from models.gnn.formula_net.formula_net import FormulaNetEdges
-import lightning.pytorch as pl
-import torch.optim
-from environments.hol4.new_env import *
 import warnings
 
-warnings.filterwarnings('ignore')
+import lightning.pytorch as pl
+import pyrallis
+import torch.optim
+from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.loggers import WandbLogger
 
+from environments.hol4.new_env import *
+from experiments.hol4_tactic_zero.rl.agent_utils import *
+from experiments.hol4_tactic_zero.rl.hol4_tactic_zero import HOL4TacticZero
+from experiments.hol4_tactic_zero.rl.tactic_zero_data_module import *
+from experiments.premise_selection import config_to_dict
+from experiments.pyrallis_configs import TacticZeroRLConfig
+from models.get_model import get_model
+from models.gnn.formula_net.formula_net import FormulaNetEdges
+from models.tactic_zero.policy_models import ArgPolicy, TacPolicy, TermPolicy, ContextPolicy
+
+warnings.filterwarnings('ignore')
 
 def get_model_dict(prefix, state_dict):
     return {k[len(prefix) + 1:]: v for k, v in state_dict.items()
             if k.startswith(prefix)}
-
-
-# hack for now to deal with BatchNorm Loading
-def get_model_dict_fn(model, prefix, state_dict):
-    ret_dict = {}
-    own_state = model.state_dict()
-    for k, v in state_dict.items():
-        if k.startswith(prefix):
-            k = k[len(prefix) + 1:]
-            if "mlp.3" in k:
-                k = k.replace('3', '2')
-            if k not in own_state:
-                continue
-            ret_dict[k] = v
-    return ret_dict
-
-
-def get_model_sat(prefix, state_dict):
-    ret_dict = {}
-    for k, v in state_dict.items():
-        if k.startswith(prefix):
-            if 'complete_edge_index' not in k:
-                k = k[len(prefix) + 1:]
-                ret_dict[k] = v
-    return ret_dict
-
 
 # todo pyrallis
 class RLExperiment:
@@ -60,16 +32,6 @@ class RLExperiment:
     def load_pretrained_encoders(self, encoder_premise, encoder_goal):
         ckpt_dir = self.config.pretrain_ckpt
         ckpt = torch.load(ckpt_dir)['state_dict']
-
-        # # todo: should be one generic function
-        # if self.config['exp_type'] == 'gnn':
-        #     encoder_premise.load_state_dict(get_model_dict_fn(encoder_premise, 'embedding_model_premise', ckpt))
-        #     encoder_goal.load_state_dict(get_model_dict_fn(encoder_goal, 'embedding_model_goal', ckpt))
-        # elif self.config['exp_type'] == 'sat':
-        #     encoder_premise.load_state_dict(get_model_sat('embedding_model_premise', ckpt))
-        #     encoder_goal.load_state_dict(get_model_sat('embedding_model_goal', ckpt))
-        # else:
-
         encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
         encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
 
@@ -126,7 +88,6 @@ class RLExperiment:
         module.prepare_data()
         module.setup(stage="fit")
 
-        # print(next(iter(module.train_dataloader())))
         proof_db = MongoClient()
         proof_db = proof_db[self.config.proof_db[0]]
         proof_db = proof_db[self.config.proof_db[1]]

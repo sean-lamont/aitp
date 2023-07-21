@@ -31,10 +31,9 @@ tactic_pool = thms_tactic + thm_tactic + term_tactic + no_arg_tactic
 
 UNEXPECTED_REWARD = -1000
 
-HOLPATH = "/home/sean/Documents/phd/hol/HOL/bin/hol --maxheap=256"
-#HOLPATH = "/home/sean/Documents/PhD/HOL4/HOL/bin/hol --maxheap=256"
+HOLPATH = "environments/hol4/hol/HOL/bin/hol --maxheap=256"
 
-EXCLUDED_THEORIES = ["min"] #["min", "bool"]
+EXCLUDED_THEORIES = ["min"]
 
 
 
@@ -94,9 +93,9 @@ def get_process(pstring):
     return pids
 
 
-class HolEnv():
+class HolEnv:
     def __init__(self, goal):
-        with open("/home/sean/Documents/phd/repo/aitp/data/hol4/data/adjusted_db.json") as f:
+        with open("data/hol4/raw_data/adjusted_db.json") as f:
             self.database = json.load(f)
 
         self.reverse_database = {(value[0], value[1]) : key for key, value in self.database.items()}
@@ -420,18 +419,16 @@ class HolEnv():
         return data
 
     def step(self, action):            
-       # print ("test")
-       # print (action)
-       # print (self.action_history)
         if action in self.action_history:
             reward = -1
-            #print ("same action")
             return reward, False # TODO: make this reward zero?
+
         fringe_id, goal_id, tactic = action
         target_fringe = self.history[fringe_id]
         pre_target = target_fringe["content"][goal_id]
         target = pre_target["plain"]
         # tactic = normalize_args(tactic)
+
         if target["assumptions"]:
             # there are assumptions
             goal = revert_assumptions(pre_target)

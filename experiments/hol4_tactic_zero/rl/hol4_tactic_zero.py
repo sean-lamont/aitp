@@ -1,6 +1,9 @@
-from experiments.hol4_tactic_zero.rl.agent_utils import *
-from experiments.hol4_tactic_zero.rl.agent_utils import get_replay_tac, get_term_tac
-from experiments.hol4_tactic_zero.rl.tactic_zero_data_module import *
+import einops
+import torch.nn.functional as F
+import torch.optim
+from torch.distributions import Categorical
+
+from experiments.hol4_tactic_zero.rl.old.rl_data_module import *
 from experiments.hol4_tactic_zero.rl.tactic_zero_module import TacticZeroLoop
 
 '''
@@ -116,7 +119,7 @@ class HOL4TacticZero(TacticZeroLoop):
 
         return target_representation, target_goal, fringe, fringe_prob
 
-    # todo for now, assume GNN for Induct
+    # todo for now, use GNN for Induct tac
     def get_term_tac(self, target_goal, target_representation, tac, replay_term=None):
         arg_probs = []
 
@@ -314,10 +317,13 @@ class HOL4TacticZero(TacticZeroLoop):
 
             try:
                 reward, done = env.step(action)
-            except Exception as e:
-                logging.debug(f"Step exception {e}")
-                reward = -1
+            except Exception:
+                logging.debug(f"Step exception: {action, goal}")
+                reward = -10
+                reward_pool.append(reward)
+                steps += 1
                 done = False
+                break
 
             reward_pool.append(reward)
             steps += 1
@@ -363,6 +369,27 @@ class HOL4TacticZero(TacticZeroLoop):
 
         return reward_pool, goal_pool, arg_pool, tac_pool, steps, done
 
+    def get_replay_tac(self, true_tactic_text):
+        if true_tactic_text in no_arg_tactic:
+            true_tac_text = true_tactic_text
+            true_args_text = None
+        else:
+            tac_args = re.findall(r'(.*?)\[(.*?)\]', true_tactic_text)
+            tac_term = re.findall(r'(.*?) `(.*?)`', true_tactic_text)
+            tac_arg = re.findall(r'(.*?) (.*)', true_tactic_text)
+            if tac_args:
+                true_tac_text = tac_args[0][0]
+                true_args_text = tac_args[0][1].split(", ")
+            elif tac_term:  # order matters # TODO: make it irrelavant
+                true_tac_text = tac_term[0][0]
+                true_args_text = tac_term[0][1]
+            elif tac_arg:  # order matters because tac_arg could match () ``
+                true_tac_text = tac_arg[0][0]
+                true_args_text = tac_arg[0][1]
+            else:
+                true_tac_text = true_tactic_text
+        return true_tac_text, true_args_text
+
     def run_replay(self, allowed_arguments_ids, candidate_args, env, encoded_fact_pool):
         reward_pool = []
         goal_pool = []
@@ -385,7 +412,7 @@ class HOL4TacticZero(TacticZeroLoop):
             tac_m = Categorical(tac_probs)
 
             true_tactic_text = true_resulting_fringe["by_tactic"]
-            true_tac_text, true_args_text = get_replay_tac(true_tactic_text)
+            true_tac_text, true_args_text = self.get_replay_tac(true_tactic_text)
 
             true_tac = torch.tensor([self.tactic_pool.index(true_tac_text)], device=self.device)  # .to(self.device)
             tac_pool.append(tac_m.log_prob(true_tac))
@@ -397,7 +424,7 @@ class HOL4TacticZero(TacticZeroLoop):
                 arg_pool.append(arg_probs)
 
             elif self.tactic_pool[true_tac] == "Induct_on":
-                _, arg_probs = get_term_tac(target_goal=target_goal,
+                _, arg_probs = self.get_term_tac(target_goal=target_goal,
                                             target_representation=target_representation,
                                             tac=true_tac,
                                             replay_term=true_args_text)

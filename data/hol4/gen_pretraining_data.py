@@ -6,7 +6,7 @@ import os
 
 def gen_pretraining_data():
 
-    data_dir = "/home/sean/Documents/phd/repo/aitp/data/hol4/data/"
+    data_dir = "data/hol4/raw_data/"
     # data_dir = os.path.join(os.getcwd(),data_dir)
     paper_dir = os.path.join(data_dir, "paper_goals.pk")
 

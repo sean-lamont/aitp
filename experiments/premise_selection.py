@@ -1,5 +1,4 @@
 import os
-import traceback
 import warnings
 
 import pyrallis
@@ -88,7 +87,6 @@ class PremiseSelection(pl.LightningModule):
 
     #todo define from config
     def configure_optimizers(self):
-        # optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[5, 15, 25], gamma=0.1)
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
@@ -110,8 +108,8 @@ Premise selection experiment with separate encoders for goal and premise
 class SeparateEncoderPremiseSelection:
     def __init__(self, config: PremiseSelectionConfig):
         self.config = config
-        os.mkdir(self.config.exp_config.directory)
-        os.mkdir(self.config.checkpoint_dir)
+        os.makedirs(self.config.exp_config.directory)
+        os.makedirs(self.config.checkpoint_dir)
 
     def run(self):
         torch.set_float32_matmul_precision('high')
@@ -150,7 +148,6 @@ class SeparateEncoderPremiseSelection:
             logger=logger,
             enable_progress_bar=True,
             log_every_n_steps=500,
-            # enable_checkpointing=True,
             callbacks=callbacks,
             accelerator=self.config.exp_config.accelerator,
             devices=self.config.exp_config.device

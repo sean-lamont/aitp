@@ -9,6 +9,7 @@ from models.gnn.formula_net.formula_net import FormulaNetSAT
 from .utils import pad_batch, unpad_batch
 from models.gnn.gnn_layers import get_simple_gnn_layer, EDGE_GNN_TYPES
 from models.gnn.digae.digae_model import DigaeSE
+from models.holist_models.gnn.gnn_encoder import GNNEncoder
 
 
 class Attention(gnn.MessagePassing):
@@ -45,13 +46,16 @@ class Attention(gnn.MessagePassing):
         if self.se == "khopgnn":
             self.khop_structure_extractor = KHopStructureExtractor(embed_dim, gnn_type=gnn_type,
                                                                    num_layers=k_hop, **kwargs)
-
         elif self.se == "digae":
             self.structure_extractor = DigaeSE(embed_dim, 64, embed_dim // 2)
 
         elif self.se == "formula-net":
             self.structure_extractor = FormulaNetSAT(embedding_dim=embed_dim, num_iterations=k_hop, batch_norm=True)
-            # self.structure_extractor = FormulaNetSAT(embedding_dim=embed_dim, num_iterations=k_hop)
+
+        elif self.se == "gnn-encoder":
+            self.structure_extractor = GNNEncoder(input_shape=None, embedding_dim=embed_dim,
+                                                  num_iterations=k_hop, global_pool=False,
+                                                  dropout=dropout, in_embed=False)
 
         else:
             self.structure_extractor = StructureExtractor(embed_dim, gnn_type=gnn_type,

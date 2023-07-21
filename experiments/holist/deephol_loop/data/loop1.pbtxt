@@ -1,0 +1,20 @@
+# A DeepHOL LoopConfig example.
+name: 'loop1'
+num_prover_tasks_per_round: 1000
+path_model_directory: '/data/models/loop1_model'
+prover_options: {
+  path_tactics: '/home/sean/Documents/phd/deepmath-light/deepmath/deephol/data/hollight_tactics.textpb'
+  path_tactics_replace: '/home/sean/Documents/phd/deepmath-light/deepmath/deephol/data/hollight_tactics_replacements.textpb'
+  path_theorem_database: '/home/sean/Documents/phd/deepmath-light/deepmath/deephol/data/mini_theorem_database.textpb'
+  prover: 'bfs'
+  splits_to_prove: TESTING
+  bfs_options: {
+    max_top_suggestions: 20
+    max_successful_branches: 5
+    max_explored_nodes: 100
+  }
+  action_generator_options: {
+   asm_meson_no_params_only: true
+  }
+  timeout_seconds: 100.0
+}

@@ -1,22 +1,20 @@
+import itertools
 import pickle
 import random
-from utils.mongodb_utils import get_batches
-from data.utils.graph_data_utils import ptr_to_complete_edge_index, DirectedData, list_to_graph, list_to_sequence, \
-    list_to_relation, to_data, list_to_data
-import pyrallis
-from experiments.pyrallis_configs import DataConfig
-from abc import abstractmethod
-from torch.utils.data.dataloader import DataLoader
+
 import torch
 from lightning.pytorch import LightningDataModule
 from pymongo import MongoClient
-from torch_geometric.data import Batch
-from torch_geometric.data import Data
+from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
+
+from data.utils.graph_data_utils import to_data, list_to_data
+from experiments.pyrallis_configs import DataConfig
+from utils.mongodb_utils import get_batches
 
 
 class MongoDataset(torch.utils.data.IterableDataset):
-    def __init__(self, cursor, buf_size=4096):
+    def __init__(self, cursor, length, buf_size=4096):
         super(MongoDataset).__init__()
         self.cursor = cursor
         self.batches = get_batches(self.cursor, batch_size=buf_size)
@@ -37,44 +35,100 @@ class MongoDataset(torch.utils.data.IterableDataset):
             ret = self.curr_batches.pop()
             # todo parametrise what fields are returned
             return (ret['conj'], ret['stmt'], ret['y'])
-        else:
-            raise StopIteration
 
 
 '''
 @todo:
-abstract 
-tpr
-
 holist integrated
+    data module, mongo
+    end to end
 
-Pyrallis configs for data generation (HOL4, HOList, HOLStep)
+lean
+    leangym wrapper
+    leanstep mongo, loaded with vocab
+
+Paper skeleton
+    Intro
+    
+    Background
+    
+        Provers
+            Lean, metamath (mizar), HOL4, HOL-Light 
+        Current benchmarks
+            Datasets
+                LeanStep, mizar40, mizar60?, HOLStep, 
+            Environments
+                HOList, LeanGym, CoqGym, HOL4
+        Approaches
+            Task
+                Supervised tasks, premise selection
+            Proof Search
+                BFS, Fringe, MCTS
+            Model Architecture
+                Embeddings
+                    Transformer, LSTM, Tree-LSTM, GNN, BoW, ... (more detail in second part)
+                Tactic/arg
+                    GPT, fixed tactic MLPs, premise ranking
+            Learning approach
+                Pretrain, fine tune pipeline
+                RL end to end
+                
+            AI-ITP component diagram of the above
+        
+        Embedding architectures
+            Large background on GNN in ITP, Transformer more recently with Neural Theorem Proving and Lean(step/gym)
+            GNN
+            Transformer
+            SAT
+            Directed SAT
+    
+            
+    Framework Overview
+        Architecture diagram
+        Case study/example?
+        Metric? e.g. lines of code to add new setup  
+        Vector database?
+    
+    Embedding Experiments
+        Supervised
+            HOList
+            HOL4
+            TacticZero
+            HOLStep
+            Mizar
+            Lean?
+            
+        Ensemble?
+        
+        E2E
+            HOList
+            TacticZero
+            Lean?
+            
+        Qualitative study
+            Syntactic vs Semantic for TacticZero autoencoder vs fully trained
+            Comparing embeddings between different systems, i.e. closest neighbors?
+            
+            
+        
+    
+    
+    
+    
+    
+    
+    
 experiments
 holist
 holstep
-add holist to aitp
-holist data module inheritence
-tacticzero vanilla
+tz vanilla + gnn + transformer + sat
 
 tacticzero rl tidy 
-tacticzero rl log probs and stats
+tacticzero rl stats
 
-logging throughout
-datamodule stats
-leanstep + leangym
-Dataset/H5? 
-
-'''
-
-'''
-Data Module takes in:
-
-    - config, with source, either directory with a data dictionary or a MongoDB collection
-        - if {'source': 'dir', 'attributes': {'dir': directory}} 
-                or {'source': mongodb, 'attributes':{'database':.., 'collection':..} 
-    - batch_size 
-    - attention_edge, pe for graph, max_seq_len for sequence
-
+Logging
+Pyrallis configs for data generation 
+datamodule stats?
 '''
 
 
@@ -113,9 +167,12 @@ class PremiseDataModule(LightningDataModule):
                 self.val_data = [d for d in self.data if d[3] == 'val']
                 self.test_data = [d for d in self.data if d[3] == 'test']
             else:
-                self.train_data = MongoDataset(split_col.find({'split': 'train'}))
-                self.val_data = MongoDataset(split_col.find({'split': 'val'}))
-                self.test_data = MongoDataset(split_col.find({'split': 'test'}))
+                self.train_data = MongoDataset(split_col.find({'split': 'train'}),
+                                               split_col.count_documents({'split': 'train'}))
+                self.val_data = MongoDataset(split_col.find({'split': 'val'}),
+                                             split_col.count_documents({'split': 'val'}))
+                self.test_data = MongoDataset(split_col.find({'split': 'test'}),
+                                              split_col.count_documents({'split': 'test'}))
 
         elif source == 'directory':
             data_dir = self.config.data_options['directory']
@@ -144,7 +201,6 @@ class PremiseDataModule(LightningDataModule):
 
         return list_to_data(batch, config=self.config)
 
-
     def to_data(self, expr):
         return to_data(expr, self.config.type, self.vocab, self.config)
 
@@ -165,47 +221,3 @@ class PremiseDataModule(LightningDataModule):
     def test_dataloader(self):
         return DataLoader(self.test_data, batch_size=self.config.batch_size,
                           collate_fn=self.collate_data)
-
-#
-# '''
-#
-# Data Module for Graph based Models (Currently GNNs and Structure Aware Attention)
-#
-# '''
-#
-#
-# class GraphDataModule(PremiseDataModule):
-#     def __init__(self, config: DataConfig):
-#         super().__init__(config)
-#         self.config = config
-#
-#     def setup(self, stage: str) -> None:
-#         super(GraphDataModule, self).setup(stage)
-#         # add e.g. thm_ls for holist here
-#
-#     def list_to_data(self, data_list):
-#         data_list = super(GraphDataModule, self).list_to_data(data_list)
-#         return list_to_graph(data_list, self.config.attributes)
-#
-# class SequenceDataModule(PremiseDataModule):
-#     def __init__(self, config: DataConfig):
-#         super().__init__(config)
-#         self.config = config
-#         self.max_len = self.config.attributes['max_len']
-#
-#     # Convert an expression to a LongTensor
-#     def list_to_data(self, data_list):
-#         data_list = super(SequenceDataModule, self).list_to_data(data_list)
-#         return list_to_sequence(data_list, self.max_len)
-#
-#
-# class RelationDataModule(PremiseDataModule):
-#     def __init__(self, config: DataConfig):
-#         super().__init__(config)
-#         self.config = config
-#         self.max_len = self.config.attributes['max_len']
-#
-#     # Take tokens from standard graph and generate (source, target, edge) relations
-#     def list_to_data(self, data_list):
-#         data_list = super(RelationDataModule, self).list_to_data(data_list)
-#         return list_to_relation(data_list, self.max_len)

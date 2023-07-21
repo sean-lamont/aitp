@@ -10,9 +10,9 @@ exp_config:
   directory: "experiments/runs"
   logging_config:
     project: "rl_new"
-    offline: True
+#    offline: True
 #    id: 'tqdf5f3w'
-    notes: "Test"
+    notes: "Vanilla"
 optimiser_config:
   learning_rate: 5e-5
 model_config:

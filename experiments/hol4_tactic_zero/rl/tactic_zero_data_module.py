@@ -1,14 +1,12 @@
 import logging
 import pickle
 
-from pymongo import MongoClient
 import lightning.pytorch as pl
+from pymongo import MongoClient
 from torch.utils.data import DataLoader as loader
 from tqdm import tqdm
 
-from data.data_modules import MongoDataset
 from data.hol4 import ast_def
-from data.hol4.ast_def import graph_to_torch_labelled
 from data.utils.graph_data_utils import to_data, list_to_data
 from environments.get_env import get_env
 from experiments.pyrallis_configs import DataConfig
@@ -42,7 +40,7 @@ class RLData(pl.LightningDataModule):
             self.goals = [(v['_id'], v['plain']) for v in split_col.find({})]
             self.data = [a for a in self.goals]
 
-            self.train_goals = self.data[:int(0.8 * len(self.data))][:10]
+            self.train_goals = self.data[:int(0.8 * len(self.data))]
             self.test_goals = self.data[int(0.8 * len(self.data)):]
 
         elif source == 'directory':
@@ -73,7 +71,7 @@ class RLData(pl.LightningDataModule):
         if self.data_type == 'fixed':
             return [d.strip().split() for d in data_list]
 
-        # todo for now, add every unseen expression to database
+        # for now, add every unseen expression to database
         for d in data_list:
             if d not in self.expr_dict:
                 self.expr_dict[d] = to_data(expr=ast_def.process_ast(d),
@@ -106,7 +104,7 @@ class RLData(pl.LightningDataModule):
         try:
             goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env = batch
             if self.data_type != 'fixed':
-                allowed_fact_batch = allowed_fact_batch.to(device)  # [x.to(device) for x in allowed_fact_batch]
+                allowed_fact_batch = allowed_fact_batch.to(device)
         except Exception as e:
             logging.debug(f"Error in batch {e}")
             return None

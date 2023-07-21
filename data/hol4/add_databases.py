@@ -8,7 +8,7 @@ import pickle
 
 
 def add_databases():
-    data_dir = "data/"
+    data_dir = "data/hol4/raw_data/"
 
     with open(data_dir + "dep_data.json") as f:
         dep_data = json.load(f)
