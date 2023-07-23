@@ -45,7 +45,7 @@ Install Lean3:
   - wget -q https://raw.githubusercontent.com/leanprover-community/mathlib-tools/master/scripts/install_debian.sh && bash install_debian.sh ; rm -f install_debian.sh && source ~/.profile 
 - (preferred) Inside venv:
   - curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
-  - source $HOME/.elan/env to add elan to path
+  - source $HOME/.elan/env to add elan to path, or copy/symlink $HOME/.elan/env to venv bin folder
   - pip install mathlibtools
   
 #### Environment (Lean-Gym)

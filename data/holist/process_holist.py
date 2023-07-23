@@ -1,5 +1,7 @@
 import logging
 import re
+from multiprocessing import Pool
+
 from data.utils.graph_data_utils import get_depth_from_graph, get_directed_edge_index
 from pymongo import MongoClient
 import os
@@ -130,17 +132,10 @@ def prepare_data(config):
         logging.info("Adding full expression data..")
 
         for k, v in tqdm(expr_dict.items()):
-            attention_edge = get_directed_edge_index(len(v['tokens']), torch.LongTensor(v['edge_index']))
-            depth = get_depth_from_graph(len(v['tokens']), torch.LongTensor(v['edge_index']))
 
             expr_col.insert_one({'_id': k, 'data': {'tokens': v['tokens'],
                                                     'edge_index': v['edge_index'],
-                                                    'edge_attr': v['edge_attr'],
-                                                    'attention_edge_index': attention_edge.tolist(),
-                                                    'depth': depth.tolist(),
-                                                    'full_tokens': tokenize_string(k),
-                                                    'polished': sexpression_to_polish(k)
-                                                    }})
+                                                    'edge_attr': v['edge_attr'],}})
 
         split_col.insert_many(train_proof_logs)
         split_col.insert_many(val_proof_logs)
@@ -150,13 +145,47 @@ def prepare_data(config):
         thm_ls_col.insert_many([{'_id': x} for x in list(set(train_params))])
 
 
-    if source == 'directory':
+    elif source == 'directory':
         data = {'train_data': train_proof_logs, 'val_data': val_proof_logs,
                 'expr_dict': expr_dict, 'train_thm_ls': list(set(train_params)), 'vocab': vocab}
 
         save_dir = data_options['dir']
         os.makedirs(save_dir)
         torch.save(data, save_dir + '/data.pt')
+
+    else:
+        raise NotImplementedError
+
+
+    def add_addional_data(item):
+        expr_col.update_many({"_id": item["_id"]},
+                                    {"$set":
+                                        {
+                                            # "data.attention_edge_index":
+                                            #     get_directed_edge_index(len(item['graph']['tokens']),
+                                            #                             torch.LongTensor(
+                                            #                                 item['graph']['edge_index'])).tolist(),
+                                            # "data.depth":
+                                            #     get_depth_from_graph(len(item['graph']['tokens']),
+                                            #                          torch.LongTensor(
+                                            #                              item['graph']['edge_index'])).tolist(),
+
+                                            'data.full_tokens': tokenize_string(item["_id"]),
+                                            'data.polished': sexpression_to_polish(item["_id"])
+                                        }})
+
+    if config['additional_data']:
+        assert source == 'mongodb', "Currently only MongoDB is supported for HOList additional fields"
+
+        logging.info("Adding additional properties to expression database..")
+        items = []
+
+        for item in tqdm(expr_col.find({})):
+            items.append(item)
+
+        pool = Pool(processes=4)
+        for _ in tqdm(pool.imap_unordered(add_addional_data, items), total=len(items)):
+            pass
 
     logging.info('Done!')
 
@@ -183,6 +212,9 @@ if __name__ == '__main__':
         'vocab_file': None,
         'source': 'mongodb',
         'data_options': {'db': 'holist'},
+        'additional_data': True
     }
 
     prepare_data(config)
+
+

@@ -17,11 +17,11 @@ if __name__ == '__main__':
                                     {"$set":
                                         {
                                             "graph.attention_edge_index":
-                                                get_directed_edge_index(len(item['graph']['onehot']),
+                                                get_directed_edge_index(len(item['graph']['tokens']),
                                                                         torch.LongTensor(
                                                                             item['graph']['edge_index'])).tolist(),
                                             "graph.depth":
-                                                get_depth_from_graph(len(item['graph']['onehot']),
+                                                get_depth_from_graph(len(item['graph']['tokens']),
                                                                      torch.LongTensor(
                                                                          item['graph']['edge_index'])).tolist()
                                         }})

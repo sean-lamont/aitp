@@ -1,6 +1,4 @@
-import itertools
 import pickle
-import random
 
 import torch
 from lightning.pytorch import LightningDataModule
@@ -8,106 +6,42 @@ from pymongo import MongoClient
 from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
 
+from data.stream_dataset import MongoStreamDataset
 from data.utils.graph_data_utils import to_data, list_to_data
 from experiments.pyrallis_configs import DataConfig
-from utils.mongodb_utils import get_batches
-
-
-class MongoDataset(torch.utils.data.IterableDataset):
-    def __init__(self, cursor, length, buf_size=4096):
-        super(MongoDataset).__init__()
-        self.cursor = cursor
-        self.batches = get_batches(self.cursor, batch_size=buf_size)
-        self.curr_batches = next(self.batches)
-        self.remaining = len(self.curr_batches)
-
-    def __iter__(self):
-        return self
-
-    # todo figure out why it stops after one iteration
-    def __next__(self):
-        if self.remaining == 0:
-            self.curr_batches = next(self.batches)
-            random.shuffle(self.curr_batches)
-            self.remaining = len(self.curr_batches)
-        self.remaining -= 1
-        if self.remaining >= 0:
-            ret = self.curr_batches.pop()
-            # todo parametrise what fields are returned
-            return (ret['conj'], ret['stmt'], ret['y'])
-
 
 '''
 @todo:
-holist integrated
-    data module, mongo
+
+23/7 & 24/7
+    paper skeleton
+    
+    lean
+        mongo, loaded with vocab
+        sexpression parser (HOList recycle?)
+        model
+
+    holist integrated
+        data module, mongo
+
+holist
+    transformer
     end to end
 
-lean
-    leangym wrapper
-    leanstep mongo, loaded with vocab
+leangym wrapper
+    tactics
+    
+tacticzero
+    debug!!!!!!!
+    pretrain GNN, SAT (without batch norm), transformer
+    run for 10 steps ..
 
-Paper skeleton
-    Intro
+ensemble
+
+holstep
+    process data and run sweep
     
-    Background
-    
-        Provers
-            Lean, metamath (mizar), HOL4, HOL-Light 
-        Current benchmarks
-            Datasets
-                LeanStep, mizar40, mizar60?, HOLStep, 
-            Environments
-                HOList, LeanGym, CoqGym, HOL4
-        Approaches
-            Task
-                Supervised tasks, premise selection
-            Proof Search
-                BFS, Fringe, MCTS
-            Model Architecture
-                Embeddings
-                    Transformer, LSTM, Tree-LSTM, GNN, BoW, ... (more detail in second part)
-                Tactic/arg
-                    GPT, fixed tactic MLPs, premise ranking
-            Learning approach
-                Pretrain, fine tune pipeline
-                RL end to end
-                
-            AI-ITP component diagram of the above
-        
-        Embedding architectures
-            Large background on GNN in ITP, Transformer more recently with Neural Theorem Proving and Lean(step/gym)
-            GNN
-            Transformer
-            SAT
-            Directed SAT
-    
-            
-    Framework Overview
-        Architecture diagram
-        Case study/example?
-        Metric? e.g. lines of code to add new setup  
-        Vector database?
-    
-    Embedding Experiments
-        Supervised
-            HOList
-            HOL4
-            TacticZero
-            HOLStep
-            Mizar
-            Lean?
-            
-        Ensemble?
-        
-        E2E
-            HOList
-            TacticZero
-            Lean?
-            
-        Qualitative study
-            Syntactic vs Semantic for TacticZero autoencoder vs fully trained
-            Comparing embeddings between different systems, i.e. closest neighbors?
+
             
             
         
@@ -158,21 +92,34 @@ class PremiseDataModule(LightningDataModule):
             else:
                 self.expr_col = expr_col
 
+            fields = ['conj', 'stmt', 'y']
+
             # if data_in_memory, save all examples to disk
             if self.config.data_options['split_in_memory']:
-                # todo paramatrise what fields are returned
-                self.data = [(v["conj"], v["stmt"], v['y'], v['split'])
-                             for v in tqdm(split_col.find({}))]
-                self.train_data = [d for d in self.data if d[3] == 'train']
-                self.val_data = [d for d in self.data if d[3] == 'val']
-                self.test_data = [d for d in self.data if d[3] == 'test']
+                self.train_data = [[v[field] for field in fields]
+                                   for v in tqdm(split_col.find({'split': 'train'}))]
+
+                self.val_data = [[v[field] for field in fields]
+                                 for v in tqdm(split_col.find({'split': 'val'}))]
+
+                self.test_data = [[v[field] for field in fields]
+                                  for v in tqdm(split_col.find({'split': 'test'}))]
+
+            # stream dataset from MongoDB
             else:
-                self.train_data = MongoDataset(split_col.find({'split': 'train'}),
-                                               split_col.count_documents({'split': 'train'}))
-                self.val_data = MongoDataset(split_col.find({'split': 'val'}),
-                                             split_col.count_documents({'split': 'val'}))
-                self.test_data = MongoDataset(split_col.find({'split': 'test'}),
-                                              split_col.count_documents({'split': 'test'}))
+                train_len = split_col.count_documents({'split': 'train'})
+                val_len = split_col.count_documents({'split': 'val'})
+                test_len = split_col.count_documents({'split': 'test'})
+
+                self.train_data = MongoStreamDataset(split_col.find({'split': 'train'}), len=train_len,
+                                                     fields=fields)
+
+                self.val_data = MongoStreamDataset(split_col.find({'split': 'val'}), len=val_len,
+                                                   fields=fields)
+
+                self.test_data = MongoStreamDataset(split_col.find({'split': 'test'}), len=test_len,
+                                                    fields=fields)
+
 
         elif source == 'directory':
             data_dir = self.config.data_options['directory']

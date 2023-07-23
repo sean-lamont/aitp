@@ -49,6 +49,7 @@ class TacticZeroLoop(pl.LightningModule):
             if type(loss) != torch.Tensor:
                 logging.debug(f"Error in loss: {loss}")
                 return
+
             return loss
 
         except Exception as e:
@@ -79,7 +80,6 @@ class TacticZeroLoop(pl.LightningModule):
                        "cumulative_proven": len(self.cumulative_proven)},
                       prog_bar=True)
 
-        # todo logging goals, steps etc. proven...
         self.proven = []
         self.save_replays()
 
@@ -114,6 +114,3 @@ class TacticZeroLoop(pl.LightningModule):
             loss.backward()
         except Exception as e:
             logging.debug(f"Error in backward {e}")
-
-
-

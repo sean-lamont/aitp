@@ -2,6 +2,8 @@ import logging
 import pickle
 import torch
 import random
+
+from data.stream_dataset import MongoStreamDataset
 from utils.mongodb_utils import get_batches
 from torch.utils.data import DataLoader
 from lightning.pytorch import LightningDataModule
@@ -17,47 +19,12 @@ db = client['holist']
 expr_collection = db['expression_graphs']
 
 
-class MongoDataset(torch.utils.data.IterableDataset):
-    def __init__(self, cursor, buf_size=4096):
-        super(MongoDataset).__init__()
-        self.cursor = cursor
-        self.batches = get_batches(self.cursor, batch_size=buf_size)
-        self.curr_batches = next(self.batches)
-        self.remaining = len(self.curr_batches)
-
-    def __iter__(self):
-        return self
-
-    # todo figure out why it stops after one iteration
-    def __next__(self):
-        if self.remaining == 0:
-            self.curr_batches = next(self.batches)
-            random.shuffle(self.curr_batches)
-            self.remaining = len(self.curr_batches)
-        self.remaining -= 1
-        if self.remaining >= 0:
-            ret = self.curr_batches.pop()
-            # todo parametrise what fields are returned
-            return (ret['goal'], ret['thms'], ret['tac_id'], ret['thms_hard_negatives'])
-        else:
-            raise StopIteration
-
-
 # todo standardise format with other data module
 class HOListGraphModule(LightningDataModule):
     def __init__(self, dir, batch_size):
         super().__init__()
         self.dir = dir
         self.batch_size = batch_size
-
-    def load(self):
-        self.vocab = torch.load(self.dir + 'vocab.pt')
-        # self.expr_dict = torch.load(self.dir + 'expr_dict.pt')
-        logging.info("Loading expression dictionary..")
-        self.expr_dict = {k["_id"]: k['graph'] for k in tqdm(expr_collection.find({}))}
-        self.train_data = torch.load(self.dir + 'train_data.pt')
-        self.val_data = torch.load(self.dir + 'val_data.pt')
-        self.thm_ls = torch.load(self.dir + 'train_thm_ls.pt')
 
     def setup(self, stage: str) -> None:
         source = self.config.source
@@ -76,6 +43,8 @@ class HOListGraphModule(LightningDataModule):
             self.thms_ls = [v['_id'] for v in thms_col.find({})]
 
 
+
+            fields = ['goal', 'thms', 'tac_id', 'thms_hard_negatives']
             # load all examples in memory, otherwise keep as a cursor
             if self.config.data_options['dict_in_memory']:
                 self.expr_dict = {v["_id"]: self.to_data({x: v["data"][x] for x in self.config.data_options['filter']})
@@ -83,16 +52,25 @@ class HOListGraphModule(LightningDataModule):
             else:
                 self.expr_col = expr_col
 
+            # if data_in_memory, save all examples to disk
             if self.config.data_options['split_in_memory']:
-                # todo parametrise what fields are returned
-                self.train_data = [(v["goal"], v["thms"], v['tac_id'], v['thms_hard_negatives'])
-                             for v in tqdm(split_col.find({'train'}))]
+                self.train_data = [[v[field] for field in fields]
+                                   for v in tqdm(split_col.find({'split': 'train'}))]
 
-                self.val_data = [(v["goal"], v["thms"], v['tac_id'], v['thms_hard_negatives'])
-                                   for v in tqdm(split_col.find({'train'}))]
+                self.val_data = [[v[field] for field in fields]
+                                 for v in tqdm(split_col.find({'split': 'val'}))]
+
+            # stream dataset from MongoDB
             else:
-                self.train_data = MongoDataset(split_col.find({'split': 'train'}))
-                self.val_data = MongoDataset(split_col.find({'split': 'val'}))
+                train_len = split_col.count_documents({'split': 'train'})
+                val_len = split_col.count_documents({'split': 'val'})
+
+                self.train_data = MongoStreamDataset(split_col.find({'split': 'train'}), len=train_len,
+                                                     fields=fields)
+
+                self.val_data = MongoStreamDataset(split_col.find({'split': 'val'}), len=val_len,
+                                                   fields=fields)
+
 
 
         elif source == 'directory':
@@ -119,9 +97,8 @@ class HOListGraphModule(LightningDataModule):
 
             logging.info("Generating graph dictionary..")
             self.expr_dict = {k: DirectedData(
-                x=torch.LongTensor(v['onehot']),
-                # x=torch.LongTensor(
-                #     [self.vocab[tok] if tok in self.vocab else self.vocab['UNK'] for tok in v['tokens']]),
+                x=torch.LongTensor(
+                    [self.vocab[tok] if tok in self.vocab else self.vocab['UNK'] for tok in v['tokens']]),
                 edge_index=torch.LongTensor(v['edge_index']),
                 edge_attr=torch.LongTensor(v['edge_attr']),
                 abs_pe=torch.LongTensor(v['depth']),
