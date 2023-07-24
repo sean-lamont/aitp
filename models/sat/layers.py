@@ -29,7 +29,7 @@ class Attention(gnn.MessagePassing):
     """
 
     def __init__(self, embed_dim, num_heads=8, dropout=0., bias=False,
-                 symmetric=False, gnn_type="gcn", se="gnn", k_hop=1, **kwargs):
+                 symmetric=False, gnn_type="gcn", se="gnn", k_hop=1, batch_norm=False, **kwargs):
 
         super().__init__(node_dim=0, aggr='add')
         self.embed_dim = embed_dim
@@ -50,7 +50,7 @@ class Attention(gnn.MessagePassing):
             self.structure_extractor = DigaeSE(embed_dim, 64, embed_dim // 2)
 
         elif self.se == "formula-net":
-            self.structure_extractor = FormulaNetSAT(embedding_dim=embed_dim, num_iterations=k_hop, batch_norm=True)
+            self.structure_extractor = FormulaNetSAT(embedding_dim=embed_dim, num_iterations=k_hop, batch_norm=batch_norm)
 
         elif self.se == "gnn-encoder":
             self.structure_extractor = GNNEncoder(input_shape=None, embedding_dim=embed_dim,
@@ -362,7 +362,7 @@ class TransformerEncoderLayer(nn.TransformerEncoderLayer):
         super().__init__(d_model, nhead, dim_feedforward, dropout, activation)
 
         self.self_attn = Attention(d_model, nhead, dropout=dropout,
-                                   bias=False, gnn_type=gnn_type, se=se, k_hop=k_hop, **kwargs)
+                                   bias=False, gnn_type=gnn_type, se=se, k_hop=k_hop, batch_norm=batch_norm, **kwargs)
 
         self.batch_norm = batch_norm
         self.pre_norm = pre_norm

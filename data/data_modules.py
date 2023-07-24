@@ -11,69 +11,44 @@ from data.utils.graph_data_utils import to_data, list_to_data
 from experiments.pyrallis_configs import DataConfig
 
 '''
+
 @todo:
-
-24/7
-    paper skeleton
-    
-    lean
-        mongo, loaded with vocab
-
-    Experiment plan
-
-    tacticzero
-        pretrained GNN, SAT (without batch norm), transformer, vanilla for 5 steps
-    
-    
-    holist attention data
-
 
 25/7
 
+Experiment plan
+
+holist attention data + end to end + transformer
+
+tacticzero
+    pretrained SAT, transformer for 5 steps
+    
 ensemble
     
-
-
-holstep
-    process data and run sweep
+lean
+    mongo, loaded with vocab
     
 lean
     sexpression parser (HOList recycle?), return local variables
     leanenv tactics
     model (pretrain only)
             
-holist integrated
-    transformer
-    end to end
-        
-    
+holstep
+    process data and run sweep
     
 standardise experiments
     add resume to pretrain and holist experiments
     logging/files/directories all the same
 
-
 NO_PARAM hack for holist
 
-
 unified proof log format? for HOL4, lean, HOList etc. record proof_state, tactic/args, outcome
-    
     
 multiple data loader workers
 
 multi GPU
     
     
-    
-experiments
-holist
-holstep
-
-tacticzero rl stats
-
-Logging
-Pyrallis configs for data generation 
-datamodule stats?
 '''
 
 

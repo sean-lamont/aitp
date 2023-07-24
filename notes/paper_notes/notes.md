@@ -7,13 +7,12 @@ methodologies,
 particularly in the area of Interactive Theorem Proving (ITP).
 Research in the area is fragmented, with a diverse set of approaches being spread across several ITP systems.
 This presents a significant challenge to the comparison of methods, which are often complex and difficult to replicate.
-To address this, we present METIS: A Modular Environment for Theorem-Proving in Interactive Systems.
-By separating the learning approach from the data and ITP environment, METIS allows for the fast and efficient
-comparison of
-approaches between systems.
-METIS was designed to seamlessly incorporate new systems and benchmarks, and currently accommodates HOList, HOLStep,
+To address this, we present MEDIATE: A Modular Environment for Insights and Development in Automated Theorem Experiments.
+By separating the learning approach from the data and ITP environment, MEDIATE allows for the fair and efficient
+comparison of approaches between systems.
+MEDIATE is designed to seamlessly incorporate new systems and benchmarks, and currently accommodates HOList, HOLStep,
 MIZAR40, LeanStep, LeanGym and HOL4's TacticZero.
-We demonstrate the utility of METIS through a study of embedding architectures in the context of the above systems.
+We demonstrate the utility of MEDIATE through a study of embedding architectures in the context of the above systems.
 
 [//]: # (Through comparing the performance of approaches across a variety of ITP settings, we provide strong evidence that..)
 These experiments lay the foundations for future work in evaluation of performance of formula embedding,
@@ -140,35 +139,54 @@ research.
 # Paper skeleton
 
 ## Intro
+Interactive Theorem Proving (ITP) is a key paradigm of formal verification. 
+With a human providing high level proof guidance, ITP systems have been used to develop verified compilers (cite), formalise mathematical conjectures (cite) and develop provably correct microkernels (cite).
+Successful proof guidance requires proficiency in both the formal system and the application domain. 
+This has limited the scale and widespread adoption of formal methods, with e.g...
+The nascent field of Artificial Intelligence for Theorem Proving (AITP) has the potential to address this, 
+with several strong results in automating human ITP guidance.
+AITP research encompasses several mathematical reasoning tasks, such as math word problems (cite) and autoformalisation (cite).
+The focus of this paper is specifially AI for Interactive Theorem Proving, which we refer to as AI-ITP.
 
-### Motivation
+Current datasets and environments for AI-ITP are divided across several distinct ITP systems.
+Although this provides a variety of tasks for benchmarking,
+it poses a challenge to the fair and efficient comparison of the automation approaches.
+This is further complicated by the broad range of methods which have been applied in the area,
+which are generally tested only in the context of a single ITP system (cite).
+(examples, HOList over the HOL Light prover, LeanStep/LeanGym over Lean,
+TacticZero and TacticToe,.. with HOL4).
 
-Formal verification is an important research area, with applications ranging from secure software to pure mathematics.
+[//]: # (Current benchmarks have made significant progress in the generation of quality ITP proof data,)
+[//]: # (still small in the context of large models and compared to NLP. )
+[//]: # (Through curating these data sources into a centralised platform, we have created a large dataset  of xxx examples and xxx GB of proof data.)
 
-[//]: # (Add other applications?)
+A central component of AI-ITP systems is their embedding model.
+Vector embeddings of the ITP logical expressions are required for the application of learning algorithms.
+These are used for tasks such as premise selection, goal selection which are essential for proof guidance.
 
-Formalisation projects typically require significant human resources and expertise, with e.g. ...
-This has limited their scale and widespread adoption, despite the many benefits of formally verified systems.
+Expressions are either treated as a natural language sequence, or as a directed graph derived from their abstract syntax tree
+representation. It has been argued that a graph representation is more appropriate, with a large body of work in AI-ITP
+using Graph Neural Network (GNN) as the embedding model to achieve strong results in several tasks.
 
-Automating formalisation systems has the potential The there has been growing interest in the application of Artificial
-Intelligence to Theorem Proving (AITP),
-with several recent results demonstrating the potential of AI approaches in the area.
-This has the potential to improve the scalability of formal verification and ..
+However, Transformer models applied to the sequence representation have also demonstrated strong performance by
+leveraging large models pre-trained on NLP datasets.
 
-### Fragmented Research Landscape
+Both architectures have fundamental limitations, as GNNs suffer from poor integration of global information, and vanlla
+Transformers ignore the structural information of the expression.
+Recent work has shown that combining both architectures leads to improved performance on several graph learning tasks.
+In the context of theorem proving however, there has been no thorough comparison between approaches.
 
-Current benchmarks are varied, but individually restrictive in scope.
-They include HOList over HOL Light LeanStep/LeanGym over Lean.
-TacticZero and TacticToe,.. with HOL4
+We address these two issues by ... our contributions can be summarised as ...
 
-All restricted to a single system. Approaches tested are split between the systems, making it difficult to compare.
-Specifically in the case of embedding architectures, some use Transformer and others use GNN
+## Background
+
 
 HOList provides a large scale dataset and interactive environment for HOL Light, with a Breadth First Search proo large
 scale dataset and interactive environment for HOL Light, with a Breadth First Search proof
 
 and LeanStep/LeanGym are the two largest and
 
+Related work
 Unified toolkit proposed for MWP, MWPToolkit.
 
 - However, AI for ITP has several additional considerations:
@@ -180,31 +198,22 @@ Unified toolkit proposed for MWP, MWPToolkit.
       arch.
 
 
+AIITP benchmarks mentioned, limited in single system.
+Other unified frameworks, e.g. NLP, CV, GNN (graph benchmarks), which have provided strong value to their respective areas
 
-### Embeddings
 
-Most AITP approaches require vector embeddings of the mathematical expressions under reasoning, which are then used for
-upstream tasks such as premise selection and proof guidance.
-The choice of embedding model is still an open question.
-Expressions are either treated as a natural language sequence, or as a graph derived from their abstract syntax tree
-representation.
-It has been argued that a graph representation is more appropriate, with Graph Neural Networks (GNNs) achieving strong
-results in several tasks.
-However, Transformer models applied to the sequence representation have also demonstrated strong performance by
-leveraging large pre-trained models.
-Both architectures have fundamental limitations, as GNNs suffer from poor integration of global information, and vanlla
-Transformers ignore the structural information of the expression.
-Recent work has shown that combining both architectures leads to improved performance on several graph learning tasks.
-In the context of theorem proving however, there has been no thorough comparison between approaches.
-In this work, we investigate the importance of embedding architecture across several theorem proving tasks.
-We show a surprising improvement of 50\% over the state of the art TacticZero algorithm, with the only change being the
-embedding approach.
-We also provide comparisons of embedding architectures across the HOLStep and HOList benchmarks, and a HOL4 premise
-selection task.
-We provide a qualitative analysis of embeddings to help explain the large improvement, showing that the improved model
-provides more semantically aware embeddings.
+
+
+[//]: # (In this work, we investigate the importance of embedding architecture across several theorem proving tasks.)
+[//]: # (We show a surprising improvement of 50\% over the state of the art TacticZero algorithm, with the only change being the)
+[//]: # (embedding approach.)
+[//]: # (We also provide comparisons of embedding architectures across the HOLStep and HOList benchmarks, and a HOL4 premise)
+[//]: # (selection task.)
+[//]: # (We provide a qualitative analysis of embeddings to help explain the large improvement, showing that the improved model)
+[//]: # (provides more semantically aware embeddings.)
 
 ## Background
+
 
 #### Provers
 
@@ -227,7 +236,7 @@ provides more semantically aware embeddings.
     -
 - AI-ITP component diagram of the above
 
-#### Current benchmarks
+#### Current benchmarks and datasets
 
 - Datasets
     - LeanStep, mizar40, mizar60?, HOLStep,
@@ -246,7 +255,7 @@ provides more semantically aware embeddings.
             - Transformer
             - SAT
             - Directed SAT
-            -
+
 
 ## AI-ITP
 
@@ -256,46 +265,7 @@ provides more semantically aware embeddings.
 
 Intro
 
-Back
-Approaches incluse supervised learning, semi-supervised learning and reinforcement learning.
-It has also been argued that a more natural representation for mathematical expressions is using a graph derived from
-the Abstract Syntax Tree (AST) of the expression
-Further, there has been recent developments in combining the advantages of global attention through transformers and
-local message passing from GNNs. We investigate whether this provides any benefit in the context of several theorem
-proving tasks.
-It remains an open question whether directly including the graph structure in the embedding algorithm enhances the
-representation for upstream tasks.
 
-- Background
-    - Provers
-        - Lean, metamath (mizar), HOL4, HOL-Light
-    - Current benchmarks
-        - Datasets
-            - LeanStep, mizar40, mizar60?, HOLStep,
-        - Environments
-            - HOList, LeanGym, CoqGym, HOL4
-    - Approaches
-        - Task
-            - Supervised tasks, premise selection
-        - Proof Search
-            - BFS, Fringe, MCTS
-        - Model Architecture
-            - Embeddings
-                - Transformer, LSTM, Tree-LSTM, GNN, BoW, ... (more detail in second part)
-            - Tactic/arg
-                - GPT, fixed tactic MLPs, premise ranking
-        - Learning approach
-            - Pretrain, fine tune pipeline
-            - RL end to end
-            -
-        - AI-ITP component diagram of the above
-    - Embedding architectures
-        - Large background on GNN in ITP, Transformer more recently with Neural Theorem Proving and Lean(step/gym)
-        - GNN
-        - Transformer
-        - SAT
-        - Directed SAT
-        -
 - Framework Overview
     - Architecture diagram
     - Case study/examples?
@@ -321,9 +291,7 @@ representation for upstream tasks.
             - Naive transformer does poorly
         - Mizar40
         - Lean?
-
     - Ensemble?
-    -
     - E2E
         - HOList
         - TacticZero
@@ -332,6 +300,10 @@ representation for upstream tasks.
     - Qualitative study
         - Syntactic vs Semantic for TacticZero autoencoder vs fully trained
         - Comparing embeddings between different systems, i.e. closest neighbors?
+
+
+
+
 
 
 - Learning Approach
