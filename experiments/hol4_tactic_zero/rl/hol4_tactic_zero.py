@@ -319,16 +319,12 @@ class HOL4TacticZero(TacticZeroLoop):
                 reward, done = env.step(action)
             except Exception:
                 logging.debug(f"Step exception: {action, goal}")
-                reward = -10
-                reward_pool.append(reward)
-                steps += 1
-                done = False
-                break
+                return ("Step error", action)
 
-            reward_pool.append(reward)
             steps += 1
 
             if done:
+                reward_pool.append(reward)
                 if not train_mode:
                     break
 
@@ -351,10 +347,9 @@ class HOL4TacticZero(TacticZeroLoop):
                         logging.debug(f"History is none. {env.history}")
                 break
 
-            if t == max_steps - 1:
+            elif t == max_steps - 1:
                 if not train_mode:
                     break
-                # print (f"Failed.")
                 reward = -5
                 reward_pool.append(reward)
 
@@ -364,8 +359,10 @@ class HOL4TacticZero(TacticZeroLoop):
 
                 self.save_proof_attempt(goal, env.history, probs)
 
-                if env.goal in self.replays:
-                    return self.run_replay(allowed_arguments_ids, candidate_args, env, encoded_fact_pool)
+                if goal in self.replays:
+                    return self.run_replay(allowed_arguments_ids, candidate_args, env, encoded_fact_pool, goal)
+            else:
+                reward_pool.append(reward)
 
         return reward_pool, goal_pool, arg_pool, tac_pool, steps, done
 
@@ -390,14 +387,14 @@ class HOL4TacticZero(TacticZeroLoop):
                 true_tac_text = true_tactic_text
         return true_tac_text, true_args_text
 
-    def run_replay(self, allowed_arguments_ids, candidate_args, env, encoded_fact_pool):
+    def run_replay(self, allowed_arguments_ids, candidate_args, env, encoded_fact_pool, goal):
         reward_pool = []
         goal_pool = []
         arg_pool = []
         tac_pool = []
         steps = 0
 
-        known_history = self.replays[env.goal][1]
+        known_history = self.replays[goal][1]
 
         for t in range(len(known_history) - 1):
             true_resulting_fringe = known_history[t + 1]
@@ -421,7 +418,6 @@ class HOL4TacticZero(TacticZeroLoop):
 
             if self.tactic_pool[true_tac] in self.no_arg_tactic:
                 arg_probs = [torch.tensor(0)]
-                arg_pool.append(arg_probs)
 
             elif self.tactic_pool[true_tac] == "Induct_on":
                 _, arg_probs = self.get_term_tac(target_goal=target_goal,
@@ -438,7 +434,9 @@ class HOL4TacticZero(TacticZeroLoop):
                                                 env=env,
                                                 replay_arg=true_args_text)
 
+
             arg_pool.append(arg_probs)
+
             reward = true_resulting_fringe["reward"]
             reward_pool.append(reward)
             steps += 1

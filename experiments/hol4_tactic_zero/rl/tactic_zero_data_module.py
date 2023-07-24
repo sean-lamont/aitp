@@ -17,6 +17,7 @@ class RLData(pl.LightningDataModule):
         super().__init__()
         self.config = config
         self.data_type = self.config.type
+        self.env = get_env(self.config.data_options['environment'])
 
     def setup(self, stage: str) -> None:
         source = self.config.source
@@ -109,4 +110,3 @@ class RLData(pl.LightningDataModule):
             logging.debug(f"Error in batch {e}")
             return None
         return goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env
-

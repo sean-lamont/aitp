@@ -79,9 +79,6 @@ import pyrallis
 from pyrallis import field
 
 
-@dataclass
-class GlobalConfig:
-    GLOBAL_PATH: str = field(default="/home/sean/Documents/phd/repo/aitp/")
 
 
 @dataclass
@@ -194,29 +191,15 @@ class PremiseSelectionConfig(GlobalConfig):
             self.data_config.attributes['dir'] = self.GLOBAL_PATH + self.data_config.dir
         if not self.checkpoint_dir:
             self.checkpoint_dir = self.exp_config.directory + '/model_checkpoints'
-#
-# @dataclass
-# class PremiseSelectionConfig(GlobalConfig):
-#     exp_config: ExperimentConfig = field(default_factory=ExperimentConfig)
-#     optimiser_config: OptimiserConfig = field(default_factory=OptimiserConfig)
-#     data_config: DataConfig = field(default_factory=DataConfig)
-#     model_config: EmbeddingModelConfig = field(default_factory=EmbeddingModelConfig)
-#     # Number of Training Epochs
-#     epochs: int = field(default=30)
-#     # Batch Size
-#     batch_size: int = field(default=32)
-#     # Number of Samples to use in Validation
-#     val_size: int = field(default=4096)
-#     # Frequency with which to run validation
-#     val_frequency: int = field(default=2048)
-#     checkpoint_dir: str = field(default=None)
-#     limit_val_batches: bool = field(default=True)
-#
-#     def __post_init__(self):
-#         if self.data_config.source == 'directory':
-#             self.data_config.attributes['dir'] = self.GLOBAL_PATH + self.data_config.dir
-#         if not self.checkpoint_dir:
-#             self.checkpoint_dir = self.exp_config.directory + '/model_checkpoints'
+
+
+
+
+@dataclass
+class HOListPretrainConfig(PremiseSelectionConfig):
+    final_embed_dim: int = field(default=1024)
+    num_tactics: int = field(default=41)
+    tac_embed_dim: int = field(default=128)
 
 @dataclass
 class TacticZeroRLConfig(GlobalConfig):
@@ -236,6 +219,7 @@ class TacticZeroRLConfig(GlobalConfig):
     val_freq: int = field(default=5)
     checkpoint_dir: str = field(default=None)
     proof_db: list = field(default=None)
+    pretrain_ckpt: str = field(default=None)
 
 
     def __post_init__(self):

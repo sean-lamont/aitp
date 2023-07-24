@@ -1,9 +1,11 @@
-import traceback
-import lightning.pytorch as pl
 import logging
-from abc import abstractmethod
-import torch.optim
+import traceback
 import warnings
+from abc import abstractmethod
+
+import lightning.pytorch as pl
+import torch.optim
+
 warnings.filterwarnings('ignore')
 
 """
@@ -53,7 +55,7 @@ class TacticZeroLoop(pl.LightningModule):
             return loss
 
         except Exception as e:
-            logging.debug(f"Error in training: {e}")
+            logging.debug(f"Error in training: {traceback.print_exc()}")
             return
 
     def validation_step(self, batch, batch_idx):
@@ -62,7 +64,7 @@ class TacticZeroLoop(pl.LightningModule):
             return
         try:
             out = self(batch, train_mode=False)
-            if len(out) == 2:
+            if len(out) != 6:
                 logging.debug(f"Error in run: {out}")
                 return
             reward_pool, goal_pool, arg_pool, tac_pool, steps, done = out
@@ -89,6 +91,7 @@ class TacticZeroLoop(pl.LightningModule):
 
     def update_params(self, reward_pool, goal_pool, arg_pool, tac_pool, steps):
         running_add = 0
+
         for i in reversed(range(steps)):
             if reward_pool[i] == 0:
                 running_add = 0
@@ -96,13 +99,15 @@ class TacticZeroLoop(pl.LightningModule):
                 running_add = running_add * self.config.gamma + reward_pool[i]
                 reward_pool[i] = running_add
         total_loss = 0
+
         for i in range(steps):
             reward = reward_pool[i]
-            fringe_loss = -goal_pool[i] * (reward)
+            goal_loss = -goal_pool[i] * (reward)
             arg_loss = -torch.sum(torch.stack(arg_pool[i])) * (reward)
             tac_loss = -tac_pool[i] * (reward)
-            loss = fringe_loss + tac_loss + arg_loss
+            loss = goal_loss + tac_loss + arg_loss
             total_loss += loss
+
         return total_loss
 
     def configure_optimizers(self):

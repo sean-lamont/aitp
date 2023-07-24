@@ -59,7 +59,7 @@ class RLExperiment:
         encoder_goal = get_model(self.config.model_config)
 
         if pretrain:
-            print("Loading pretrained encoder models..")
+            logging.info("Loading pretrained encoder models..")
             self.load_pretrained_encoders(encoder_premise, encoder_goal)
 
         if self.config.exp_config.resume:

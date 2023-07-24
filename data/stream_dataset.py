@@ -26,7 +26,7 @@ class CursorIter(torch.utils.data.IterableDataset):
         self.remaining -= 1
         if self.remaining >= 0:
             ret = self.curr_batches.pop()
-            return [ret[field] for field in self.fields]
+            return {field: ret[field] for field in self.fields}
 
 
 class MongoStreamDataset(torch.utils.data.IterableDataset):

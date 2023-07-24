@@ -8,6 +8,7 @@ from models.relation_transformer.relation_transformer_small import AttentionRela
 from models.sat.models import GraphTransformer
 from models.tacticzero_autoencoder.tacticzero_autoencoder import TacticZeroAutoEncoder
 from models.transformer.transformer_encoder_model import TransformerWrapper
+from models.holist_models.gnn.gnn_encoder import GNNEncoder
 
 '''
 Utility function to fetch model given a configuration dict
@@ -65,6 +66,8 @@ def get_model(model_config):
                                num_iterations=model_config.model_attributes['gnn_layers'],
                                batch_norm=model_config.model_attributes[
                                    'batch_norm'] if 'batch_norm' in model_config.model_attributes else True)
+
+
 
     elif model_config.model_type == 'digae':
         return DigaeEmbedding(in_size=model_config.model_attributes['vocab_size'],
@@ -131,6 +134,15 @@ def get_model(model_config):
 
     elif model_config.model_type == 'fixed_autoencoder':
         return TacticZeroAutoEncoder(model_config.model_attributes['checkpoint_path'])
+
+
+    # holist models
+    elif model_config.model_type == 'holist_gnn':
+        return GNNEncoder(input_shape=model_config.model_attributes['vocab_size'],
+                          embedding_dim=model_config.model_attributes['embedding_dim'],
+                          num_iterations=model_config.model_attributes['gnn_layers'],
+                          dropout=model_config.model_attributes[
+                              'dropout'] if 'dropout' in model_config.model_attributes else 0.5)
 
     elif model_config.model_type == 'classifier':
         raise NotImplementedError

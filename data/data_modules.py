@@ -13,51 +13,62 @@ from experiments.pyrallis_configs import DataConfig
 '''
 @todo:
 
-23/7 & 24/7
+24/7
     paper skeleton
     
     lean
         mongo, loaded with vocab
-        sexpression parser (HOList recycle?)
-        model
 
-    holist integrated
-        data module, mongo
+    Experiment plan
 
-holist
-    transformer
-    end to end
-
-leangym wrapper
-    tactics
+    tacticzero
+        pretrained GNN, SAT (without batch norm), transformer, vanilla for 5 steps
     
-tacticzero
-    debug!!!!!!!
-    pretrain GNN, SAT (without batch norm), transformer
-    run for 10 steps ..
+    
+    holist attention data
+
+
+25/7
 
 ensemble
+    
+
 
 holstep
     process data and run sweep
     
-
+lean
+    sexpression parser (HOList recycle?), return local variables
+    leanenv tactics
+    model (pretrain only)
             
-            
+holist integrated
+    transformer
+    end to end
         
     
     
+standardise experiments
+    add resume to pretrain and holist experiments
+    logging/files/directories all the same
+
+
+NO_PARAM hack for holist
+
+
+unified proof log format? for HOL4, lean, HOList etc. record proof_state, tactic/args, outcome
     
     
+multiple data loader workers
+
+multi GPU
     
     
     
 experiments
 holist
 holstep
-tz vanilla + gnn + transformer + sat
 
-tacticzero rl tidy 
 tacticzero rl stats
 
 Logging
@@ -96,13 +107,13 @@ class PremiseDataModule(LightningDataModule):
 
             # if data_in_memory, save all examples to disk
             if self.config.data_options['split_in_memory']:
-                self.train_data = [[v[field] for field in fields]
+                self.train_data = [{field: v[field] for field in fields}
                                    for v in tqdm(split_col.find({'split': 'train'}))]
 
-                self.val_data = [[v[field] for field in fields]
+                self.val_data = [{field: v[field] for field in fields}
                                  for v in tqdm(split_col.find({'split': 'val'}))]
 
-                self.test_data = [[v[field] for field in fields]
+                self.test_data = [{field: v[field] for field in fields}
                                   for v in tqdm(split_col.find({'split': 'test'}))]
 
             # stream dataset from MongoDB
@@ -152,9 +163,9 @@ class PremiseDataModule(LightningDataModule):
         return to_data(expr, self.config.type, self.vocab, self.config)
 
     def collate_data(self, batch):
-        y = torch.LongTensor([b[2] for b in batch])
-        data_1 = self.list_to_data([b[0] for b in batch])
-        data_2 = self.list_to_data([b[1] for b in batch])
+        y = torch.LongTensor([b['y'] for b in batch])
+        data_1 = self.list_to_data([b['conj'] for b in batch])
+        data_2 = self.list_to_data([b['stmt'] for b in batch])
         return data_1, data_2, y
 
     def train_dataloader(self):

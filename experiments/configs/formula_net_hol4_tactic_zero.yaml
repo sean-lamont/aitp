@@ -1,16 +1,17 @@
 epochs: 800
-max_steps: 50
-pretrain: False
+max_steps: 5
+pretrain: True
+pretrain_ckpt: '/home/sean/Documents/phd/repo/aitp/experiments/runs/formula_net_1_layer_2023-07-24-18:20:15/model_checkpoints/epoch=19-acc=0.9152052402496338.ckpt'
 proof_db: ['hol4', 'proof_logs']
 # tactic_config
 exp_config:
-  name: "test_"
+  name: "formula_net_5_step_pretrain"
   resume: False
   experiment: "tactic_zero"
   directory: "experiments/runs"
   logging_config:
     project: "rl_new"
-    offline: True
+    offline: False
 #    id: 'tqdf5f3w'
     notes: "Test"
 optimiser_config:
@@ -20,7 +21,7 @@ model_config:
   model_attributes:
     vocab_size: 2015
     embedding_dim: 256
-    gnn_layers: 3
+    gnn_layers: 1
     batch_norm: False
   vocab_size: 2015
   embedding_dim: 256

@@ -1,18 +1,18 @@
 epochs: 800
-max_steps: 50
+max_steps: 5
 pretrain: False
 proof_db: ['hol4', 'proof_logs']
 # tactic_config
 exp_config:
-  name: "test_"
-  resume: True
+  name: "vanilla"
+  resume: False
   experiment: "tactic_zero"
-  directory: "/home/sean/Documents/phd/repo/aitp/experiments/runs/test__2023-07-21-18:32:47"#"experiments/runs"
+  directory: "experiments/runs"#"/home/sean/Documents/phd/repo/aitp/experiments/runs/test__2023-07-21-18:32:47"
   logging_config:
     project: "rl_new"
-#    offline: True
-    id: 'sv30k7nn'
-    notes: "Vanilla"
+    offline: False
+#    id: 'sv30k7nn'
+#    notes: "Vanilla"
 optimiser_config:
   learning_rate: 5e-5
 model_config:

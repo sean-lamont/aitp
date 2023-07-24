@@ -5,6 +5,7 @@ PyTorch Lightning module for training HOList models from labelled data
 """
 
 import logging
+import traceback
 import warnings
 import einops
 
@@ -131,6 +132,7 @@ class HOListTraining_(pl.LightningModule):
             tac_preds, pos_scores, neg_scores, extra_neg_scores = self(goals, pos_thms, neg_thms, true_tacs)
         except Exception as e:
             logging.debug(f"Error in forward: {e}")
+            traceback.print_exc()
             return
 
         loss = self.loss_func(tac_preds, true_tacs,
@@ -155,6 +157,7 @@ class HOListTraining_(pl.LightningModule):
         # get accuracy wrt true
         tac_acc, rel_param_acc, pos_acc, neg_acc, topk_acc = self.val_func(tac_preds, true_tacs, pos_scores, neg_scores,
                                                                            extra_neg_scores)
+
         self.log_dict({'tac_acc': tac_acc, 'rel_param_acc': rel_param_acc, 'pos_acc': pos_acc, 'neg_acc': neg_acc,
                        'topk_acc': topk_acc},
                       batch_size=self.batch_size, prog_bar=True)
