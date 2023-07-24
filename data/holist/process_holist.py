@@ -260,6 +260,6 @@ if __name__ == '__main__':
     for item in tqdm(expr_col.find({})):
         items.append(item)
 
-    pool = Pool(processes=os.cpu_count() - 4)
+    pool = Pool(processes=1)
     for _ in tqdm(pool.imap_unordered(add_additional_data, items), total=len(items)):
         pass

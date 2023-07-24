@@ -1,7 +1,7 @@
 %File: formatting-instructions-latex-2024.tex
 %release 2024.0
 \documentclass[letterpaper]{article} % DO NOT CHANGE THIS
-\usepackage{aaai24}  % DO NOT CHANGE THIS
+\usepackage[submission]{aaai24}  % DO NOT CHANGE THIS
 \usepackage{times}  % DO NOT CHANGE THIS
 \usepackage{helvet}  % DO NOT CHANGE THIS
 \usepackage{courier}  % DO NOT CHANGE THIS
@@ -92,7 +92,7 @@
 % nouns, adverbs, adjectives should be capitalized, including both words in hyphenated terms, while
 % articles, conjunctions, and prepositions are lower case unless they
 % directly follow a colon or long dash
-\title{MEDIATE: A Modular Environment for Development and Insights in Automated Theorem Experiments}
+\title{MEDIAIT: A Modular Environment for Driving Insights in Automated Interactive Theorem-Proving}
 \author{
     %Authors
     % All authors must be in the same font size and format.
@@ -172,12 +172,12 @@
     particularly in the area of Interactive Theorem Proving (ITP).
     Research in the area is fragmented, with a diverse set of approaches being spread across several ITP systems.
     This presents a significant challenge to the comparison of methods, which are often complex and difficult to replicate.
-    To address this, we present MEDIATE: A Modular Environment for Insights and Development in Automated Theorem Experiments.
-    By separating the learning approach from the data and ITP environment, MEDIATE allows for the fair and efficient
+    To address this, we present MEDIAIT: A Modular Environment for Driving Insights in Automaing Interactive Theorem-proving.
+    By separating the learning approach from the data and ITP environment, MEDIAIT allows for the fair and efficient
     comparison of approaches between systems.
-    MEDIATE is designed to seamlessly incorporate new systems and benchmarks, currently integrating the HOList, HOLStep,
+    MEDIAIT is designed to seamlessly incorporate new systems and benchmarks, currently integrating the HOList, HOLStep,
     MIZAR40, LeanStep, LeanGym and TacticZero benchmarks.
-    We demonstrate the utility of MEDIATE through a study of embedding architectures in the context of the above systems.
+    We demonstrate the utility of MEDIAIT through a study of embedding architectures in the context of the above systems.
      % (Through comparing the performance of approaches across a variety of ITP settings, we provide strong evidence that..)
     These experiments lay the foundations for future work in evaluation of performance of formula embedding,
     while simultaneously demonstrating the capability of the framework.
@@ -186,7 +186,7 @@
     We complement these with a qualitative analysis of embeddings within and between systems, illustrating that improved
     performance was associated with more semantically aware embeddings.
     By streamlining the implementation and comparison of Machine Learning algorithms in the ITP context,
-    we anticipate MEDIATE will be a springboard for future
+    we anticipate MEDIAIT will be a springboard for future
     research.
 
 \end{abstract}
@@ -308,13 +308,15 @@ Learning approach
 RL (TacticZero), Supervised proof logs (HOList, Lean, Hypertree?)
 
 \section{MEDIATE}
-Diagram and explanation of system architecture
+Diagram and explanation of system architecture,
 
 Open Source additions:
 LeanGym/LeanStep output s-expressions
 HOList using non-google tools, and independent of TF1 and ML framework
 
 Curated, large dataset of varied ITPs
+
+Modular framework
 
 \section{Embedding Experiments}
 \subsection{Supervised}
