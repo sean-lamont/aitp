@@ -25,10 +25,10 @@
 \usepackage{listings}
 \DeclareCaptionStyle{ruled}{labelfont=normalfont,labelsep=colon,strut=off} % DO NOT CHANGE THIS
 \lstset{%
-	basicstyle={\footnotesize\ttfamily},% footnotesize acceptable for monospace
-	numbers=left,numberstyle=\footnotesize,xleftmargin=2em,% show line numbers, remove this entire line if you don't want the numbers.
-	aboveskip=0pt,belowskip=0pt,%
-	showstringspaces=false,tabsize=2,breaklines=true}
+    basicstyle={\footnotesize\ttfamily},% footnotesize acceptable for monospace
+    numbers=left,numberstyle=\footnotesize,xleftmargin=2em,% show line numbers, remove this entire line if you don't want the numbers.
+    aboveskip=0pt,belowskip=0pt,%
+    showstringspaces=false,tabsize=2,breaklines=true}
 \floatstyle{ruled}
 \newfloat{listing}{tb}{lst}{}
 \floatname{listing}{Listing}
@@ -36,7 +36,7 @@
 % Keep the \pdfinfo as shown here. There's no need
 % for you to add the /Title and /Author tags.
 \pdfinfo{
-/TemplateVersion (2024.1)
+    /TemplateVersion (2024.1)
 }
 
 % DISALLOWED PACKAGES
@@ -94,8 +94,8 @@
 % directly follow a colon or long dash
 \title{MEDIAIT: A Modular Environment for Driving Insights in Automated Interactive Theorem-Proving}
 \author{
-    %Authors
-    % All authors must be in the same font size and format.
+%Authors
+% All authors must be in the same font size and format.
     Written by AAAI Press Staff\textsuperscript{\rm 1}\thanks{With help from the AAAI Publications Committee.}\\
     AAAI Style Contributions by Pater Patel Schneider,
     Sunil Issar,\\
@@ -106,7 +106,7 @@
     Marc Pujol-Gonzalez\equalcontrib
 }
 \affiliations{
-    %Afiliations
+%Afiliations
     \textsuperscript{\rm 1}Association for the Advancement of Artificial Intelligence\\
     % If you have multiple authors and multiple affiliations
     % use superscripts in text and roman font to identify them.
@@ -143,13 +143,13 @@
 %Example, Multiple Authors, ->> remove \iffalse,\fi and place them surrounding AAAI title to use it
 \title{My Publication Title --- Multiple Authors}
 \author {
-    % Authors
+% Authors
     First Author Name\textsuperscript{\rm 1,\rm 2},
     Second Author Name\textsuperscript{\rm 2},
     Third Author Name\textsuperscript{\rm 1}
 }
 \affiliations {
-    % Affiliations
+% Affiliations
     \textsuperscript{\rm 1}Affiliation 1\\
     \textsuperscript{\rm 2}Affiliation 2\\
     firstAuthor@affiliation1.com, secondAuthor@affilation2.com, thirdAuthor@affiliation1.com
@@ -164,168 +164,210 @@
 
 \begin{document}
 
-\maketitle
+    \maketitle
 
-\begin{abstract}
-    Recent interest in Artificial Intelligence for Theorem Proving (AITP) has given rise to a plethora of benchmarks and
-    methodologies,
-    particularly in the area of Interactive Theorem Proving (ITP).
-    Research in the area is fragmented, with a diverse set of approaches being spread across several ITP systems.
-    This presents a significant challenge to the comparison of methods, which are often complex and difficult to replicate.
-    To address this, we present MEDIAIT: A Modular Environment for Driving Insights in Automaing Interactive Theorem-proving.
-    By separating the learning approach from the data and ITP environment, MEDIAIT allows for the fair and efficient
-    comparison of approaches between systems.
-    MEDIAIT is designed to seamlessly incorporate new systems and benchmarks, currently integrating the HOList, HOLStep,
-    MIZAR40, LeanStep, LeanGym and TacticZero benchmarks.
-    We demonstrate the utility of MEDIAIT through a study of embedding architectures in the context of the above systems.
-     % (Through comparing the performance of approaches across a variety of ITP settings, we provide strong evidence that..)
-    These experiments lay the foundations for future work in evaluation of performance of formula embedding,
-    while simultaneously demonstrating the capability of the framework.
-     % (We show that the embedding approach of HOList applied to HOL4's TacticZero provides a significant improvement in)
-     % (performance.)
-    We complement these with a qualitative analysis of embeddings within and between systems, illustrating that improved
-    performance was associated with more semantically aware embeddings.
-    By streamlining the implementation and comparison of Machine Learning algorithms in the ITP context,
-    we anticipate MEDIAIT will be a springboard for future
-    research.
+    \begin{abstract}
+        Recent interest in Artificial Intelligence for Theorem Proving (AITP) has given rise to a plethora of benchmarks and
+        methodologies,
+        particularly in the area of Interactive Theorem Proving (ITP).
+        Research in the area is fragmented, with a diverse set of approaches being spread across several ITP systems.
+        This presents a significant challenge to the comparison of methods, which are often complex and difficult to replicate.
+        To address this, we present MEDIAIT: A Modular Environment for Driving Insights in AI for IT(P).
+        By separating the learning approach from the data and ITP environment, MEDIAIT allows for the fair and efficient
+        comparison of approaches between systems.
+        MEDIAIT is designed to seamlessly incorporate new systems and benchmarks, currently integrating the HOList, HOLStep,
+        MIZAR40, LeanStep, LeanGym and TacticZero benchmarks.
+        We demonstrate the utility of MEDIAIT through a study of embedding architectures in the context of the above systems.
+        % (Through comparing the performance of approaches across a variety of ITP settings, we provide strong evidence that..)
+        These experiments lay the foundations for future work in evaluation of performance of formula embedding,
+        while simultaneously demonstrating the capability of the framework.
+        % (We show that the embedding approach of HOList applied to HOL4's TacticZero provides a significant improvement in)
+        % (performance.)
+        We complement these with a qualitative analysis of embeddings within and between systems, illustrating that improved
+        performance was associated with more semantically aware embeddings.
+        By streamlining the implementation and comparison of Machine Learning algorithms in the ITP context,
+        we anticipate MEDIAIT will be a springboard for future
+        research.
 
-\end{abstract}
+    \end{abstract}
 
-\section{Introduction}
 
-Interactive Theorem Proving (ITP) is a key paradigm of formal verification.
-With a human providing high level proof guidance, ITP systems have been used to develop verified compilers (cite), formalise mathematical conjectures (cite) and develop provably correct microkernels (cite).
-Successful proof guidance requires proficiency in both the formal system and the application domain.
-This has limited the scale and widespread adoption of formal methods, with e.g...
-The nascent field of Artificial Intelligence for Theorem Proving (AITP) has the potential to address this,
-with several strong results in automating human ITP guidance.
-AITP research encompasses several mathematical reasoning tasks, such as math word problems (cite) and autoformalisation (cite).
-The focus of this paper is specifially AI for Interactive Theorem Proving, which we refer to as AI-ITP.
+    \section{Introduction}
 
-Current datasets and environments for AI-ITP are divided across several distinct ITP systems.
-Although this provides a variety of tasks for benchmarking,
-it poses a challenge to the fair and efficient comparison of the automation approaches.
-This is further complicated by the broad range of methods which have been applied in the area,
-which are generally tested only in the context of a single ITP system (cite).
-(examples, HOList over the HOL Light prover, LeanStep/LeanGym over Lean,
-TacticZero and TacticToe,.. with HOL4).
+    Interactive Theorem Proving (ITP) is a key paradigm of formal verification.
+    With a human providing high level proof guidance, ITP systems have been used to develop verified compilers (cite), formalise mathematical conjectures (cite) and develop provably correct microkernels (cite).
+    Successful proof guidance requires proficiency in both the formal system and the application domain.
+    This has limited the scale and widespread adoption of formal methods, with e.g...
+    The nascent field of Artificial Intelligence for Theorem Proving (AITP) has the potential to address this,
+    with several strong results in automating human ITP guidance.
+    AITP research encompasses several mathematical reasoning tasks, such as math word problems (cite) and autoformalisation (cite).
+    The focus of this paper is specifially AI for Interactive Theorem Proving, which we refer to as AI-ITP.
+
+    Current datasets and environments for AI-ITP are divided across several distinct ITP systems.
+    Although this provides a variety of tasks for benchmarking,
+    it poses a challenge to the fair and efficient comparison of the automation approaches.
+    This is further complicated by the broad range of methods which have been applied in the area,
+    which are generally tested only in the context of a single ITP system (cite).
+    (examples, HOList over the HOL Light prover, LeanStep/LeanGym over Lean,
+    TacticZero and TacticToe,.. with HOL4).
 
 % (Current benchmarks have made significant progress in the generation of quality ITP proof data,)
 % (still small in the context of large models and compared to NLP. )
 % (Through curating these data sources into a centralised platform, we have created a large dataset  of xxx examples and xxx GB of proof data.)
 
-A central component of AI-ITP systems is their embedding model.
-Vector embeddings of the ITP logical expressions are required for the application of learning algorithms.
-These are used for tasks such as premise selection, goal selection which are essential for proof guidance.
+    A central component of AI-ITP systems is their embedding model.
+    Vector embeddings of the ITP logical expressions are required for the application of learning algorithms.
+    These are used for tasks such as premise selection, goal selection which are essential for proof guidance.
 
-Expressions are either treated as a natural language sequence, or as a directed graph derived from their abstract syntax tree
-representation. It has been argued that a graph representation is more appropriate, with a large body of work in AI-ITP
-using Graph Neural Network (GNN) as the embedding model to achieve strong results in several tasks.
+    Expressions are either treated as a natural language sequence, or as a directed graph derived from their abstract syntax tree
+    representation. It has been argued that a graph representation is more appropriate, with a large body of work in AI-ITP
+    using Graph Neural Network (GNN) as the embedding model to achieve strong results in several tasks.
 
-However, Transformer models applied to the sequence representation have also demonstrated strong performance by
-leveraging large models pre-trained on NLP datasets.
+    However, Transformer models applied to the sequence representation have also demonstrated strong performance by
+    leveraging large models pre-trained on NLP datasets.
 
-Both architectures have fundamental limitations, as GNNs suffer from poor integration of global information, and vanlla
-Transformers ignore the structural information of the expression.
-Recent work has shown that combining both architectures leads to improved performance on several graph learning tasks.
-In the context of theorem proving however, there has been no thorough comparison between approaches.
+    Both architectures have fundamental limitations, as GNNs suffer from poor integration of global information, and vanlla
+    Transformers ignore the structural information of the expression.
+    Recent work has shown that combining both architectures leads to improved performance on several graph learning tasks.
+    In the context of theorem proving however, there has been no thorough comparison between approaches.
 
-We address these two issues by ... our contributions can be summarised as ...
+    We address these two issues by ... our contributions can be summarised as ...
 
-\subsection{Related Work}
-Unified toolkit proposed for MWP, MWPToolkit.
+    \subsection{Related Work}
+    Unified toolkit proposed for MWP, MWPToolkit.
 
-- However, AI for ITP has several additional considerations:
-- Fundamentally different learning approaches. Range from E2E RL, direct supervised learning, pretrained LLMs ..
-- Makes it difficult to be fully modular as there are some unavoidable dependencies between e.g. environment and
-model (e.g. HOL4 environment for TacticZero)
-- Interaction with an environment
-- Several axes of variation in algorithm design. Learning paradigm, proof search, embedding arch., action selection
-arch.
+    - However, AI for ITP has several additional considerations:
+    - Fundamentally different learning approaches. Range from E2E RL, direct supervised learning, pretrained LLMs ..
+    - Makes it difficult to be fully modular as there are some unavoidable dependencies between e.g. environment and
+    model (e.g. HOL4 environment for TacticZero)
+    - Interaction with an environment
+    - Several axes of variation in algorithm design. Learning paradigm, proof search, embedding arch., action selection
+    arch.
 
-Note we restrict ourselves to the problem of automating the human interaction with ITP, through the setup in Figure x.
-Other approaches such as ML for Hammers, also promising
+    Note we restrict ourselves to the problem of automating the human interaction with ITP, through the setup in Figure x.
+    Other approaches such as ML for Hammers, also promising
 
-AIITP benchmarks mentioned, limited in single system.
-Other unified frameworks, e.g. NLP, CV, GNN (graph benchmarks), which have provided strong value to their respective areas
+    AIITP benchmarks mentioned, limited in single system.
+    Other unified frameworks, e.g. NLP, CV, GNN (graph benchmarks), which have provided strong value to their respective areas
 
-\section{Background}
-\subsection{ITP}
-% - Lean, metamath (mizar), HOL4, HOL-Light
-\subsection{Approaches}
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=\linewidth]{AI-ITP}
-    \caption{Caption for the figure.}
-    \label{fig:ai-itp}
-\end{figure}
-\subsubsection{Learning Approach}
-RL (Policy Gradient) end to end,
-Supervised Training over labelled proof logs (tactic, premise, goal),
-Pre-training over proof data (PACT)
-Pre-training over NLP corpus
-\subsubsection{Proof Search}
-BFS, Fringe, HyperTree MCTS
-\subsubsection{State Embedding}
-Transformer, GNN, SAT, Directed SAT, Autoencoder
-\subsubsection{Tactic Selection}
-Fixed set of tactics/arguments (TacticZero, HOList), generative model (GPT-f, Curriculum learning, lean)
 
-%
-\subsection{Datasets and Benchmarks}
+    \section{Background}
+
+    \subsection{Datasets and Benchmarks}
 %- LeanStep, mizar40, mizar60?, HOLStep,
 %- Environments
 %- HOList, LeanGym, CoqGym, HOL4
 
-Figure (Table):
-Benchmark vs Details (size, system, interactive)
-Highlight in bold what is currently included
-Include HOL4 premise selection
-HOList, LeanStep, HOLStep, MIZAR40, LeanGym, TacticZero, (CoqGym, IsarStep etc from survey)
+    Figure x provides a summary of current datasets and benchmarks related to AI-ITP.
+    Fields marked as non-interactive represent labelled datasets derived from proofs in ITP systems, an
+    A common task in the literature is predicting whether a premise was useful in the proof of a given conjecture.
 
-As outlined in Figure x, benchmarks consider each system in isolation, and generally focus on a small set of
-learning and proof search approaches.
-Given the many differences between ITPs, this is unsurprising, as there is significant effort required to set
-up these systems for automated proving.
+    HOLStep \cite{kaliszyk_holstep_2017}, MIZAR40 \cite{kaliszyk_mizar_2015},.. provide datasets around this
+    This is a
+
+
+    LeanStep for others
+
+    Figure (Table):
+    Benchmark vs Details (size, system, interactive)
+    Highlight in bold what is currently included
+    Include HOL4 premise selection
+    HOList, LeanStep, HOLStep, MIZAR40, LeanGym, TacticZero, (CoqGym, IsarStep etc from survey)
+
+    As outlined in Figure x, benchmarks consider each system in isolation, and generally focus on a small set of
+    learning and proof search approaches.
+    Given the many differences between ITPs, this is unsurprising, as there is significant effort required to set
+    up these systems for automated proving.
 
 %HOList provides a large scale dataset and interactive environment for HOL Light, with a Breadth First Search proof large
 %scale dataset and interactive environment for HOL Light, with a Breadth First Search proof
 %
 %and LeanStep/LeanGym are the two largest and
 %
+    \subsection{ITP}
+% - Lean, metamath (mizar), HOL4, HOL-Light
 
-\subsection{Embedding Architecture}
+    \subsection{Approaches}
+    \begin{figure}[h]
+        \centering
+        \includegraphics[width=\linewidth]{AI-ITP}
+        \caption{Caption for the figure.}
+        \label{fig:ai-itp}
+    \end{figure}
 
-Figure (Table):
-Interactive Approaches vs Details
-Proof search
-BFS, MCTS, Fringe
-Embedding architecture
-GNN, Transformer, Autoencoder
-Tactic/Argument selection
-Generative (lean, hypertree), Fixed set (HOL4, HOList)
-Learning approach
-RL (TacticZero), Supervised proof logs (HOList, Lean, Hypertree?)
+    \subsubsection{Learning Approach}
+    There are multiple distinct learning paradigms used in AI-ITP, which is an important consideration in the design of a centralised system.
+    The simplest approach is direct supervised learning over proof logs.
+    As shown in \ref{fig:ai-itp},
+    these logs are either collected from human proofs or collected as part of the interaction of the AI system with the ITP environment.
+    For the HOList benchmark,~\cite{bansal_learning_2019} demonstrate strong results with supervised training over human and synthetic logs,
+    improving over~\cite{paliwal_graph_2019} which used only human proofs.
+    Both train a model to rank premises and tactics based on log information, which is then used to guide ITP interaction. \\
 
-\section{MEDIATE}
-Diagram and explanation of system architecture,
+    TacticZero~\cite{wu_tacticzero_2021} learned only using synthetic proof data.
+    In this case, learning was done through Reinforcement Learning with Policy Gradient,
+    with the agent "replaying" previously recorded proof traces.
+    Compared to supervised learning, this has the advantage of removing biases in the labelling of data.
+    For example, it is common to assign negative labels to premises not used in an original human proof,
+    ~\cite{kaliszyk_holstep_2017, kaliszyk_mizar_2015, bansal_holist_2019}
+    despite the potential for these to be useful in a different proof of the same conjecture.
+    However, RL (in particular Policy Gradient) is known to suffer from high variance in the gradient updates CITE
+    It remains unclear which approach is superior, further motivating a centralised comparison platform. \\
 
-Open Source additions:
-LeanGym/LeanStep output s-expressions
-HOList using non-google tools, and independent of TF1 and ML framework
+    Recent advancements in NLP have led to more recent work applying pretrained language models in the context of AI-ITP.
+    Pre-training over proof data (PACT)
+    Pre-training over NLP corpus
 
-Curated, large dataset of varied ITPs
+    \subsubsection{Proof Search}
+    BFS, Fringe, HyperTree MCTS
 
-Modular framework
+    \subsubsection{State Embedding}
+    Transformer, GNN, SAT, Directed SAT, Autoencoder
 
-\section{Embedding Experiments}
-\subsection{Supervised}
-MIZAR, HOLStep, HOL4 pretrain, HOList Pretrain, Lean?
-\subsection{End to End}
-TacticZero, HOList
-\subsection{Qualitative Analysis}
-\section{Discussion}
-\section{Conclusion}
+    For NLP models, the state is fed in natural language as a text prompt for the tactic selection model.
+
+    \subsubsection{Tactic Selection}
+    Fixed set of tactics/arguments (TacticZero, HOList), generative model (GPT-f, Curriculum learning, lean)
+
+    \subsection{Embedding Architecture}
+
+    Figure (Table):
+    Interactive Approaches vs Details
+    Proof search
+    BFS, MCTS, Fringe
+    Embedding architecture
+    GNN, Transformer, Autoencoder
+    Tactic/Argument selection
+    Generative (lean, hypertree), Fixed set (HOL4, HOList)
+    Learning approach
+    RL (TacticZero), Supervised proof logs (HOList, Lean, Hypertree?)
+
+
+    \section{MEDIATE}
+    Diagram and explanation of system architecture,
+
+    Open Source additions:
+    LeanGym/LeanStep output s-expressions
+    HOList using non-google tools, and independent of TF1 and ML framework
+
+    Curated, large dataset of varied ITPs
+
+    Modular framework
+
+
+    \section{Embedding Experiments}
+
+    \subsection{Supervised}
+    MIZAR, HOLStep, HOL4 pretrain, HOList Pretrain, Lean?
+
+    \subsection{End to End}
+    TacticZero, HOList?
+
+    \subsection{Qualitative Analysis}
+
+    \section{Discussion}
+
+    \section{Conclusion}
 
 %
 %\section{Additional Resources}
@@ -407,6 +449,6 @@ TacticZero, HOList
 %\noindent Thank you for reading these instructions carefully. We look forward to receiving your electronic files!
 %
 
-\bibliography{aaai24}
+    \bibliography{aaai24}
 
 \end{document}

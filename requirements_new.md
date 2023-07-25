@@ -51,7 +51,8 @@ Install Lean3:
 #### Environment (Lean-Gym)
 - Setup 
 #### Data (LeanStep)
-- Setup 
+- Setup pact
+- setup tactic labelled
 
 ### HOList
 #### Environment
@@ -61,4 +62,10 @@ Install Lean3:
 
 ### MIZAR
 - Download raw data from ...
+
+### INT
+sudo apt-get install libopenmpi-dev
+pip install git+https://github.com/openai/baselines@ea25b9e8
+
+
 
