@@ -24,7 +24,9 @@ tacticzero
     pretrained SAT, transformer for 5 steps
     
 ensemble
-    
+   
+INT 
+ 
 lean
     mongo, loaded with vocab
     

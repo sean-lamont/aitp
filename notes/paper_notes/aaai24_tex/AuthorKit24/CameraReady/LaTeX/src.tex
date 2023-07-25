@@ -211,6 +211,13 @@
     (examples, HOList over the HOL Light prover, LeanStep/LeanGym over Lean,
     TacticZero and TacticToe,.. with HOL4).
 
+    There are a large degree of similarities between most AI-ITP systems.
+    Yet the same things are reimplemented repeatedly in the literature, (models, tokenisation, data processing)
+    We show that a significant number of these systems conform to a general specification,
+    which we implement in our system. This saves time and ensures a consistent backend for experiments.
+    It is kept modular to allow minimal modifications in the areas which need to be changed. For example, proof search,
+    model architecture and data format are all configurable and don't require substantial code modifications.
+
 % (Current benchmarks have made significant progress in the generation of quality ITP proof data,)
 % (still small in the context of large models and compared to NLP. )
 % (Through curating these data sources into a centralised platform, we have created a large dataset  of xxx examples and xxx GB of proof data.)
@@ -262,7 +269,8 @@
     Fields marked as non-interactive represent labelled datasets derived from proofs in ITP systems, an
     A common task in the literature is predicting whether a premise was useful in the proof of a given conjecture.
 
-    HOLStep \cite{kaliszyk_holstep_2017}, MIZAR40 \cite{kaliszyk_mizar_2015},.. provide datasets around this
+    % todo
+    HOLStep \cite{kaliszyk_holstep_2017}, MIZAR40 \cite{kaliszyk_mizar_2015},.. provide datasets around this (ISARstep ..., look at INT paper intro)
     This is a
 
 
