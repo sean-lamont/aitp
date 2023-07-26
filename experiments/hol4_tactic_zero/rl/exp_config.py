@@ -48,12 +48,12 @@ CONTINUE = False
 ALLOW_NEW_FACTS = False #True
 MORE_TACTICS = True
 
-with open("../../../data/hol4/raw_data/vanilla_tactic_zero/polished_def_dict.json") as f:
+with open("../../../data/hol4/data_v2/data/vanilla_tactic_zero/polished_def_dict.json") as f:
     defs = json.load(f)
     # print(list(dictionary.keys()))
 # with open("polished_thm_dict_sorted.json") as f:
 #     pthms = json.load(f)
-with open("../../../data/hol4/raw_data/vanilla_tactic_zero/typed_database.json") as f:
+with open("../../../data/hol4/data_v2/data/vanilla_tactic_zero/typed_database.json") as f:
     database = json.load(f)
 
 # if CONTINUE:

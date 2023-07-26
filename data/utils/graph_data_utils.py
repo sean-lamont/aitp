@@ -143,15 +143,18 @@ def list_to_graph(data_list, attributes):
     return data_list
 
 
-def to_data(expr, data_type, vocab, config):
+def to_data(expr, data_type, vocab, config=None):
     if data_type == 'graph':
         data = DirectedData(x=torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in expr['tokens']]),
                             edge_index=torch.LongTensor(expr['edge_index']),
                             edge_attr=torch.LongTensor(expr['edge_attr']), )
-        if 'attention_edge' in config.attributes and config.attributes['attention_edge'] == 'directed':
-            data.attention_edge_index = torch.LongTensor(expr['attention_edge_index'])
-        if 'pe' in config.attributes:
-            data.abs_pe = torch.LongTensor(expr[config.attributes['pe']])
+
+        if config:
+            if 'attention_edge' in config.attributes and config.attributes['attention_edge'] == 'directed':
+                data.attention_edge_index = torch.LongTensor(expr['attention_edge_index'])
+            if 'pe' in config.attributes:
+                data.abs_pe = torch.LongTensor(expr[config.attributes['pe']])
+
         return data
 
     elif data_type == 'sequence':

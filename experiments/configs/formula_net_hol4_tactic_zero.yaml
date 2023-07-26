@@ -1,38 +1,37 @@
 epochs: 800
 max_steps: 5
-pretrain: True
-pretrain_ckpt: '/home/sean/Documents/phd/repo/aitp/experiments/runs/formula_net_1_layer_2023-07-24-18:20:15/model_checkpoints/epoch=19-acc=0.9152052402496338.ckpt'
+pretrain: False
+pretrain_ckpt: #'/home/sean/Documents/phd/repo/aitp/experiments/runs/formula_net_1_layer_2023-07-24-18:20:15/model_checkpoints/epoch=19-acc=0.9152052402496338.ckpt'
 proof_db: ['hol4', 'proof_logs']
 # tactic_config
 exp_config:
-  name: "formula_net_5_step_pretrain"
+  name: "formula_net_4_old_ast"
   resume: False
   experiment: "tactic_zero"
-  directory: "experiments/runs"
+  directory: "experiments/runs"#"experiments/runs/formula_net_5_step_no_pretrain_2023-07-24-14:51:09"
   logging_config:
     project: "rl_new"
     offline: False
-#    id: 'tqdf5f3w'
+#    id: 'jbzd5jbk'
     notes: "Test"
 optimiser_config:
   learning_rate: 5e-5
 model_config:
   model_type: "formula-net-edges"
   model_attributes:
-    vocab_size: 2015
+    vocab_size: 2200
     embedding_dim: 256
-    gnn_layers: 1
+    gnn_layers: 4
     batch_norm: False
-  vocab_size: 2015
+  vocab_size: 2200
   embedding_dim: 256
-
 data_config:
   type: "graph"
   source: "mongodb" #directory
   shuffle: True
   data_options:
     filter: ['tokens', 'edge_attr', 'edge_index']
-    db: 'hol4'
+    db: 'hol4_original_ast'
     expression_col: 'expression_graphs'
     vocab_col: 'vocab'
     split_col: 'paper_goals'

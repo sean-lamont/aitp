@@ -5,13 +5,13 @@ proof_db: ['hol4', 'proof_logs']
 # tactic_config
 exp_config:
   name: "vanilla"
-  resume: False
+  resume: True
   experiment: "tactic_zero"
-  directory: "experiments/runs"#"/home/sean/Documents/phd/repo/aitp/experiments/runs/test__2023-07-21-18:32:47"
+  directory: "experiments/runs/vanilla_2023-07-24-19:40:45"#"/home/sean/Documents/phd/repo/aitp/experiments/runs/test__2023-07-21-18:32:47"
   logging_config:
     project: "rl_new"
     offline: False
-#    id: 'sv30k7nn'
+    id: 'z7385cr9'
 #    notes: "Vanilla"
 optimiser_config:
   learning_rate: 5e-5

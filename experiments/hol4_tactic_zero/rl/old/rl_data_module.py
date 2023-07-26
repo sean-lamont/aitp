@@ -45,7 +45,7 @@ def collate_pad(batch):
     mask = torch.cat([mask, torch.zeros(mask.shape[0]).bool().unsqueeze(1)], dim=1)
     return Data(data=x, mask=mask)
 
-def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, tmp, data_type='graph'):
+def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, data_type='graph'):
     fringe_sizes = []
     contexts = []
     reverted = []
@@ -57,26 +57,26 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, tm
         g = revert_with_polish(e)
         reverted.append(g)
 
-    def hack(x):
-        if data_type == 'graph' or data_type == 'relation' or data_type == 'sat':
-            if x in graph_db:
-                return graph_db[x]
-            if x not in tmp:
-                tmp[x] = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(x), token_enc)
-            return tmp[x]
-        else:
-            db, vocab = graph_db
-            if x in db:
-                return db[x]
-            if x not in tmp:
-                tmp[x] = to_sequence(x,vocab)
-            return tmp[x]
-
+    # def hack(x):
+    #     if data_type == 'graph' or data_type == 'relation' or data_type == 'sat':
+    #         if x in graph_db:
+    #             return graph_db[x]
+    #         if x not in tmp:
+    #             tmp[x] = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(x), token_enc)
+    #         return tmp[x]
+    #     else:
+    #         db, vocab = graph_db
+    #         if x in db:
+    #             return db[x]
+    #         if x not in tmp:
+    #             tmp[x] = to_sequence(x,vocab)
+    #         return tmp[x]
+    #
 
     if data_type == 'graph':
-        graphs = [hack(t) for t in reverted]
+        # graphs = [hack(t) for t in reverted]
 
-        # graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
+        graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
         loader = DataLoader(graphs, batch_size=len(graphs))
         batch = next(iter(loader))
         batch.to(device)
@@ -89,9 +89,9 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, tm
 
     elif data_type == 'sat':
         # todo listcomp takes ages below with graph_to_torch.. maybe add to graph_db every new expression, or to a tmp_db for a given goal?
-        graphs = [hack(t) for t in reverted]
+        # graphs = [hack(t) for t in reverted]
 
-        # graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
+        graphs = [graph_db[t] if t in graph_db.keys() else graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc) for t in reverted]
         loader = DataLoader(graphs, batch_size=len(graphs))
         batch = next(iter(loader))
         batch.edge_attr = batch.edge_attr.long()
@@ -107,15 +107,15 @@ def gather_encoded_content_gnn(history, encoder, device, graph_db, token_enc, tm
         representations = torch.unsqueeze(encoder(graphs), 1)
 
     elif data_type == 'sequence':
-        # db, vocab = graph_db
-        # batch = [db[t] if t in db.keys() else to_sequence(t, vocab) for t in reverted]
-        # batch = [to_sequence(t, vocab) for t in reverted]
-        batch = [hack(t) for t in reverted]
+        db, vocab = graph_db
+        batch = [db[t] if t in db.keys() else to_sequence(t, vocab) for t in reverted]
+        batch = [to_sequence(t, vocab) for t in reverted]
+        # batch = [hack(t) for t in reverted]
         data = collate_pad(batch).to(device)
         representations = torch.unsqueeze(encoder(data), 1)
 
 
-    return representations, contexts, fringe_sizes, tmp
+    return representations, contexts, fringe_sizes
 
 class RLData(pl.LightningDataModule):
     def __init__(self, train_goals, test_goals, config, database=None, graph_db=None):
@@ -150,11 +150,16 @@ class RLData(pl.LightningDataModule):
         if self.config['data_type'] == 'graph':
             allowed_fact_batch = []
             graphs = [self.graph_db[t] for t in candidate_args]
-            loader = DataLoader(graphs, batch_size=32,drop_last=False)
+            # loader = DataLoader(graphs, batch_size=len(candidate_args))
+            # loader = DataLoader(graphs, batch_size=32,drop_last=False)
 
-            for batch in loader:
-                batch.edge_attr = batch.edge_attr.long()
-                allowed_fact_batch.append(batch)
+            loader = DataLoader(graphs, batch_size=len(candidate_args))
+            allowed_fact_batch = next(iter(loader))
+            allowed_fact_batch.edge_attr = allowed_fact_batch.edge_attr.long()
+
+            # for batch in loader:
+            #     batch.edge_attr = batch.edge_attr.long()
+            #     allowed_fact_batch.append(batch)
 
         elif self.config['data_type'] == 'relation':
             graphs = [self.graph_db[t] for t in candidate_args]
@@ -207,7 +212,7 @@ class RLData(pl.LightningDataModule):
             return None
         try:
             goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env = batch
-            allowed_fact_batch = [x.to(device) for x in allowed_fact_batch]
+            # allowed_fact_batch = [x.to(device) for x in allowed_fact_batch]
         except Exception as e:
             print (e)
             return None

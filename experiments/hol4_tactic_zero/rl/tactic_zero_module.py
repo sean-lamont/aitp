@@ -2,9 +2,12 @@ import logging
 import traceback
 import warnings
 from abc import abstractmethod
+import time
 
 import lightning.pytorch as pl
 import torch.optim
+
+from utils.viz_net_torch import make_dot
 
 warnings.filterwarnings('ignore')
 
@@ -89,6 +92,7 @@ class TacticZeroLoop(pl.LightningModule):
         self.log('val_proven', len(self.val_proved), prog_bar=True)
         self.val_proved = []
 
+
     def update_params(self, reward_pool, goal_pool, arg_pool, tac_pool, steps):
         running_add = 0
 
@@ -98,6 +102,7 @@ class TacticZeroLoop(pl.LightningModule):
             else:
                 running_add = running_add * self.config.gamma + reward_pool[i]
                 reward_pool[i] = running_add
+
         total_loss = 0
 
         for i in range(steps):
@@ -108,6 +113,10 @@ class TacticZeroLoop(pl.LightningModule):
             loss = goal_loss + tac_loss + arg_loss
             total_loss += loss
 
+        # g = make_dot(goal_loss)
+        # g.view()
+        # time.sleep(100)
+
         return total_loss
 
     def configure_optimizers(self):
@@ -117,5 +126,8 @@ class TacticZeroLoop(pl.LightningModule):
     def backward(self, loss, *args, **kwargs) -> None:
         try:
             loss.backward()
+            # print ("Gradients: \n\n")
+            # for n,p in self.named_parameters():
+            #     print (n, p.grad)
         except Exception as e:
             logging.debug(f"Error in backward {e}")

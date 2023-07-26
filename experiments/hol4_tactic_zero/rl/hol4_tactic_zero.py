@@ -2,8 +2,10 @@ import einops
 import torch.nn.functional as F
 import torch.optim
 from torch.distributions import Categorical
+from torch_geometric.data import Batch
 
-from experiments.hol4_tactic_zero.rl.old.rl_data_module import *
+from data.hol4 import ast_def
+from environments.hol4.new_env import *
 from experiments.hol4_tactic_zero.rl.tactic_zero_module import TacticZeroLoop
 
 '''
@@ -29,6 +31,7 @@ class HOL4TacticZero(TacticZeroLoop):
                  ):
 
         super().__init__(config)
+        logging.basicConfig(level=logging.DEBUG)
 
         self.goal_net = goal_net
         self.tac_net = tac_net
@@ -47,6 +50,7 @@ class HOL4TacticZero(TacticZeroLoop):
         self.proof_db = proof_db
         self.proof_logs = []
 
+
         self.config = config
         self.dir = self.config.exp_config.directory
         self.replay_dir = self.dir + '/replays.pt'
@@ -54,9 +58,9 @@ class HOL4TacticZero(TacticZeroLoop):
 
         self.setup_replays()
 
-    def save_proof_attempt(self, goal, proof, probs):
-        self.proof_logs.append({"goal": goal[0], "proof": proof, 'log_type': 'fringe',
-                                "probs": probs})
+    # def save_proof_attempt(self, goal, proof, probs):
+    #     self.proof_logs.append({"goal": goal[0], "proof": proof, 'log_type': 'fringe',
+    #                             "probs": probs})
 
     def setup_replays(self):
         if os.path.exists(self.dir + '/replays.pt'):
@@ -88,6 +92,7 @@ class HOL4TacticZero(TacticZeroLoop):
             reverted.append(g)
 
         batch = self.converter(reverted)
+
         if not isinstance(batch, list):
             batch = batch.to(self.device)
 
@@ -119,14 +124,17 @@ class HOL4TacticZero(TacticZeroLoop):
 
         return target_representation, target_goal, fringe, fringe_prob
 
-    # todo for now, use GNN for Induct tac
+    # for now, use GNN for Induct tac
     def get_term_tac(self, target_goal, target_representation, tac, replay_term=None):
         arg_probs = []
 
         induct_expr = self.converter([target_goal])
+        induct_expr = Batch.to_data_list(induct_expr)
+        assert len(induct_expr) == 1
+        induct_expr = induct_expr[0]
 
         if not isinstance(induct_expr, list):
-            labels = ast_def.process_ast(target_goal)['labels']
+            labels = ast_def.goal_to_dict(target_goal)['labels']
             induct_expr = induct_expr.to(self.device)
             induct_expr.labels = labels
             tokens = [[t] for t in induct_expr.labels if t[0] == "V"]
@@ -197,7 +205,7 @@ class HOL4TacticZero(TacticZeroLoop):
         arg_step = []
         arg_step_probs = []
 
-        if tactic_pool[tac] in thm_tactic:
+        if self.tactic_pool[tac] in self.thm_tactic:
             arg_len = 1
         else:
             arg_len = self.config.arg_len
@@ -274,8 +282,10 @@ class HOL4TacticZero(TacticZeroLoop):
 
     def forward(self, batch, train_mode=True):
         goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env = batch
+        # print (f"goal: {goal}")
 
         encoded_fact_pool = self.encoder_premise(allowed_fact_batch)
+        # print (encoded_fact_pool.shape)
 
         reward_pool = []
         goal_pool = []
@@ -288,6 +298,7 @@ class HOL4TacticZero(TacticZeroLoop):
         for t in range(max_steps):
 
             target_representation, target_goal, selected_goal, goal_prob = self.get_goal(env.history)
+
 
             goal_pool.append(goal_prob)
 
@@ -317,6 +328,7 @@ class HOL4TacticZero(TacticZeroLoop):
 
             try:
                 reward, done = env.step(action)
+                # print(f"Step taken: {action, reward, done}")
             except Exception:
                 logging.debug(f"Step exception: {action, goal}")
                 return ("Step error", action)
@@ -327,12 +339,12 @@ class HOL4TacticZero(TacticZeroLoop):
                 reward_pool.append(reward)
                 if not train_mode:
                     break
-
-                probs = {'arg': [[a.item() for a in l] for l in arg_pool],
-                         'goal': [g.item() for g in goal_pool],
-                         'tac': [t.item() for t in tac_pool]}
-
-                self.save_proof_attempt(goal, env.history, probs)
+                #
+                # probs = {'arg': [[a.item() for a in l] for l in arg_pool],
+                #          'goal': [g.item() for g in goal_pool],
+                #          'tac': [t.item() for t in tac_pool]}
+                #
+                # self.save_proof_attempt(goal, env.history, probs)
 
                 self.proven.append([goal, t + 1])
 
@@ -353,21 +365,29 @@ class HOL4TacticZero(TacticZeroLoop):
                 reward = -5
                 reward_pool.append(reward)
 
-                probs = {'arg': [[a.item() for a in l] for l in arg_pool],
-                         'goal': [g.item() for g in goal_pool],
-                         'tac': [t.item() for t in tac_pool]}
+                # probs = {'arg': [[a.item() for a in l] for l in arg_pool],
+                #          'goal': [g.item() for g in goal_pool],
+                #          'tac': [t.item() for t in tac_pool]}
+                #
+                # self.save_proof_attempt(goal, env.history, probs)
 
-                self.save_proof_attempt(goal, env.history, probs)
 
                 if goal in self.replays:
                     return self.run_replay(allowed_arguments_ids, candidate_args, env, encoded_fact_pool, goal)
             else:
                 reward_pool.append(reward)
 
+        # print (f"outcome: {reward_pool, goal_pool, tac_pool, steps, done}")
+
+        # if train_mode:
+        #     g = make_dot(tac_pool[0])
+        #     g.view()
+        #     time.sleep(100)
+
         return reward_pool, goal_pool, arg_pool, tac_pool, steps, done
 
     def get_replay_tac(self, true_tactic_text):
-        if true_tactic_text in no_arg_tactic:
+        if true_tactic_text in self.no_arg_tactic:
             true_tac_text = true_tactic_text
             true_args_text = None
         else:
@@ -445,5 +465,6 @@ class HOL4TacticZero(TacticZeroLoop):
 
     def save_replays(self):
         torch.save(self.replays, self.replay_dir)
-        self.proof_db.insert_many(self.proof_logs)
-        self.proof_logs = []
+
+        # self.proof_db.insert_many(self.proof_logs)
+        # self.proof_logs = []

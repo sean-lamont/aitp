@@ -4,7 +4,7 @@ import os
 
 def gen_hol4_data():
 
-    data_dir = "data/hol4/raw_data/"
+    data_dir = "data/hol4/data/"
     data_dir = os.path.join(os.getcwd(),data_dir)
 
     with open(data_dir + "hol_data.txt") as fp:

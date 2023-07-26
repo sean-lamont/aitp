@@ -1,0 +1,15 @@
+path_tactics: 'data/holist/hollight_tactics.textpb'
+path_tactics_replace: 'data/holist/hollight_tactics_replacements.textpb'
+path_theorem_database: 'data/holist/theorem_database_v1.1.textpb'
+
+action_generator_options: {asm_meson_only: true}
+
+prover: 'bfs'
+bfs_options: {
+  max_top_suggestions: 20
+  max_successful_branches: 5
+  max_explored_nodes: 120
+}
+library_tags: "clifford.ml"
+splits_to_prove: VALIDATION
+timeout_seconds: 120.0

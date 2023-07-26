@@ -1,0 +1,52 @@
+epochs: 800
+max_steps: 5
+pretrain: False
+#pretrain_ckpt: '/home/sean/Documents/phd/repo/aitp/experiments/runs/formula_net_1_layer_2023-07-24-18:20:15/model_checkpoints/epoch=19-acc=0.9152052402496338.ckpt'
+proof_db: ['hol4', 'proof_logs']
+# tactic_config
+exp_config:
+  name: "transformer"
+  resume: False
+  experiment: "tactic_zero"
+  directory: "experiments/runs"#"experiments/runs/formula_net_5_step_no_pretrain_2023-07-24-14:51:09"
+  logging_config:
+    project: "rl_new"
+    offline: False
+#    id: 'jbzd5jbk'
+    notes: "Test"
+optimiser_config:
+  learning_rate: 5e-5
+model_config:
+  model_type: 'transformer'
+  model_attributes:
+    vocab_size: 2020
+    embedding_dim: 256
+    dim_feedforward: 256
+    num_heads: 4
+    in_embed: True
+    num_layers: 2
+    dropout: 0.
+    small_inner: True
+    max_len: 1024
+  vocab_size: 2020
+  embedding_dim: 256
+data_config:
+  type: "sequence"
+  source: "mongodb" # directory
+  shuffle: True
+  data_options:
+    split_in_memory: True
+    dict_in_memory: True
+    filter: ['full_tokens']#, 'depth']
+    db: 'hol4'#'mizar40'
+    expression_col: 'expression_graphs'
+    vocab_col: 'vocab'
+    split_col: 'paper_goals'
+    environment: 'HOL4'
+  attributes:
+    max_len: 1024
+#  attributes:
+  # attention_edge_index: 'directed'
+  # pe: 'depth'
+#  dir: "data/hol4/graph_attention_data_new"
+#val_frequency: 128

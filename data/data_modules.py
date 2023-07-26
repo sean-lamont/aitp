@@ -38,6 +38,8 @@ lean
 holstep
     process data and run sweep
     
+save wandb run in directory so not required in config 
+    
 standardise experiments
     add resume to pretrain and holist experiments
     logging/files/directories all the same

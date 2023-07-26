@@ -20,7 +20,7 @@ with open("../../../data/hol4/old/train_test_data.pk", "rb") as f:
 
 
 #%%
-with open("../../../../data/hol4/raw_data/include_probability.json") as f:
+with open("../../../../data/hol4/data_v2/data/include_probability.json") as f:
     db = json.load(f)
 #%%
 tokens = list(

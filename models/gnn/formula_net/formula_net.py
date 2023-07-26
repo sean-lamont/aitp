@@ -276,6 +276,7 @@ class Final_Agg_induct(nn.Module):
         return x
 
 
+
 class message_passing_gnn_induct(nn.Module):
     def __init__(self, input_shape, embedding_dim, num_iterations, device):
         super(message_passing_gnn_induct, self).__init__()

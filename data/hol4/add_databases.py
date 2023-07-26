@@ -8,7 +8,7 @@ import pickle
 
 
 def add_databases():
-    data_dir = "data/hol4/raw_data/"
+    data_dir = "data/hol4/data/"
 
     with open(data_dir + "dep_data.json") as f:
         dep_data = json.load(f)
@@ -53,7 +53,7 @@ def add_databases():
 
     # Database used for replicating TacticZero, and for pretraining using HOL4 dependency information.
     # Contains information from the HOL4 standard library up to and including "probabilityTheory"
-    db_name = "hol4"
+    db_name = "hol4_original_ast"
 
     # Collection containing meta information about an expression (library, theorem name, etc.)
     info_name = "expression_metadata"
@@ -85,7 +85,7 @@ def add_databases():
     expression_info_data = db[info_name]
 
     print(f"Adding HOL4 standard library data up to and including \"probabilityTheory\" to database {db_name}\n")
-
+    #
     for k, v in tqdm(dep_data.items()):
         info = dependency_data.insert_one(
             {"_id": k,
@@ -129,5 +129,12 @@ def add_databases():
         info = expression_info_data.insert_one(
             {"_id": k, "theory": v[0], "name": v[1], "dep_id": v[3], "type": v[4], "plain_expression": v[5]})
 
+
+
     random.shuffle(valid_goals)
-    info = paper_split.insert_many([{"_id": g[0], "plain": g[1]} for g in valid_goals])
+    train_goals = valid_goals[:int(0.8 * len(valid_goals))]
+    val_goals = valid_goals[int(0.8 * len(valid_goals)):]
+
+    info = paper_split.insert_many([{"_id": g[0], "plain": g[1], 'split': 'train'} for g in train_goals])
+    info = paper_split.insert_many([{"_id": g[0], "plain": g[1], 'split': 'val'} for g in val_goals])
+

@@ -1,13 +1,16 @@
 import logging
+import time
 import traceback
 
-from experiments.hol4.rl.agent_utils import *
-from experiments.hol4.rl.rl_data_module import *
+from experiments.hol4_tactic_zero.rl.old.agent_utils import *
+from experiments.hol4_tactic_zero.rl.old.rl_data_module import *
 import lightning.pytorch as pl
 import torch.optim
 from torch.distributions import Categorical
 from environments.hol4.new_env import *
 import warnings
+
+from utils.viz_net_torch import make_dot
 
 warnings.filterwarnings('ignore')
 
@@ -80,12 +83,14 @@ class TacticZeroLoop(pl.LightningModule):
 
     def forward(self, batch, train_mode=True):
         goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env = batch
+        # print (f"goal: {goal} \n")
 
-        # todo with split batches
-        encodings = [self.encoder_premise(fact_batch) for fact_batch in allowed_fact_batch]
-        encoded_fact_pool = torch.cat(encodings, dim=0)
+        # encodings = [self.encoder_premise(fact_batch) for fact_batch in allowed_fact_batch]
+        # encodings = [self.encoder_premise(fact_batch) for fact_batch in allowed_fact_batch]
+        # encoded_fact_pool = torch.cat(encodings, dim=0)
 
-        # encoded_fact_pool = self.encoder_premise(allowed_fact_batch)
+
+        encoded_fact_pool = self.encoder_premise(allowed_fact_batch)
 
         reward_pool = []
         fringe_pool = []
@@ -108,10 +113,9 @@ class TacticZeroLoop(pl.LightningModule):
 
         max_steps = self.config['max_steps']  # self.cur_steps
 
-        tmp = {}
 
         for t in range(max_steps):
-            target_representation, target_goal, fringe, fringe_prob, tmp = select_goal_fringe(history=env.history,
+            target_representation, target_goal, fringe, fringe_prob = select_goal_fringe(history=env.history,
                                                                                               encoder_goal=self.encoder_goal,
                                                                                               graph_db=self.graph_db,
                                                                                               token_enc=self.token_enc,
@@ -119,7 +123,9 @@ class TacticZeroLoop(pl.LightningModule):
                                                                                               device=self.device,
                                                                                               data_type=self.config[
                                                                                                   'data_type'],
-                                                                                              tmp=tmp)
+                                                                                              )
+
+            # print (target_representation.requires_grad, fringe.requires_grad, fringe_prob.requires_grad)
 
             fringe_pool.append(fringe_prob)
             tac, tac_prob = get_tac(tac_input=target_representation,
@@ -160,17 +166,16 @@ class TacticZeroLoop(pl.LightningModule):
                 reward, done = env.step(action)
             except Exception as e:
                 # todo reset or continue?
-                # env = HolEnv("T")
-                # return ("Step error", action)
-                reward = -1
-                done = False
+                env = HolEnv("T")
+                return ("Step error", action)
+                # reward = -1
+                # done = False
 
-            reward_pool.append(reward)
-            steps += 1
 
             if done:
-                if not train_mode:
-                    break
+                # if not train_mode:
+                #     break
+
                 self.proven.append([env.polished_goal[0], t + 1])
 
                 if env.goal in self.replays.keys():
@@ -184,15 +189,30 @@ class TacticZeroLoop(pl.LightningModule):
                         print("History is none.")
                         print(env.history)
                         print(env)
+
+                reward_pool.append(reward)
+                steps += 1
                 break
 
             if t == max_steps - 1:
-                if not train_mode:
-                    break
                 reward = -5
+                # print (steps, len(reward_pool))
                 reward_pool.append(reward)
+
+                # if not train_mode:
+                #     break
+
                 if env.goal in self.replays:
                     return self.run_replay(allowed_arguments_ids, candidate_args, env, encoded_fact_pool)
+
+            reward_pool.append(reward)
+            steps += 1
+        # print (f"outcome: {reward_pool, fringe_pool, tac_pool, steps, done}")
+
+        # if train_mode:
+        #     g = make_dot(tac_pool[0])
+        #     g.view()
+        #     time.sleep(100)
 
         return reward_pool, fringe_pool, arg_pool, tac_pool, steps, done
 
@@ -212,13 +232,12 @@ class TacticZeroLoop(pl.LightningModule):
 
         known_history = self.replays[env.goal][1]
 
-        tmp = {}
 
         for t in range(len(known_history) - 1):
             true_resulting_fringe = known_history[t + 1]
             true_fringe = torch.tensor([true_resulting_fringe["parent"]], device=self.device)  # .to(self.device)
 
-            target_representation, target_goal, fringe, fringe_prob, tmp = select_goal_fringe(
+            target_representation, target_goal, fringe, fringe_prob = select_goal_fringe(
                 history=known_history[:t + 1],
                 encoder_goal=self.encoder_goal,
                 graph_db=self.graph_db,
@@ -227,7 +246,7 @@ class TacticZeroLoop(pl.LightningModule):
                 device=self.device,
                 replay_fringe=true_fringe,
                 data_type=self.config['data_type'],
-                tmp=tmp)
+                )
 
             fringe_pool.append(fringe_prob)
             tac_probs = self.tac_net(target_representation)
@@ -241,11 +260,9 @@ class TacticZeroLoop(pl.LightningModule):
 
             assert self.tactic_pool[true_tac.detach()] == true_tac_text
 
-            # if self.tactic_pool[true_tac.detach()] != true_tac_text:
-            #     raise Exception
-
             if self.tactic_pool[true_tac] in self.no_arg_tactic:
                 arg_probs = [torch.tensor(0)]
+                # ??
                 arg_pool.append(arg_probs)
 
             elif self.tactic_pool[true_tac] == "Induct_on":
@@ -306,25 +323,25 @@ class TacticZeroLoop(pl.LightningModule):
             logging.debug(f"Error in training: {e}")
             return
 
-    def validation_step(self, batch, batch_idx):
-        if batch is None:
-            logging.debug("Error in batch")
-            return
-        try:
-            out = self(batch, train_mode=False)
-            if len(out) == 2:
-                logging.debug(f"Error in run: {out}")
-                return
-            reward_pool, fringe_pool, arg_pool, tac_pool, steps, done = out
-
-            if done:
-                # todo move train version to train_step with batch_idx
-                self.val_proved.append(batch_idx)
-            return
-
-        except:
-            logging.debug(f"Error in training: {traceback.print_exc()}")
-            return
+    # def validation_step(self, batch, batch_idx):
+    #     if batch is None:
+    #         logging.debug("Error in batch")
+    #         return
+    #     try:
+    #         out = self(batch, train_mode=False)
+    #         if len(out) == 2:
+    #             logging.debug(f"Error in run: {out}")
+    #             return
+    #         reward_pool, fringe_pool, arg_pool, tac_pool, steps, done = out
+    #
+    #         if done:
+    #             # todo move train version to train_step with batch_idx
+    #             self.val_proved.append(batch_idx)
+    #         return
+    #
+    #     except:
+    #         logging.debug(f"Error in training: {traceback.print_exc()}")
+    #         return
 
     def on_train_epoch_end(self):
         self.log_dict({"epoch_proven": len(self.proven),
@@ -335,9 +352,9 @@ class TacticZeroLoop(pl.LightningModule):
         self.proven = []
         self.save_replays()
 
-    def on_validation_epoch_end(self):
-        self.log('val_proven', len(self.val_proved), prog_bar=True)
-        self.val_proved = []
+    # def on_validation_epoch_end(self):
+    #     self.log('val_proven', len(self.val_proved), prog_bar=True)
+    #     self.val_proved = []
 
     def update_params(self, reward_pool, fringe_pool, arg_pool, tac_pool, steps):
         running_add = 0
@@ -355,6 +372,12 @@ class TacticZeroLoop(pl.LightningModule):
             tac_loss = -tac_pool[i] * (reward)
             loss = fringe_loss + tac_loss + arg_loss
             total_loss += loss
+
+
+        # g = make_dot(fringe_loss)
+        # g.view()
+        # time.sleep(100)
+
         return total_loss
 
     def configure_optimizers(self):
@@ -364,5 +387,9 @@ class TacticZeroLoop(pl.LightningModule):
     def backward(self, loss, *args, **kwargs) -> None:
         try:
             loss.backward()
+            # print ("Gradients: \n\n")
+            # for n,p in self.named_parameters():
+            #     print (n, p.grad)
+            # exit()
         except Exception as e:
             logging.debug(f"Error in backward {e}")

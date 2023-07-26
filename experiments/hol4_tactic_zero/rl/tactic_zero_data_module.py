@@ -13,6 +13,7 @@ from experiments.pyrallis_configs import DataConfig
 
 
 class RLData(pl.LightningDataModule):
+
     def __init__(self, config: DataConfig):
         super().__init__()
         self.config = config
@@ -38,11 +39,21 @@ class RLData(pl.LightningDataModule):
                                                 config=self.config)
                               for v in tqdm(expr_col.find({}))}
 
-            self.goals = [(v['_id'], v['plain']) for v in split_col.find({})]
-            self.data = [a for a in self.goals]
+            # with open("data/hol4/data/valid_goals_shuffled.pk", "rb") as f:
+            #     valid_goals = pickle.load(f)
 
-            self.train_goals = self.data[:int(0.8 * len(self.data))]
-            self.test_goals = self.data[int(0.8 * len(self.data)):]
+            # self.train_goals = valid_goals[:int(0.8 * len(valid_goals))]
+            # self.test_goals = valid_goals[int(0.8 * len(valid_goals)):]
+
+            # self.goals = [(v['_id'], v['plain']) for v in split_col.find({})]
+            # self.data = [a for a in self.goals]
+
+
+            self.train_goals = [(v['_id'], v['plain']) for v in split_col.find({'split': 'train'})]
+            self.test_goals = [(v['_id'], v['plain']) for v in split_col.find({'split': 'val'})]
+
+            # self.train_goals = self.data[:int(0.8 * len(self.data))][:20]
+            # self.test_goals = self.data[int(0.8 * len(self.data)):][:20]
 
         elif source == 'directory':
             data_dir = self.config.data_options['directory']
@@ -53,8 +64,8 @@ class RLData(pl.LightningDataModule):
             self.expr_dict = self.data['expr_dict']
             self.expr_dict = {k: self.to_data(v) for k, v in self.expr_dict.items()}
 
-            self.train_goals = self.data[:0.8 * len(self.data)]
-            self.test_goals = self.data[0.8 * len(self.data):]
+            self.train_goals = self.data[:0.8 * len(self.data)][:10]
+            self.test_goals = self.data[0.8 * len(self.data):][:10]
 
         else:
             raise NotImplementedError
@@ -75,7 +86,7 @@ class RLData(pl.LightningDataModule):
         # for now, add every unseen expression to database
         for d in data_list:
             if d not in self.expr_dict:
-                self.expr_dict[d] = to_data(expr=ast_def.process_ast(d),
+                self.expr_dict[d] = to_data(expr=ast_def.goal_to_dict(d),
                                             data_type=self.data_type,
                                             vocab=self.vocab,
                                             config=self.config)

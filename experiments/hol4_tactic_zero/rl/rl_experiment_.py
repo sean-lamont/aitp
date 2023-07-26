@@ -117,7 +117,9 @@ class RLExperiment:
 
         callbacks.append(checkpoint_callback)
 
-        trainer = pl.Trainer(devices=self.config.exp_config.device,
+        trainer = pl.Trainer(
+                            devices=self.config.exp_config.device,
+                            # accelerator='cpu',
                              check_val_every_n_epoch=self.config.val_freq,
                              logger=logger,
                              callbacks=callbacks,

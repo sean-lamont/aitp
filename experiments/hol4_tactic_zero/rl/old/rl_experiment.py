@@ -1,9 +1,9 @@
-from experiments.hol4.rl.lightning_rl import TacticZeroLoop
+from experiments.hol4_tactic_zero.rl.old.lightning_rl import TacticZeroLoop
 from models.get_model import get_model
 from lightning.pytorch.callbacks import ModelCheckpoint
-from experiments.hol4.rl.agent_utils import *
+from experiments.hol4_tactic_zero.rl.old.agent_utils import *
 from lightning.pytorch.loggers import WandbLogger
-from experiments.hol4.rl.rl_data_module import *
+from experiments.hol4_tactic_zero.rl.old.rl_data_module import *
 from models.tactic_zero.policy_models import ArgPolicy, TacPolicy, TermPolicy, ContextPolicy
 from models.gnn.formula_net.formula_net import FormulaNetEdges
 import lightning.pytorch as pl
@@ -79,8 +79,19 @@ class RLExperiment:
         induct_net = FormulaNetEdges(VOCAB_SIZE, EMBEDDING_DIM, self.config['gnn_layers'], global_pool=False,
                                      batch_norm=False)
 
-        encoder_premise = get_model(self.config['model_config'])
-        encoder_goal = get_model(self.config['model_config'])
+        # encoder_premise = get_model(self.config['model_config'])
+        # encoder_goal = get_model(self.config['model_config'])
+
+
+        encoder_premise = FormulaNetEdges(input_shape=1004,
+                               embedding_dim=256,
+                               num_iterations=1,
+                        batch_norm=False)
+
+        encoder_goal = FormulaNetEdges(input_shape=1004,
+                        embedding_dim=256,
+                        num_iterations=1,
+                        batch_norm=False)
 
         notes = self.config['notes']
         save_dir = self.config['dir'] + notes
@@ -115,7 +126,9 @@ class RLExperiment:
                                  # offline=True,
                                  )
 
-        module = RLData(train_goals=self.config['train_goals'], test_goals=self.config['test_goals'], database=database,
+
+
+        module = RLData(train_goals=self.config['train_goals'], test_goals=self.config['test_goals'], database=self.config['database'],
                         graph_db=self.config['graph_db'],
                         config=self.config)
 
@@ -143,9 +156,11 @@ class RLExperiment:
         callbacks.append(checkpoint_callback)
 
         trainer = pl.Trainer(devices=self.config['device'],
-                             check_val_every_n_epoch=self.config['val_freq'],
+                             check_val_every_n_epoch=1000,
+                             # check_val_every_n_epoch=self.config['val_freq'],
                              logger=logger,
                              callbacks=callbacks,
+
                              # max_steps=10,
                              )
 

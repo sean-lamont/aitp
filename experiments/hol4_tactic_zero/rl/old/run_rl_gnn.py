@@ -7,7 +7,7 @@ import warnings
 from global_config import GLOBAL_PATH
 
 warnings.filterwarnings('ignore')
-from experiments.hol4.rl.rl_experiment import RLExperiment
+from experiments.hol4_tactic_zero.rl.old.rl_experiment import RLExperiment
 
 # for debugging
 # import os
@@ -25,6 +25,12 @@ def run_rl_gnn():
     for i, t in enumerate(compat_db):
         premise_db[t] = graph_to_torch_labelled(ast_def.goal_to_graph_labelled(t), token_enc)
 
+    for k, v in premise_db.items():
+        print(v.num_nodes)
+        print(v.edge_index)
+        v.validate()
+    exit()
+
     VOCAB_SIZE = 1004
     EMBEDDING_DIM = 256
 
@@ -32,25 +38,26 @@ def run_rl_gnn():
         "model_type": "formula-net-edges",
         "vocab_size": VOCAB_SIZE,
         "embedding_dim": 256,
-        "gnn_layers": 3,
+        "gnn_layers": 4,
         "batch_norm": False
     }
 
     gnn_config = default_config
     gnn_config['name'] = 'GNN 50 Step'
     gnn_config['model_config'] = model_config
-    gnn_config[
-        'pretrain_ckpt'] = GLOBAL_PATH + "experiments/hol4/supervised/model_checkpoints/fn.ckpt"
+    # gnn_config[
+    #     'pretrain_ckpt'] = GLOBAL_PATH + "experiments/hol4/supervised/model_checkpoints/fn.ckpt"
     gnn_config['exp_type'] = 'sat'
     gnn_config['data_type'] = 'graph'
     gnn_config['vocab_size'] = VOCAB_SIZE
-    gnn_config['notes'] = 'gnn_50_step_new/'
+    gnn_config['notes'] = 'gnn_old_test__/'
     gnn_config['graph_db'] = premise_db
     gnn_config['embedding_dim'] = EMBEDDING_DIM
+    gnn_config['database'] = compat_db
 
-    gnn_config['resume'] = True
+    # gnn_config['resume'] = True
     gnn_config['pretrain'] = False
-    gnn_config['resume_id'] = 'o56d60yn'
+    # gnn_config['resume_id'] = 'o56d60yn'
 
     experiment = RLExperiment(gnn_config)
     experiment.run()
@@ -100,17 +107,17 @@ if __name__ == '__main__':
         'project': 'RL Test',
         'name': None,  # 'Relation 50 Step',
         'tactics': tactics,
-        'pretrain_ckpt': None,
+        'pretrain_ckpt': None ,
         'exp_type': None,
         'vocab_size': None,
         'embedding_dim': None,
         'resume': False,
-        'resume_id': None,
+        'resume_id': None,#'fq517588',
         'pretrain': True,
         'gnn_layers': 3,
         'notes': None,  # 'x_50_step/',
         'dir': dir,
-        'max_steps': 50,
+        'max_steps': 5,
         'gamma': 0.99,
         'lr': 5e-5,
         'arg_len': 5,

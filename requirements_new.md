@@ -57,6 +57,8 @@ Install Lean3:
 ### HOList
 #### Environment
 - Setup the Docker container which provides an API to a custom HOL-Light environment setup by Google for AITP.
+https://github.com/brain-research/hol-light.git
+- 
 #### Data
 - Download raw data from:...
 
@@ -65,6 +67,7 @@ Install Lean3:
 
 ### INT
 sudo apt-get install libopenmpi-dev
+pip install baselines 
 pip install git+https://github.com/openai/baselines@ea25b9e8
 
 

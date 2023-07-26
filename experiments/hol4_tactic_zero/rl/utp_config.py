@@ -58,7 +58,7 @@ MORE_TACTICS = True
     # print(list(dictionary.keys()))
 # with open("polished_thm_dict_sorted.json") as f:
 #     pthms = json.load(f)
-with open("../../../data/hol4/raw_data/include_probability.json") as f:
+with open("../../../data/hol4/data_v2/data/include_probability.json") as f:
     database = json.load(f)
 
 # if CONTINUE:

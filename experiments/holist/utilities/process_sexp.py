@@ -8,8 +8,9 @@ TRUNCATE = 1000
 
 
 def process_sexp(s):
-  """Goal and theorem formatting function used for training."""
-  # Remove the parens.
-  s = s.replace('(', ' ').replace(')', ' ')
-  # Truncate the string.
-  return ' '.join(s.split()[:TRUNCATE])
+  return s
+  # """Goal and theorem formatting function used for training."""
+  # # Remove the parens.
+  # s = s.replace('(', ' ').replace(')', ' ')
+  # # Truncate the string.
+  # return ' '.join(s.split()[:TRUNCATE])

@@ -75,7 +75,7 @@ class Agent:
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-with open('../../../../data/hol4/raw_data/include_probability.json') as f:
+with open('../../../../data/hol4/data_v2/data/include_probability.json') as f:
     compat_db = json.load(f)
 
 reverse_database = {(value[0], value[1]): key for key, value in compat_db.items()}

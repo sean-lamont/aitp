@@ -95,7 +95,7 @@ def get_process(pstring):
 
 class HolEnv:
     def __init__(self, goal):
-        with open("data/hol4/raw_data/adjusted_db.json") as f:
+        with open("data/hol4/data/adjusted_db.json") as f:
             self.database = json.load(f)
 
         self.reverse_database = {(value[0], value[1]) : key for key, value in self.database.items()}
@@ -161,18 +161,18 @@ class HolEnv:
         self.history = [self.fringe]
         self.action_history = [] # list of tuples (id, id, tactic)
         self.subproofs = {}
-        # logging.debug("Initialization done. Main goal is:\n{}.".format(self.goal))
+        logging.debug("Initialization done. Main goal is:\n{}.".format(self.goal))
 
     def toggle_simpset(self, mode, theory):
         if mode == "diminish":
             cmd = "val _ = diminish_srw_ss {};".format([theory])
             cmd = re.sub("'", "\"", cmd)
-            # logging.debug("Removing simp lemmas from {}".format(theory))
+            logging.debug("Removing simp lemmas from {}".format(theory))
             
         else:
             cmd = "val _ = augment_srw_ss {};".format([theory])
             cmd = re.sub("'", "\"", cmd)
-            # logging.debug("Adding simp lemmas from {}".format(theory))
+            logging.debug("Adding simp lemmas from {}".format(theory))
             
         # self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
         # # sleep(0.5)
@@ -237,7 +237,7 @@ class HolEnv:
         # except:
         #     self.goal_theory = None
             
-        # logging.debug("Resetting goal to be {}".format(self.goal))
+        logging.debug("Resetting goal to be {}".format(self.goal))
         self.polished_goal = self.get_polish(self.goal)
         self.fringe = {"content": self.polished_goal,
                        "parent": None,
@@ -252,7 +252,7 @@ class HolEnv:
         if self.frequency:
             self.mean_frequency = sum(self.frequency.values())/len(self.frequency.values())
 
-        # logging.debug("Initialization done. Main goal is:\n{}.".format(self.goal))
+        logging.debug("Initialization done. Main goal is:\n{}.".format(self.goal))
 
     def close(self):    
         pids = get_process("hol")
@@ -463,7 +463,7 @@ class HolEnv:
                     self.subproofs[coordinate] = [{"subgoals": d,"via": tactic}]
                     
                 new_fringe = {"content": new_content,
-                              "parent": fringe_id.tolist(),
+                              "parent": fringe_id,
                               "goal": goal_id,
                               "by_tactic": tactic,
                               "reward": None}
@@ -485,8 +485,6 @@ class HolEnv:
                             reward = 5 # make this 200?
                         else:
                             reward = 15 # * (1 + mean_frequency - self.frequency[self.goal])
-                            
-                        
                     else:
                         reward = 5
 
@@ -501,7 +499,6 @@ class HolEnv:
             else:
                 # nothing changed
                 reward = -0.1
-
                 self.action_history.append(action)
         else:
             if d == "timeout":
@@ -530,7 +527,7 @@ class HolEnv:
                     allowed_arguments_ids.append(i)
                     candidate_args.append(t)
             self.toggle_simpset("diminish", goal_theory)
-            # logging.debug("Removed simpset of {}".format(goal_theory))
+            logging.debug("Removed simpset of {}".format(goal_theory))
 
         except Exception as e:
             raise Exception(f"Error generating fact pool: {e}")
