@@ -17,6 +17,7 @@ from torch_geometric.data import Batch
 from data.utils.graph_data_utils import to_data
 from experiments.holist import predictions
 from experiments.holist.utilities import process_sexp
+from experiments.holist.utilities.sexpression_to_graph import sexpression_to_graph
 from models.holist_models.gnn.gnn_encoder import GNNEncoder
 from pymongo import MongoClient
 from models.holist_models.tactic_predictor import TacticPrecdictor, CombinerNetwork
@@ -58,8 +59,8 @@ class HolparamPredictor(predictions.Predictions):
 
     def __init__(self,
                  ckpt: Text,
-                 max_embedding_batch_size: Optional[int] = 128,
-                 max_score_batch_size: Optional[int] = 128) -> None:
+                 max_embedding_batch_size: Optional[int] = 512,
+                 max_score_batch_size: Optional[int] = 512) -> None:
         """Restore from the checkpoint into the session."""
         super(HolparamPredictor, self).__init__(
             max_embedding_batch_size=max_embedding_batch_size,
@@ -70,21 +71,21 @@ class HolparamPredictor(predictions.Predictions):
         self.embedding_model_goal = GNNEncoder(input_shape=1500,
                                                embedding_dim=128,
                                                num_iterations=12,
-                                               dropout=0.2)
+                                               dropout=0.2).cuda()
 
         self.embedding_model_premise = GNNEncoder(input_shape=1500,
                                                   embedding_dim=128,
                                                   num_iterations=12,
-                                                  dropout=0.2)
+                                                  dropout=0.2).cuda()
 
         self.tac_model = TacticPrecdictor(
             embedding_dim=1024,
-            num_tactics=41)
+            num_tactics=41).cuda()
 
         self.combiner_model = CombinerNetwork(
             embedding_dim=1024,
             num_tactics=41,
-            tac_embed_dim=128)
+            tac_embed_dim=128).cuda()
 
         self.embedding_model_goal.eval()
         self.embedding_model_premise.eval()
@@ -98,22 +99,27 @@ class HolparamPredictor(predictions.Predictions):
         vocab_col = db['vocab']
         filter = ['tokens', 'edge_index', 'edge_attr']
 
-        vocab = {k['_id']: k['index'] for k in vocab_col.find()}
+        self.vocab = {k['_id']: k['index'] for k in vocab_col.find()}
+        self.filter = filter
 
         logging.info("Loading expression dictionary..")
 
-        self.expr_dict = {v["_id"]: to_data({x: v["data"][x] for x in filter}, data_type='graph', vocab=vocab)
+        self.expr_dict = {v["_id"]: self.to_torch(v['data'])
                           for v in tqdm(expr_col.find({}))}
 
-        print("testing..")
-        embs = self._batch_goal_embedding([list(self.expr_dict.keys())[0]])
-        print(embs)
-        thms = self._batch_goal_embedding([list(self.expr_dict.keys())[1], list(self.expr_dict.keys())[2]])
-        print(thms)
-        scores = self._batch_tactic_scores([embs[0], embs[0]])
-        print(scores)
-        print(self.thm_embedding(list(self.expr_dict.keys())[1]))
-        print(self._batch_thm_scores(thms, thms))
+        # print("testing..")
+        # embs = self._batch_goal_embedding([list(self.expr_dict.keys())[0]])
+        # print(embs)
+        # thms = self._batch_goal_embedding(
+        #     [list(self.expr_dict.keys())[1], list(self.expr_dict.keys())[2]])
+        # print(thms)
+        # scores = self._batch_tactic_scores([embs[0], embs[0]])
+        # print(scores)
+        # print(self.thm_embedding(list(self.expr_dict.keys())[1]))
+        # print(self._batch_thm_scores(thms, thms))
+        #
+    def to_torch(self, data_dict):
+        return to_data({x: data_dict[x] for x in self.filter}, data_type='graph', vocab=self.vocab)
 
     def _goal_string_for_predictions(self, goals: List[Text]) -> List[Text]:
         return [process_sexp.process_sexp(goal) for goal in goals]
@@ -127,9 +133,13 @@ class HolparamPredictor(predictions.Predictions):
         # with negative theorems)
         with torch.no_grad():
             goals = self._goal_string_for_predictions(goals)
-            goal_data = Batch.from_data_list([self.expr_dict[t] for t in goals])
-            embeddings = self.embedding_model_goal(goal_data)
-            embeddings = embeddings.numpy()
+
+            goal_data = Batch.from_data_list([self.expr_dict[t] if t in self.expr_dict
+                                              else self.to_torch(sexpression_to_graph(t))
+                                              for t in goals])
+
+            embeddings = self.embedding_model_goal(goal_data.cuda())
+            embeddings = embeddings.cpu().numpy()
         return embeddings
 
     def _batch_thm_embedding(self, thms: List[Text]) -> List[THM_EMB_TYPE]:
@@ -138,16 +148,20 @@ class HolparamPredictor(predictions.Predictions):
         with torch.no_grad():
             thms = self._thm_string_for_predictions(thms)
             # todo configure data type
-            thms_data = Batch.from_data_list([self.expr_dict[t] for t in thms])
-            embeddings = self.embedding_model_premise(thms_data)
-            embeddings = embeddings.numpy()
+
+            thms_data = Batch.from_data_list([self.expr_dict[t] if t in self.expr_dict
+                                              else self.to_torch(sexpression_to_graph(t))
+                                              for t in thms])
+
+            embeddings = self.embedding_model_premise(thms_data.cuda())
+            embeddings = embeddings.cpu().numpy()
         return embeddings
 
     def thm_embedding(self, thm: Text) -> THM_EMB_TYPE:
         """Given a theorem as a string, compute and return its embedding."""
         # Pack and unpack the thm into a batch of size one.
         # [embedding] = self.batch_thm_embedding([thm])
-        embedding = self.batch_thm_embedding([thm])
+        [embedding] = self.batch_thm_embedding([thm])
         return embedding
 
     def proof_state_from_search(self, node) -> predictions.ProofState:
@@ -178,7 +192,7 @@ class HolparamPredictor(predictions.Predictions):
             x = torch.from_numpy(np.array(state_encodings))
 
             # [tactic_scores] = self.tac_model(x).tolist()
-            tactic_scores = self.tac_model(x).numpy()
+            tactic_scores = self.tac_model(x.cuda()).cpu().numpy()
 
         return tactic_scores
 
@@ -202,11 +216,11 @@ class HolparamPredictor(predictions.Predictions):
         assert len(state_encodings) == len(thm_embeddings)
         # todo use non tac dependent model
 
-        tactic_id = 0
+        tactic_id = [0]
         with torch.no_grad():
-            scores = self.combiner_model(torch.Tensor(state_encodings),
-                                         torch.Tensor(thm_embeddings),
-                                         torch.LongTensor(tactic_id)).numpy()
+            scores = self.combiner_model(torch.Tensor(state_encodings).unsqueeze(0).cuda(),
+                                         torch.Tensor(thm_embeddings).unsqueeze(0).cuda(),
+                                         torch.LongTensor(tactic_id).cuda()).squeeze(0).cpu().numpy()
 
         return scores
 
@@ -216,8 +230,8 @@ class TacDependentPredictor(HolparamPredictor):
 
     def __init__(self,
                  ckpt: Text,
-                 max_embedding_batch_size: Optional[int] = 128,
-                 max_score_batch_size: Optional[int] = 128) -> None:
+                 max_embedding_batch_size: Optional[int] = 512,
+                 max_score_batch_size: Optional[int] = 512) -> None:
         """Restore from the checkpoint into the session."""
         super(TacDependentPredictor, self).__init__(
             ckpt,
@@ -248,7 +262,7 @@ class TacDependentPredictor(HolparamPredictor):
 
         # The checkpoint should have only one value in this collection.
         with torch.no_grad():
-            scores = self.combiner_model(torch.Tensor(state_encodings),
-                                         torch.Tensor(thm_embeddings),
-                                         torch.LongTensor(tactic_id)).numpy()
+            scores = self.combiner_model(torch.Tensor(state_encodings).unsqueeze(0).cuda(),
+                                         torch.Tensor(thm_embeddings).unsqueeze(0).cuda(),
+                                         torch.LongTensor([tactic_id]).cuda()).squeeze(0).cpu().numpy()
         return scores

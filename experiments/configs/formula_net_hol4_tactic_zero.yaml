@@ -6,13 +6,13 @@ proof_db: ['hol4', 'proof_logs']
 # tactic_config
 exp_config:
   name: "formula_net_4_old_ast"
-  resume: False
+  resume: true
   experiment: "tactic_zero"
-  directory: "experiments/runs"#"experiments/runs/formula_net_5_step_no_pretrain_2023-07-24-14:51:09"
+  directory: "experiments/runs/formula_net_4_old_ast_2023-07-26-22:01:44"
   logging_config:
     project: "rl_new"
     offline: False
-#    id: 'jbzd5jbk'
+    id: 'n0rc5m90'
     notes: "Test"
 optimiser_config:
   learning_rate: 5e-5

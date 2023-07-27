@@ -36,22 +36,26 @@ def sexpression_to_graph(sexpression_txt: Text):
     senders = [a[0] for a in edges]
     receivers = [a[1] for a in edges]
     edge_attr = [a[2] for a in edges]
+    if len(edges) > 0:
 
-    all_nodes = list(set(senders + receivers))
-    senders = [all_nodes.index(i) for i in senders]
-    receivers = [all_nodes.index(i) for i in receivers]
+        all_nodes = list(set(senders + receivers))
+        senders = [all_nodes.index(i) for i in senders]
+        receivers = [all_nodes.index(i) for i in receivers]
 
-    node_to_tok_ = {}
-    for k, v in node_to_tok.items():
-        node_to_tok_[all_nodes.index(k)] = v
+        node_to_tok_ = {}
+        for k, v in node_to_tok.items():
+            node_to_tok_[all_nodes.index(k)] = v
 
-    assert len(node_to_tok_) == len(all_nodes)
+        assert len(node_to_tok_) == len(all_nodes)
 
-    tok_list = [0 for _ in range(len(all_nodes))]
+        tok_list = [0 for _ in range(len(all_nodes))]
 
-    for k, v in node_to_tok_.items():
-        tok_list[k] = v
+        for k, v in node_to_tok_.items():
+            tok_list[k] = v
 
-    # todo add attention_edge and depth here as an option
+    else:
+        tok_list = ["UNK"]
+
+    # todo add options (e.g. attention_edge_index or depth)
 
     return {'tokens': tok_list, 'edge_index': [senders, receivers], 'edge_attr': edge_attr}

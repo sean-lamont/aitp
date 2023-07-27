@@ -47,7 +47,7 @@ class TacticConfig:
 
 @dataclass
 class LoggingConfig:
-    project: str
+    project: str = field(default=None)
     notes: str = field(default=None)
     offline: bool = field(default=False)
     id: Optional[str] = field(default=None)

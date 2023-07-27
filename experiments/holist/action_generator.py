@@ -191,13 +191,13 @@ class ActionGenerator(object):
             ])
         else:
             thms_emb = np.empty([0])
-        logging.debug(thms_emb)
+        # logging.debug(f"thms_emb: {thms_emb}")
         if len(thms_emb):  # pylint: disable=g-explicit-length-test
             thm_scores = self.predictor.batch_thm_scores(proof_state_enc, thms_emb,
                                                          tactic_id)
         else:
             thm_scores = []
-        logging.debug(thm_scores)
+        # logging.debug(f"thm_scores {thm_scores}")
         return thm_scores
 
     def _compute_tactic_scores(self, proof_state_encoded):
@@ -297,7 +297,7 @@ class ActionGenerator(object):
         assert theorem_fingerprint.Fingerprint(
             self.theorem_database.theorems[thm_number]) == fp
         thm_names = self.thm_names[:thm_number]
-        logging.debug(thm_names)
+        # logging.debug(f"thm_names: {thm_names}")
         # TODO(smloos): update predictor api to accept theorems directly
 
         # generate goal embedding
@@ -306,11 +306,11 @@ class ActionGenerator(object):
 
         proof_state_emb = self.predictor.proof_state_embedding(proof_state)
         proof_state_enc = self.predictor.proof_state_encoding(proof_state_emb)
-        logging.debug(proof_state_enc)
+        # logging.debug(f"proof state enc: {proof_state_enc}")
 
         tactic_scores = self._compute_tactic_scores(proof_state_enc)
 
-        empty_emb = self.predictor.thm_embedding('')
+        empty_emb = self.predictor.thm_embedding('NO_PARAM')
         empty_emb_batch = np.reshape(empty_emb, [1, empty_emb.shape[0]])
 
         enumerated_tactics = enumerate(self.tactics)
@@ -338,7 +338,7 @@ class ActionGenerator(object):
                     deephol_pb2.ProverOptions.PARAMETERS_CONDITIONED_ON_TAC):
                 thm_scores = self._get_theorem_scores(proof_state_enc, thm_number,
                                                       tactic_id)
-                logging.debug(thm_scores)
+                # logging.debug(f"thm_scores: {thm_scores}")
                 no_params_score = self.predictor.batch_thm_scores(
                     proof_state_enc, empty_emb_batch, tactic_id)[0]
                 logging.info('Theorem score for empty theorem: %f0.2',
@@ -355,8 +355,11 @@ class ActionGenerator(object):
             logging.info('thm_ranked: %s', str(thm_ranked))
             tactic_str = str(tactic.name)
             try:
+                print ("param_types:")
+                print (list(tactic.parameter_types))
                 tactic_params = _compute_parameter_string(
                     list(tactic.parameter_types), pass_no_arguments, thm_ranked)
+                print (f"tac_params{tactic_params}")
                 for params_str in tactic_params:
                     ret.append(
                         Suggestion(

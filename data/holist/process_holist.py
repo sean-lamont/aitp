@@ -232,6 +232,8 @@ if __name__ == '__main__':
     expr_col = db['expression_graphs']
 
 
+
+    max_seq_len = 10000
     def add_additional_data(item):
         # todo check if attribute exists
         try:
@@ -239,27 +241,36 @@ if __name__ == '__main__':
                                  {"$set":
                                      {
                                          "data.attention_edge_index":
-                                             get_directed_edge_index(len(item['data']['tokens']),
+                                             get_directed_edge_index(len(item['tokens']),
                                                                      torch.LongTensor(
-                                                                         item['data']['edge_index'])).tolist(),
+                                                                         item['edge_index'])).tolist(),
                                          "data.depth":
-                                             get_depth_from_graph(len(item['data']['tokens']),
+                                             get_depth_from_graph(len(item['tokens']),
                                                                   torch.LongTensor(
-                                                                      item['data']['edge_index'])).tolist(),
+                                                                      item['edge_index'])).tolist(),
 
-                                         'data.full_tokens': tokenize_string(item["_id"]),
-                                         'data.polished': sexpression_to_polish(item["_id"])
+                                         'data.full_tokens': tokenize_string(item["_id"])[:max_seq_len],
+                                         'data.polished': sexpression_to_polish(item["_id"])[:max_seq_len]
                                      }})
-        except:
+        except Exception as e:
+            print(f"error {e}")
             pass
 
 
     logging.info("Adding additional properties to expression database..")
     items = []
 
-    for item in tqdm(expr_col.find({})):
-        items.append(item)
+    # can run the below to retry failed field insertions
+    for item in tqdm(expr_col.find({'data.attention_edge_index': {'$exists': False}})):
+        items.append({'_id': item['_id'], 'tokens': item['data']['tokens'], 'edge_index': item['data']['edge_index']})
 
-    pool = Pool(processes=1)
+    # for item in tqdm(expr_col.find({})):
+    #     items.append({'_id': item['_id'], 'tokens': item['data']['tokens'], 'edge_index': item['data']['edge_index']})
+    print (f"num_items {len(items)}")
+
+    pool = Pool(processes=8)
     for _ in tqdm(pool.imap_unordered(add_additional_data, items), total=len(items)):
         pass
+
+
+

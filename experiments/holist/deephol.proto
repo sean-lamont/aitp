@@ -47,7 +47,7 @@ message BFSOptions {
 }
 
 message ActionGeneratorOptions {
-  // Maximum number of tactic arugments of thereom type.
+  // Maximum number of tactic arguments of theorem type.
   optional int32 max_theorem_parameters = 1 [default = 24];
   // Use ASM_MESON_TAC [...] with parameters specified by passed in model.
   optional bool asm_meson_only = 2 [default = false];

@@ -15,6 +15,8 @@ with e.g. Ubuntu instructions available here: https://www.mongodb.com/docs/manua
 We provide preprocessed databases containing data necessary for experiments across all platforms. You can download these at ...
 You can select which you want specifically by...
 
+`mongodump --archive=test.20150715.gz --gzip`
+
 Once you have the archive installed, you can run `mongorestore --gzip --archive={archive}` where `archive` is the download.
 
 ### Manually process data
