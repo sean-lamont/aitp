@@ -105,15 +105,9 @@ Premise selection experiment with separate encoders for goal and premise
 '''
 
 
-@hydra.main(config_path="configs/", config_name="formula_net_hol4")
+@hydra.main(config_path="configs/new_confs", config_name="formula_net_hol4")
 def premise_selection_experiment(config):
     OmegaConf.resolve(config)
-    # wandb.init(project="sweep")
-    # config = wandb.config
-
-    # print (config)
-    # print (config.exp_config.directory)
-
     os.makedirs(config.exp_config.directory + '/checkpoints')
 
     experiment = PremiseSelection(get_model(config.model_config),
@@ -130,7 +124,6 @@ def premise_selection_experiment(config):
                          notes=config.logging_config.notes,
                          offline=config.logging_config.offline,
                          save_dir=config.exp_config.directory,
-                         # log_model='all'
                          )
 
     callbacks = []

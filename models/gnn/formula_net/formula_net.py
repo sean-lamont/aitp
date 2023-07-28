@@ -325,8 +325,8 @@ class FormulaNetSAT(nn.Module):
 
 
         # assume max 200 children
-        self.parent_agg = ParentAggregationEdges(embedding_dim, embedding_dim, batch_norm=batch_norm)#,edge_dim=64)
-        self.child_agg = ChildAggregationEdges(embedding_dim, embedding_dim, batch_norm=batch_norm)#, edge_dim=64)
+        self.parent_agg = ParentAggregationEdges(embedding_dim, embedding_dim, batch_norm=batch_norm,edge_dim=128)#,edge_dim=64)
+        self.child_agg = ChildAggregationEdges(embedding_dim, embedding_dim, batch_norm=batch_norm,edge_dim=128)#, edge_dim=64)
         self.final_agg = CombinedAggregation(embedding_dim, batch_norm=batch_norm)
 
     def forward(self, nodes, edges, edge_attr):
