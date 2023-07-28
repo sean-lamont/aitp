@@ -2,7 +2,7 @@ program: experiments.holist_pretrain_hydra
 method: bayes
 metric:
   goal: maximize
-  name: val/topk_acc
+  name: topk_acc
 parameters:
   model_config.model_attributes.num_heads:
    values: [4, 2]
@@ -12,6 +12,9 @@ parameters:
     values: [4, 1]
   model_config.model_attributes.abs_pe:
     values: [True, False]
+#  data_config.data_options.attributes.attention_edge:
+#    attention_edge: ['directed', 'full']
+
 #  model_config.model_attributes.dropout:
 #    values: [0.2, 0.]
 

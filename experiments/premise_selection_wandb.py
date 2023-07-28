@@ -107,6 +107,8 @@ Premise selection experiment with separate encoders for goal and premise
 
 @hydra.main(config_path="configs/new_confs", config_name="formula_net_hol4")
 def premise_selection_experiment(config):
+    torch.set_float32_matmul_precision('medium')
+
     OmegaConf.resolve(config)
     os.makedirs(config.exp_config.directory + '/checkpoints')
 

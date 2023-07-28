@@ -32,4 +32,4 @@ data_config:
     split_col: 'split_data'
   batch_size: 32
   attributes:
-    max_len: 1024
+    max_len: ${model_config.model_attributes.max_len}

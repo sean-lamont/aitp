@@ -1,0 +1,32 @@
+program: experiments.premise_selection_wandb
+name: directed_sat
+description: Directed SAT HOL4 Pretrain Sweep
+project: hol4_premise_pretrain
+
+method: bayes
+metric:
+  goal: maximize
+  name: acc
+parameters:
+  model_config.model_attributes.gnn_layers:
+    values: [4,2,1]
+  model_config.model_attributes.global_pool:
+    values: ['mean', 'cls']
+  model_config.model_attributes.num_heads:
+    values: [4,2]
+  model_config.model_attributes.num_layers:
+    values: [4,2]
+  model_config.model_attributes.abs_pe:
+    values: [True,False]
+  model_config.model_attributes.dropout:
+    values: [0., 0.2]
+
+run_cap: 100
+
+command:
+  - ${env}
+  - ${interpreter}
+  - '-m'
+  - ${program}
+  - '--config-name=hol4_directed_sat'
+  - ${args_no_hyphens}

@@ -50,7 +50,9 @@ class Attention(gnn.MessagePassing):
             self.structure_extractor = DigaeSE(embed_dim, 64, embed_dim // 2)
 
         elif self.se == "formula-net":
-            self.structure_extractor = FormulaNetSAT(embedding_dim=embed_dim, num_iterations=k_hop, batch_norm=batch_norm)
+            self.structure_extractor = FormulaNetSAT(embedding_dim=embed_dim, num_iterations=k_hop,
+                                                     batch_norm=batch_norm,
+                                                     edge_dim=kwargs['edge_dim'] if 'edge_dim' in kwargs else 32)
 
         elif self.se == "gnn-encoder":
             self.structure_extractor = GNNEncoder(input_shape=None, embedding_dim=embed_dim,
@@ -112,7 +114,6 @@ class Attention(gnn.MessagePassing):
         return_attn:                return attention (default: False)
 
         """
-
 
         v = self.to_v(x)
 

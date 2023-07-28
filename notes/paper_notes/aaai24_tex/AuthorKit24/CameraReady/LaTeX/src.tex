@@ -168,8 +168,7 @@
 
     \begin{abstract}
         Recent interest in Artificial Intelligence for Theorem Proving (AITP) has given rise to a plethora of benchmarks and
-        methodologies,
-        particularly in the area of Interactive Theorem Proving (ITP).
+        methodologies, particularly in the area of Interactive Theorem Proving (ITP).
         Research in the area is fragmented, with a diverse set of approaches being spread across several ITP systems.
         This presents a significant challenge to the comparison of methods, which are often complex and difficult to replicate.
         To address this, we present MEDIAIT: A Modular Environment for Driving Insights in AI for IT(P).
@@ -194,22 +193,36 @@
 
     \section{Introduction}
 
-    Interactive Theorem Proving (ITP) is a key paradigm of formal verification.
-    With a human providing high level proof guidance, ITP systems have been used to develop verified compilers (cite), formalise mathematical conjectures (cite) and develop provably correct microkernels (cite).
-    Successful proof guidance requires proficiency in both the formal system and the application domain.
-    This has limited the scale and widespread adoption of formal methods, with e.g...
-    The nascent field of Artificial Intelligence for Theorem Proving (AITP) has the potential to address this,
-    with several strong results in automating human ITP guidance.
-    AITP research encompasses several mathematical reasoning tasks, such as math word problems (cite) and autoformalisation (cite).
-    The focus of this paper is specifially AI for Interactive Theorem Proving, which we refer to as AI-ITP.
+    Interactive Theorem Proving (ITP) is a central paradigm of formal verification.
+    With a human providing high level proof guidance, ITP systems have been used to write verified compilers (cite),
+    formalise mathematical conjectures (cite) and develop provably correct microkernels (cite).
+    As proficiency in both the formal system and application domain is needed,
+    large verification projects require significant human resources and expertise.
+    This restricts their scalability and widespread adoption, with for example xx taking xx amount of years.
 
-    Current datasets and environments for AI-ITP are divided across several distinct ITP systems.
-    Although this provides a variety of tasks for benchmarking,
-    it poses a challenge to the fair and efficient comparison of the automation approaches.
-    This is further complicated by the broad range of methods which have been applied in the area,
-    which are generally tested only in the context of a single ITP system (cite).
-    (examples, HOList over the HOL Light prover, LeanStep/LeanGym over Lean,
-    TacticZero and TacticToe,.. with HOL4).
+    Advancements in Artificial Intelligence for Interactive Theorem Proving (AI-ITP) have shown potential in automating
+    and assisting human ITP guidance, but there remain many challenges in the area.
+    With the current state of the art model achieving $42\%$ accuracy on the (highly difficult) miniF2F-curriculum benchmark,
+    there is a great deal of progress to be made.
+    The limited availability of quality proof data is cited as a strong limiting factor (cite).
+
+    There has been solid progress in the generation of quality ITP proof data, with (cite leanstep, holstep, isarstep).
+%    Other benchmarks are over labelled data with respect to proxy tasks,
+%    such as classifying whether a lemma was successful in the proof of a theorem (cite).
+    Interactive environments for agent interaction have also shown to be vital in improving performance,
+    as they allow for the generation of new data through automated proof attempts.
+%    Interactive benchmarks facilitate agent interaction with the prover and
+    These include HOList~\cite{bansal_holist_2019} for HOL Light, CoqGym for Coq (cite)
+    LeanGym for Lean (cite), and INT as an AI-ITP specific (in)equality proving system.
+
+    Although these provide a broad set of tasks for benchmarking,
+    it complicates the fair and efficient comparison of learning approaches between systems.
+    This is amplified by the variety and complexity of the algorithms used, which can vary over several axes.
+%    These include model architecture, proof search strategy and learning procedure.
+    For example, TacticZero \cite{wu_tacticzero_2021} uses a seq2seq autoencoder for expressions,
+    and learns through online Reinforcement Learning (RL) with a custom goal selection algorithm.
+    \cite{bansal_holist_2019} instead use BFS for goal selection,
+    with offline learning over human and synthetic proof logs.
 
     There are a large degree of similarities between most AI-ITP systems.
     Yet the same things are reimplemented repeatedly in the literature, (models, tokenisation, data processing)
@@ -218,7 +231,7 @@
     It is kept modular to allow minimal modifications in the areas which need to be changed. For example, proof search,
     model architecture and data format are all configurable and don't require substantial code modifications.
 
-% (Current benchmarks have made significant progress in the generation of quality ITP proof data,)
+
 % (still small in the context of large models and compared to NLP. )
 % (Through curating these data sources into a centralised platform, we have created a large dataset  of xxx examples and xxx GB of proof data.)
 
@@ -239,6 +252,26 @@
     In the context of theorem proving however, there has been no thorough comparison between approaches.
 
     We address these two issues by ... our contributions can be summarised as ...
+
+%    AITP research encompasses several mathematical reasoning tasks such as Math Word Problems (cite) and autoformalisation (cite),
+%    with (cite) giving a survey of the current landscape.
+%    The focus of this paper is specifically on applications to Interactive Theorem Proving, which we refer to as AI-ITP.
+
+
+
+%    Current results are restricted to using only one or two
+%    (cite pact) address this through a large corpus of intermediate tasks, and others (holist, leangym? hypertree, hol4)
+%    use generated data from agent interaction with the proving system.
+%    These approaches are split across several distinct proof systems, k
+
+    Despite this, current methods are only developed in
+
+    eivided across several distinct proving systems,
+
+%    Datasets in the area is fragmented, with a diverse set of approaches being spread across several ITP systems.
+
+
+
 
     \subsection{Related Work}
     Unified toolkit proposed for MWP, MWPToolkit.
@@ -299,7 +332,7 @@
     \begin{figure}[h]
         \centering
         \includegraphics[width=\linewidth]{AI-ITP}
-        \caption{Caption for the figure.}
+        \caption{General Framework for AI-ITP approaches. xxx incorporates all aspects, allowing for streamlined development and experimentation across all components}
         \label{fig:ai-itp}
     \end{figure}
 

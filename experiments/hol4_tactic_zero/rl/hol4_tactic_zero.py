@@ -31,7 +31,7 @@ class HOL4TacticZero(TacticZeroLoop):
                  ):
 
         super().__init__(config)
-        logging.basicConfig(level=logging.DEBUG)
+        # logging.basicConfig(level=logging.DEBUG)
 
         self.goal_net = goal_net
         self.tac_net = tac_net
@@ -129,11 +129,13 @@ class HOL4TacticZero(TacticZeroLoop):
         arg_probs = []
 
         induct_expr = self.converter([target_goal])
-        induct_expr = Batch.to_data_list(induct_expr)
-        assert len(induct_expr) == 1
-        induct_expr = induct_expr[0]
+
 
         if not isinstance(induct_expr, list):
+            induct_expr = Batch.to_data_list(induct_expr)
+            assert len(induct_expr) == 1
+            induct_expr = induct_expr[0]
+
             labels = ast_def.goal_to_dict(target_goal)['labels']
             induct_expr = induct_expr.to(self.device)
             induct_expr.labels = labels
