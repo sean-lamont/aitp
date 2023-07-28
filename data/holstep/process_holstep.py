@@ -1,4 +1,5 @@
 import argparse
+import re
 import logging
 import os
 import pickle
@@ -6,6 +7,7 @@ import sys
 import random
 # dataset source http://cl-informatik.uibk.ac.at/cek/holstep/holstep.tgz
 from pymongo import MongoClient
+from tqdm import tqdm
 
 from data.holstep.data_util import data_loader
 from data.holstep.data_util.generate_hol_dataset import generate_dataset, graph_from_hol_stmt, tree_from_hol_stmt
@@ -53,6 +55,7 @@ if __name__ == '__main__':
         'tree': lambda x, y: tree_from_hol_stmt(x, y)}
 
     # assert os.path.isdir(args.output), 'Data path must be a folder'
+
     assert os.path.isdir(args.path), 'Saving path must be a folder'
     train_path = os.path.join(args.path, 'train')
     test_path = os.path.join(args.path, 'test')
@@ -61,8 +64,6 @@ if __name__ == '__main__':
     files = os.listdir(train_path)
     valid_files = random.sample(files, int(len(files) * 0.07 + 0.5))
     train_files = [x for x in files if x not in valid_files]
-    # print(valid_files)
-    # print(train_files)
 
     train_expr, train_split = generate_dataset(train_path, args.train_partition,
                                                format_choice[args.format], train_files)
@@ -72,6 +73,8 @@ if __name__ == '__main__':
 
     val_expr, val_split = generate_dataset(train_path, args.valid_partition,
                                            format_choice[args.format], valid_files)
+
+    TOKEN_RE = re.compile(r'[(),]|[^\s(),]+')
 
     if args.destination_source == 'mongodb':
         client = MongoClient()
@@ -85,26 +88,28 @@ if __name__ == '__main__':
         train_expr.update(val_expr)
 
         for k, v in train_expr.items():
-            expr_col.insert_one({"_id": k, "data": v})
+            d = {"_id": k, "data": v}
+            d['data']['full_tokens'] = TOKEN_RE.findall(k)
+            expr_col.insert_one()
 
-        logging.info("Adding vocab Dictionary to MongoDB..")
-        loader = data_loader.DataLoader("data/holstep/raw_data/train", "data/holstep/raw_data/hol_train_dict")
-        # add dictionary to mongodb
-        for k, v in loader.dict.items():
-            vocab_col.insert_one({"_id": k, "index": v})
+    logging.info("Adding vocab Dictionary to MongoDB..")
+    loader = data_loader.DataLoader("data/holstep/raw_data/train", "data/holstep/raw_data/hol_train_dict")
+    # add dictionary to mongodb
+    for k, v in loader.dict.items():
+        vocab_col.insert_one({"_id": k, "index": v})
 
-        logging.info("Adding training split data to MongoDB..")
-        for i, data in enumerate(train_split):
-            for flag, conj, stmt in data:
-                split_col.insert_one({'conj': conj, 'stmt': stmt, 'split': 'train', 'y': flag})
+    logging.info("Adding training split data to MongoDB..")
+    for i, data in enumerate(train_split):
+        for flag, conj, stmt in data:
+            split_col.insert_one({'conj': conj, 'stmt': stmt, 'split': 'train', 'y': flag})
 
-        for i, data in enumerate(val_split):
-            for flag, conj, stmt in data:
-                split_col.insert_one({'conj': conj, 'stmt': stmt, 'split': 'val', 'y': flag})
+    for i, data in enumerate(val_split):
+        for flag, conj, stmt in data:
+            split_col.insert_one({'conj': conj, 'stmt': stmt, 'split': 'val', 'y': flag})
 
-        for i, data in enumerate(test_split):
-            for flag, conj, stmt in data:
-                split_col.insert_one({'conj': conj, 'stmt': stmt, 'split': 'test', 'y': flag})
+    for i, data in enumerate(test_split):
+        for flag, conj, stmt in data:
+            split_col.insert_one({'conj': conj, 'stmt': stmt, 'split': 'test', 'y': flag})
 
 
     else:
@@ -152,30 +157,31 @@ if __name__ == '__main__':
                 print('Saving to file {}/{}'.format(i + 1, partition))
                 pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
-    # client = MongoClient()
-    # db = client['hol_step']
-    # expr_collection = db['expression_graphs']
-    #
-    # def update_attention_func(item):
-    #     expr_collection.update_many({"_id": item["_id"]},
-    #                                 {"$set":
-    #                                     {
-    #                                         "data.attention_edge_index":
-    #                                             get_directed_edge_index(len(item['graph']['tokens']),
-    #                                                                     torch.LongTensor(
-    #                                                                         item['graph']['edge_index'])).tolist(),
-    #                                         "data.depth":
-    #                                             get_depth_from_graph(len(item['graph']['tokens']),
-    #                                                                  torch.LongTensor(
-    #                                                                      item['graph']['edge_index'])).tolist()
-    #                                     }})
-    #
-    # items = []
-    # for item in tqdm(expr_collection.find({})):
-    #     items.append(item)
-    #
-    # pool = Pool(processes=3)
-    # for _ in tqdm.tqdm(pool.imap_unordered(update_attention_func, items), total=len(items)):
-    #     pass
-    #
-    #
+
+# client = MongoClient()
+# db = client['hol_step']
+# expr_collection = db['expression_graphs']
+#
+# def update_attention_func(item):
+#     expr_collection.update_many({"_id": item["_id"]},
+#                                 {"$set":
+#                                     {
+#                                         "data.attention_edge_index":
+#                                             get_directed_edge_index(len(item['graph']['tokens']),
+#                                                                     torch.LongTensor(
+#                                                                         item['graph']['edge_index'])).tolist(),
+#                                         "data.depth":
+#                                             get_depth_from_graph(len(item['graph']['tokens']),
+#                                                                  torch.LongTensor(
+#                                                                      item['graph']['edge_index'])).tolist()
+#                                     }})
+#
+# items = []
+# for item in tqdm(expr_collection.find({})):
+#     items.append(item)
+#
+# pool = Pool(processes=3)
+# for _ in tqdm.tqdm(pool.imap_unordered(update_attention_func, items), total=len(items)):
+#     pass
+#
+#

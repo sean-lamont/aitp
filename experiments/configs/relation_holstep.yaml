@@ -1,7 +1,7 @@
-epochs: 20
+epochs: 10
 exp_config:
-  device: [0]
-  name: "formula-net"
+  device: [1]
+  name: "relation"
   experiment: "premise_selection"
   directory: "experiments/runs/holstep"
   logging_config:
@@ -10,24 +10,27 @@ exp_config:
 optimiser_config:
   learning_rate: 1e-4
 model_config:
-  model_type: "formula-net-edges"
+  model_type: "transformer_relation"
   model_attributes:
     vocab_size: 2015
     embedding_dim: 256
-    gnn_layers: 3
-    batch_norm: True
+    num_heads: 4
+    num_layers: 4
+    dropout: 0.
 data_config:
-  type: "graph"
+  type: "relation"
   source: "mongodb"
-  shuffle: True
+  shuffle: False
   data_options:
-    split_in_memory: True
-    dict_in_memory: True
+    split_in_memory: False
+    dict_in_memory: False
     filter: ['tokens', 'edge_attr', 'edge_index']
     db: 'holstep'
     expression_col: 'expression_graphs'
     vocab_col: 'vocab'
     split_col: 'split_data'
   batch_size: 32
+  attributes:
+    max_len: 1024
 #  attributes:
 #    attention_edge: 'full'

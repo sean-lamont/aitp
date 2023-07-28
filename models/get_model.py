@@ -104,11 +104,11 @@ def get_model(model_config):
                                       'max_len'] if 'max_len' in model_config.model_attributes else 512)
 
     elif model_config.model_type == 'transformer_relation':
-        return AttentionRelations(ntoken=model_config['vocab_size'],
-                                  dropout=model_config['dropout'] if 'dropout' in model_config else 0.0,
-                                  num_heads=model_config['num_heads'] if 'num_heads' in model_config else 8,
-                                  num_layers=model_config['num_layers'] if 'num_layers' in model_config else 4,
-                                  embed_dim=model_config['embedding_dim'])
+        return AttentionRelations(ntoken=model_config.model_attributes['vocab_size'],
+                                  dropout=model_config.model_attributes['dropout'] if 'dropout' in model_config.model_attributes else 0.0,
+                                  num_heads=model_config.model_attributes['num_heads'] if 'num_heads' in model_config.model_attributes else 8,
+                                  num_layers=model_config.model_attributes['num_layers'] if 'num_layers' in model_config.model_attributes else 4,
+                                  embed_dim=model_config.model_attributes['embedding_dim'])
 
     elif model_config.model_type == 'transformer_relation_small':
         return AttentionRelationSmall(ntoken=model_config.model_attributes['vocab_size'],

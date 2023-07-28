@@ -83,7 +83,6 @@ class PremiseDataModule(LightningDataModule):
                 self.expr_col = expr_col
 
             fields = ['conj', 'stmt', 'y']
-            print (list(self.expr_dict.items())[0])
 
             # if data_in_memory, save all examples to disk
             if self.config.data_options['split_in_memory']:

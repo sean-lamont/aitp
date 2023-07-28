@@ -1,0 +1,14 @@
+program: experiments.premise_selection_wandb
+method: bayes
+metric:
+  goal: maximize
+  name: val/acc
+parameters:
+  model_config.model_attributes.embedding_dim:
+   values: [128, 256]
+command:
+  - ${env}
+  - ${interpreter}
+  - '-m'
+  - ${program}
+  - ${args_no_hyphens}
