@@ -5,10 +5,13 @@
   - GNN, Directed SAT rerun before end to end
   - End to end runs
 - HOL4
-  - GNN, Transformer, SAT, Directed SAT, vanilla...
-  - n-step end to end loop..
+  - Transformer + SAT E2E
+
+[//]: # (  - GNN, Transformer, SAT, Directed SAT, vanilla...)
+
+[//]: # (  - n-step end to end loop..)
+
 - HOLStep
-  - Rerun FormulaNet
   - Directed SAT? 
 - MIZAR 
   - Quick run with everything..

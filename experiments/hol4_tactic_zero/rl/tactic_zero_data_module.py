@@ -1,4 +1,5 @@
 import logging
+import os
 import pickle
 
 import lightning.pytorch as pl
@@ -18,6 +19,7 @@ class RLData(pl.LightningDataModule):
         super().__init__()
         self.config = config
         self.data_type = self.config.type
+        print ("setup env")
         self.env = get_env(self.config.data_options['environment'])
 
     def setup(self, stage: str) -> None:
@@ -92,6 +94,7 @@ class RLData(pl.LightningDataModule):
                                             config=self.config)
 
         batch = [self.expr_dict[d] for d in data_list]
+
         return list_to_data(batch, self.config)
 
     def gen_fact_pool(self, goal):
@@ -105,6 +108,7 @@ class RLData(pl.LightningDataModule):
         try:
             self.env.reset(goal[1])
         except:
+            os.system(command=f'pkill -TERM -P {self.env.process.pid}')
             self.env = get_env(self.config.data_options['environment'])
             return None
         allowed_fact_batch, allowed_arguments_ids, candidate_args = self.gen_fact_pool(goal)
@@ -115,8 +119,10 @@ class RLData(pl.LightningDataModule):
             return None
         try:
             goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env = batch
-            if self.data_type != 'fixed':
+            if self.data_type != 'fixed' and self.data_type != 'sequence':
                 allowed_fact_batch = allowed_fact_batch.to(device)
+            elif self.data_type == 'sequence':
+                allowed_fact_batch = (allowed_fact_batch[0].to(device), allowed_fact_batch[1].to(device))
         except Exception as e:
             logging.debug(f"Error in batch {e}")
             return None

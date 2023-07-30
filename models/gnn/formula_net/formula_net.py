@@ -319,14 +319,14 @@ class message_passing_gnn_induct(nn.Module):
         return nodes
 
 class FormulaNetSAT(nn.Module):
-    def __init__(self, embedding_dim, num_iterations, batch_norm=True):
+    def __init__(self, embedding_dim, num_iterations, batch_norm=True, edge_dim=32):
         super(FormulaNetSAT, self).__init__()
         self.num_iterations = num_iterations
 
 
         # assume max 200 children
-        self.parent_agg = ParentAggregationEdges(embedding_dim, embedding_dim, batch_norm=batch_norm,edge_dim=128)#,edge_dim=64)
-        self.child_agg = ChildAggregationEdges(embedding_dim, embedding_dim, batch_norm=batch_norm,edge_dim=128)#, edge_dim=64)
+        self.parent_agg = ParentAggregationEdges(embedding_dim, embedding_dim, batch_norm=batch_norm,edge_dim=edge_dim)#,edge_dim=64)
+        self.child_agg = ChildAggregationEdges(embedding_dim, embedding_dim, batch_norm=batch_norm,edge_dim=edge_dim)#, edge_dim=64)
         self.final_agg = CombinedAggregation(embedding_dim, batch_norm=batch_norm)
 
     def forward(self, nodes, edges, edge_attr):

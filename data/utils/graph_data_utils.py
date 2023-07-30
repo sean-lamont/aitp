@@ -114,6 +114,9 @@ def get_depth_from_graph(num_nodes, edge_index):
 
 
 def list_to_sequence(data_list, max_len):
+    if data_list == []:
+        data_list = torch.LongTensor([[0]])
+
     data_list = torch.nn.utils.rnn.pad_sequence(data_list)
     data_list = data_list[:max_len]
     mask = (data_list == 0).T

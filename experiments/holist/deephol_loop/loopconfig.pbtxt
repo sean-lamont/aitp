@@ -1,12 +1,3 @@
-syntax = "proto2";
-
-package deepmath_deephol;
-
-import "experiments/holist/deephol.proto";
-import "experiments/holist/deephol_loop/options.proto";
-
-// This configuration is passed in to the top level pipeline of the loop.
-// This should be also stored on this once the layout is created.
 message LoopConfig {
   // Name of the loop.
   optional string name = 1;
@@ -46,28 +37,4 @@ message LoopConfig {
   optional int32 random_tactic_num_rounds = 13 [default = 0];
   // The probability at the end of random_tactic_num_rounds rounds.
   optional float random_tactic_probability_min = 14;
-}
-
-// The current status of the loop. Should be written in a safe manner so
-// that failing pipelines can be restarted.
-message LoopStatus {
-  // Name of the loop.
-  optional string name = 1;
-  // The index of the round last finished. (-1) if no rounds are finished.
-  optional int32 last_finished_round = 2 [default = -1];
-  // The index of the current round.
-  optional int32 current_round = 3;
-  // Fingerprint of the current controller process or zero if nothing is
-  // running.
-  optional uint64 running_controller = 4;
-}
-
-// This is the metadata for one round of proof log files and is
-// written in the directory of the matching proof log shortly after it is
-// created.
-message ProofLogsMeta {
-  // Round of proving files in the directory correspond to, presently.
-  optional int32 round = 1;
-  // Number of proof logs.
-  optional int32 number_of_logs = 2;
 }

@@ -22,7 +22,6 @@ def get_model_dict(prefix, state_dict):
     return {k[len(prefix) + 1:]: v for k, v in state_dict.items()
             if k.startswith(prefix)}
 
-# todo pyrallis
 class RLExperiment:
     def __init__(self, config):
         self.config = config
@@ -36,7 +35,7 @@ class RLExperiment:
         encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
 
     def run(self):
-        logging.basicConfig(filename=self.config.exp_config.directory + '/log', level=logging.DEBUG)
+        logging.basicConfig(filename=self.config.exp_config.directory + '/log', level=logging.INFO)
         torch.set_float32_matmul_precision('high')
 
         resume = self.config.exp_config.resume
@@ -44,7 +43,7 @@ class RLExperiment:
 
         tactics = self.config.tactic_config
 
-        # todo get non-encoder models from config?
+        # todo get non-encoder models from config
 
         # default policy models
         context_net = ContextPolicy()
@@ -159,4 +158,5 @@ def main():
     experiment.run()
 
 if __name__ == '__main__':
+    # logging.basicConfig(level=logging.DEBUG)
     main()

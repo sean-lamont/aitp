@@ -79,7 +79,7 @@ def batched_run(inputs, evaluator, max_batch_size):
     for i in range(1, len(inputs)):
         assert len(inputs[0]) == len(inputs[i])
     batched_inputs = [batch_array(a, max_batch_size) for a in inputs]
-    outputs = [evaluator(*batch) for batch in tqdm(zip(*batched_inputs))]
+    outputs = [evaluator(*batch) for batch in zip(*batched_inputs)]
     assert outputs
     if len(outputs) == 1:
         return outputs[0]

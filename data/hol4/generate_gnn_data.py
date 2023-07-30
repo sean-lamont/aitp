@@ -232,7 +232,7 @@ def generate_gnn_data(data, train_ratio, val_ratio, rand, data_dir,deps,full_db)
     # add tokens once variables and variable functions are abstracted, and for unseen tokens
     tokens.append("VAR")
     tokens.append("VARFUNC")
-    tokens.append("UNKNOWN")
+    tokens.append("UNK")
 
     #todo map unknown to "UNKNOWN" token
     enc = OneHotEncoder(handle_unknown='ignore')

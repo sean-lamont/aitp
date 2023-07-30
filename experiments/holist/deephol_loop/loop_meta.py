@@ -10,13 +10,13 @@ from __future__ import print_function
 import farmhash
 import os
 import time
-from tensorflow import gfile
-from tensorflow import logging
+import logging
 from typing import Optional
-from holist.experiments.public import build_data
+from experiments.holist.public import build_data
 from experiments.holist import io_util
 from experiments.holist.deephol_loop import loop_pb2
-from experiments.holist.deephol_loop.missing import types_pb2
+
+# from experiments.holist.deephol_loop.missing import types_pb2
 
 # Base name of the status file in the top level directory.
 STATUS_BASENAME = 'status.pbtxt'
@@ -69,8 +69,8 @@ def loop_round_string(loop_round: int):
 
 
 def _check_directory(filename: str) -> Optional[str]:
-  if gfile.Exists(filename):
-    if gfile.IsDirectory(filename):
+  if os.path.exists(filename):
+    if os.path.isdir(filename):
       return None
     else:
       return '"%s" is expected to be a directory.' % filename
@@ -79,25 +79,24 @@ def _check_directory(filename: str) -> Optional[str]:
 
 
 def _check_file(filename: str) -> Optional[str]:
-  if gfile.Exists(filename):
-    stat_proto = gfile.Stat(filename, stat_proto=True)
-    if stat_proto.file_type == types_pb2.FILE:
+  if os.path.exists(filename):
+    # stat_proto = gfile.Stat(filename, stat_proto=True)
+    # if stat_proto.file_type == types_pb2.FILE:
       return None
-    else:
-      return '"%s" is expected to be a regular file.' % filename
+    # else:
+    #   return '"%s" is expected to be a regular file.' % filename
   else:
     return 'Expected file %s does not exist.' % filename
 
 
 def make_dir(dir_name: str) -> str:
-  if gfile.Exists(dir_name):
-    if gfile.IsDirectory(dir_name):
-      return dir_name
-    else:
-      logging.fatal(
-          'Trying to create directory "%s", but there '
-          'is a file with the same name', dir_name)
-  gfile.MakeDirs(dir_name)
+  os.makedirs(dir_name, exist_ok=True)
+  # if os.path.exists(dir_name):
+  #     return dir_name
+  # else:
+  #   logging.fatal(
+  #         'Trying to create directory "%s", but there '
+  #         'is a file with the same name', dir_name)
   return dir_name
 
 
@@ -115,6 +114,7 @@ class LoopMeta(object):
                config: loop_pb2.LoopConfig,
                controller_fingerprint: int,
                read_only=None):
+
     self.root = os.path.join(root, config.name)
     self.config = config
     self.read_only = read_only
@@ -205,7 +205,7 @@ class LoopMeta(object):
         running_controller=self.controller_fingerprint)
 
   def layout_exists(self):
-    return gfile.Exists(self.root)
+    return os.path.exists(self.root)
 
   def check_layout(self) -> Optional[str]:
     """Check the current layout and return an error string or None.
@@ -234,17 +234,19 @@ class LoopMeta(object):
     if self.layout_exists():
       return 'make_layout: Layout %s exists at %s' % (self.config.name,
                                                       self.root)
-    gfile.MakeDirs(self.root)
-    if not gfile.Exists(self.root):
+    os.makedirs(self.root)
+    if not os.path.exists(self.root):
       return 'Could not create directory %s' % self.root
     io_util.write_text_proto(self.config_filename(), self.config)
+
     self.write_status()
-    gfile.MakeDirs(self.proof_logs_path())
-    gfile.MakeDirs(self.training_examples_path())
-    gfile.MakeDirs(self.prover_tasks_path())
-    gfile.MakeDirs(self.checkpoints_path())
-    gfile.MakeDirs(self.fresh_examples_path())
-    gfile.MakeDirs(self.historical_examples_path())
+
+    os.makedirs(self.proof_logs_path())
+    os.makedirs(self.training_examples_path())
+    os.makedirs(self.prover_tasks_path())
+    os.makedirs(self.checkpoints_path())
+    os.makedirs(self.fresh_examples_path())
+    os.makedirs(self.historical_examples_path())
 
   def prepare_next_round(self):
     assert self.status

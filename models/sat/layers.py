@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import torch
 from torch import nn
+from torch_geometric.data import Data
 from torch_scatter import scatter_add, scatter_mean
 import torch_geometric.nn as gnn
 import torch_geometric.utils as utils
@@ -50,7 +51,9 @@ class Attention(gnn.MessagePassing):
             self.structure_extractor = DigaeSE(embed_dim, 64, embed_dim // 2)
 
         elif self.se == "formula-net":
-            self.structure_extractor = FormulaNetSAT(embedding_dim=embed_dim, num_iterations=k_hop, batch_norm=batch_norm)
+            self.structure_extractor = FormulaNetSAT(embedding_dim=embed_dim, num_iterations=k_hop,
+                                                     batch_norm=batch_norm,
+                                                     edge_dim=kwargs['edge_dim'] if 'edge_dim' in kwargs else 32)
 
         elif self.se == "gnn-encoder":
             self.structure_extractor = GNNEncoder(input_shape=None, embedding_dim=embed_dim,
@@ -113,7 +116,6 @@ class Attention(gnn.MessagePassing):
 
         """
 
-
         v = self.to_v(x)
 
         # Compute structure-aware node embeddings
@@ -127,7 +129,8 @@ class Attention(gnn.MessagePassing):
                 subgraph_edge_attr=subgraph_edge_attr,
             )
         else:
-            x_struct = self.structure_extractor(x, edge_index, edge_attr)
+            input = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
+            x_struct = self.structure_extractor(input)
             # can set x_struct = x here for normal transformer
 
         # Compute query and key matrices

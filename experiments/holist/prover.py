@@ -9,6 +9,8 @@ import time
 from typing import Optional, Text
 
 from google.protobuf import text_format
+from tqdm import tqdm
+
 # Import predictors.
 from experiments.holist import action_generator, deephol_pb2
 from experiments.holist import embedding_store
@@ -155,21 +157,15 @@ class Prover(object):
             return log
         goal_thm = task.goals[0]
         tree = proof_search_tree.ProofSearchTree(self.hol_wrapper, goal_thm)
-        error_message = None
+
         if self.accept_tasks:
             try:
                 self.start_time = time.time()
-                # tf.logging.info('Attempting task %s.',
-                #                 text_format.MessageToString(task))
-
                 logging.info('Attempting task %s.',
                              text_format.MessageToString(task))
 
                 error_message = self.prove_one(tree, task)
             except error.StatusNotOk as exception:
-                # tf.logging.error('Prover stopped accepting tasks due to "%s"',
-                #                  exception.message)
-
                 logging.error('Prover stopped accepting tasks due to "%s"',
                               exception.message)
 
@@ -177,20 +173,22 @@ class Prover(object):
                 error_message = exception.message
                 self.accept_tasks = False
         else:
-            # tf.logging.warning('Prover does not accept tasks anymore.')
-
             logging.warning('Prover does not accept tasks anymore.')
-
             error_message = 'Prover stopped accepting tasks due to %s.' % self.error
+
         proof_log = tree.to_proto()
+
         if not self.accept_tasks:
             proof_log.rejected = True
+
         proof_log.time_spent = int(round((time.time() - self.start_time) * 1000.0))
+
         if tree.nodes[0].closed:
             proof_log.num_proofs = 1
         else:
             proof_log.num_proofs = 0
             proof_log.error_message = error_message or 'No proof.'
+
         proof_log.prover_options.CopyFrom(self.prover_options)
         proof_log.prover_task.CopyFrom(task)
         # tf.logging.info('Pruning theorem nodes...')
@@ -403,7 +401,7 @@ def setup_prover(theorem_database: proof_assistant_pb2.TheoremDatabase):
     logging.info('Setting up and registering theorems with proof assistant...')
     proof_assistant_obj = proof_assistant.ProofAssistant()
 
-    for thm in theorem_database.theorems:
+    for thm in tqdm(theorem_database.theorems):
         response = proof_assistant_obj.RegisterTheorem(
             proof_assistant_pb2.RegisterTheoremRequest(theorem=thm))
 

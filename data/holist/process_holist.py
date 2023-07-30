@@ -112,7 +112,8 @@ def prepare_data(config):
             [a['goal'] for a in synthetic_processed_logs] +
             [x for a in synthetic_processed_logs for x in a['thms_hard_negatives']]
         )
-    )
+
+    ) + ['NO_PARAM']
 
     logging.info(f'{len(all_exprs)} unique expressions')
     logging.info('Generating data dictionary from expressions..')
@@ -152,11 +153,11 @@ def prepare_data(config):
         vocab["("] = len(vocab)
         vocab[")"] = len(vocab)
 
-    # todo hacky
-    expr_dict["NO_PARAM"] = {'tokens': ["NO_PARAM"], "full_tokens": ["NO_PARAM"],
-                             "polished": ["NO_PARAM"], "edge_index": [[], []],
-                             "edge_attr": [], "attention_edge_index": [[], []],
-                             "depth": []}
+    # add NO_PARAM token for selecting tactics without any parameters e.g. ASM_MESON []
+    # expr_dict["NO_PARAM"] = {'tokens': ["NO_PARAM"], "full_tokens": ["NO_PARAM"],
+    #                          "polished": ["NO_PARAM"], "edge_index": [[], []],
+    #                          "edge_attr": [], "attention_edge_index": [[], []],
+    #                          "depth": []}
 
     if source == 'mongodb':
         logging.info("Adding data to MongoDB")
@@ -231,9 +232,9 @@ if __name__ == '__main__':
     db = client[data_options['db']]
     expr_col = db['expression_graphs']
 
-
-
     max_seq_len = 10000
+
+
     def add_additional_data(item):
         # todo check if attribute exists
         try:
@@ -266,11 +267,8 @@ if __name__ == '__main__':
 
     # for item in tqdm(expr_col.find({})):
     #     items.append({'_id': item['_id'], 'tokens': item['data']['tokens'], 'edge_index': item['data']['edge_index']})
-    print (f"num_items {len(items)}")
+    print(f"num_items {len(items)}")
 
     pool = Pool(processes=8)
     for _ in tqdm(pool.imap_unordered(add_additional_data, items), total=len(items)):
         pass
-
-
-

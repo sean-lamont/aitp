@@ -15,6 +15,7 @@ import torch
 from torch_geometric.data import Batch
 
 from data.utils.graph_data_utils import to_data
+from experiments.hol4_tactic_zero.rl.rl_experiment_ import get_model_dict
 from experiments.holist import predictions
 from experiments.holist.utilities import process_sexp
 from experiments.holist.utilities.sexpression_to_graph import sexpression_to_graph
@@ -53,20 +54,21 @@ Torch Reimplementation of original TF1 HolparamPredictor
 '''
 
 
-# todo convert to and revert vectors from torch
 class HolparamPredictor(predictions.Predictions):
     """Compute embeddings and make predictions from a save checkpoint."""
 
     def __init__(self,
                  ckpt: Text,
                  max_embedding_batch_size: Optional[int] = 512,
-                 max_score_batch_size: Optional[int] = 512) -> None:
+                 max_score_batch_size: Optional[int] = 512, config=None) -> None:
         """Restore from the checkpoint into the session."""
         super(HolparamPredictor, self).__init__(
             max_embedding_batch_size=max_embedding_batch_size,
             max_score_batch_size=max_score_batch_size)
 
-        # todo load model from ckpt, link to training module
+        self.config = config
+
+        # todo load model arch from config and get_model
 
         self.embedding_model_goal = GNNEncoder(input_shape=1500,
                                                embedding_dim=128,
@@ -87,12 +89,14 @@ class HolparamPredictor(predictions.Predictions):
             num_tactics=41,
             tac_embed_dim=128).cuda()
 
+        self.load_pretrained_model(ckpt)
+
         self.embedding_model_goal.eval()
         self.embedding_model_premise.eval()
         self.tac_model.eval()
         self.combiner_model.eval()
 
-        # todo configurable
+        # todo configurable with config
         client = MongoClient()
         db = client['holist']
         expr_col = db['expression_graphs']
@@ -104,20 +108,20 @@ class HolparamPredictor(predictions.Predictions):
 
         logging.info("Loading expression dictionary..")
 
-        self.expr_dict = {v["_id"]: self.to_torch(v['data'])
-                          for v in tqdm(expr_col.find({}))}
-
-        # print("testing..")
-        # embs = self._batch_goal_embedding([list(self.expr_dict.keys())[0]])
-        # print(embs)
-        # thms = self._batch_goal_embedding(
-        #     [list(self.expr_dict.keys())[1], list(self.expr_dict.keys())[2]])
-        # print(thms)
-        # scores = self._batch_tactic_scores([embs[0], embs[0]])
-        # print(scores)
-        # print(self.thm_embedding(list(self.expr_dict.keys())[1]))
-        # print(self._batch_thm_scores(thms, thms))
+        # self.expr_dict = {v["_id"]: self.to_torch(v['data'])
+        #                   for v in tqdm(expr_col.find({}))}
         #
+
+
+    def load_pretrained_model(self, ckpt_dir):
+        print ("loading")
+        logging.info(f"Loading checkpoint from {ckpt_dir}")
+        ckpt = torch.load(ckpt_dir + '.ckpt')['state_dict']
+        self.embedding_model_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
+        self.embedding_model_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
+        self.tac_model.load_state_dict(get_model_dict('tac_model', ckpt))
+        self.combiner_model.load_state_dict(get_model_dict('combiner_model', ckpt))
+
     def to_torch(self, data_dict):
         return to_data({x: data_dict[x] for x in self.filter}, data_type='graph', vocab=self.vocab)
 
@@ -134,8 +138,11 @@ class HolparamPredictor(predictions.Predictions):
         with torch.no_grad():
             goals = self._goal_string_for_predictions(goals)
 
-            goal_data = Batch.from_data_list([self.expr_dict[t] if t in self.expr_dict
-                                              else self.to_torch(sexpression_to_graph(t))
+            # goal_data = Batch.from_data_list([self.expr_dict[t] if t in self.expr_dict
+            #                                   else self.to_torch(sexpression_to_graph(t))
+            #                                   for t in goals])
+            #
+            goal_data = Batch.from_data_list([self.to_torch(sexpression_to_graph(t))
                                               for t in goals])
 
             embeddings = self.embedding_model_goal(goal_data.cuda())
@@ -148,9 +155,13 @@ class HolparamPredictor(predictions.Predictions):
         with torch.no_grad():
             thms = self._thm_string_for_predictions(thms)
             # todo configure data type
+            #
+            # thms_data = Batch.from_data_list([self.expr_dict[t] if t in self.expr_dict
+            #                                   else self.to_torch(sexpression_to_graph(t))
+            #                                   for t in thms])
+            #
 
-            thms_data = Batch.from_data_list([self.expr_dict[t] if t in self.expr_dict
-                                              else self.to_torch(sexpression_to_graph(t))
+            thms_data = Batch.from_data_list([self.to_torch(sexpression_to_graph(t))
                                               for t in thms])
 
             embeddings = self.embedding_model_premise(thms_data.cuda())

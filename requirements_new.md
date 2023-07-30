@@ -60,7 +60,24 @@ Install Lean3:
 #### Environment
 - Setup the Docker container which provides an API to a custom HOL-Light environment setup by Google for AITP.
 https://github.com/brain-research/hol-light.git
-- 
+
+#### Run HOL light server
+
+- Go to HOL light repo then run:
+
+  - sudo docker build . (returns image_id e.g. 8a85414b942e)
+  - sudo docker run -d -p 2000:2000 --name=holist image_id
+  - Can restart with sudo docker restart and container_id from above
+
+
+#### gRPC install/process
+
+- pip install  pip install grpcio-tools
+- from root (deepmath-light) dir:
+  - python -m grpc_tools.protoc -I=. --python_out=. ./deepmath/deephol/deephol.proto
+  - python -m grpc_tools.protoc -I=. --python_out=. ./deepmath/proof_assistant/proof_assistant.proto --grpc_python_out=.
+
+
 #### Data
 - Download raw data from:...
 

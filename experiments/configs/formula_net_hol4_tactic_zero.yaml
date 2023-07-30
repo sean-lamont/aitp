@@ -1,19 +1,19 @@
 epochs: 800
 max_steps: 5
 pretrain: False
-pretrain_ckpt: #'/home/sean/Documents/phd/repo/aitp/experiments/runs/formula_net_1_layer_2023-07-24-18:20:15/model_checkpoints/epoch=19-acc=0.9152052402496338.ckpt'
+pretrain_ckpt: ''#'experiments/runs/premise_selection/2023_07_28/formula_net_19_24_20/checkpoints/epoch=9-acc=0.9163475036621094.ckpt'
 proof_db: ['hol4', 'proof_logs']
 # tactic_config
 exp_config:
-  name: "formula_net_4_old_ast"
-  resume: true
+  name: "formula_net_2_layer_pretrain"
+  resume: True
   experiment: "tactic_zero"
-  directory: "experiments/runs/formula_net_4_old_ast_2023-07-26-22:01:44"
+  directory: "experiments/runs/tactic_zero/formula_net_2_layer_pretrain_2023-07-29-16:04:08"
   logging_config:
     project: "rl_new"
     offline: False
-    id: 'n0rc5m90'
-    notes: "Test"
+    id: 'wp30q42c'
+    notes: "FormulaNet 2 Layer Pretrained 5 Step"
 optimiser_config:
   learning_rate: 5e-5
 model_config:
@@ -21,7 +21,7 @@ model_config:
   model_attributes:
     vocab_size: 2200
     embedding_dim: 256
-    gnn_layers: 4
+    gnn_layers: 2
     batch_norm: False
   vocab_size: 2200
   embedding_dim: 256

@@ -6,20 +6,32 @@ from __future__ import division
 from __future__ import print_function
 import io
 import os
+
+import apache_beam
 import apache_beam as beam
+# from apache_beam.options.pipeline_options import DirectOptions as PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.runners.direct import DirectRunner
 from apache_beam.metrics import Metrics
 import matplotlib.pyplot as plot
-import tensorflow as tf
-from tf import gfile
 from typing import List
 from typing import Text
 from google.protobuf import text_format
 from experiments.holist import deephol_pb2
 from experiments.holist import io_util
-from experiments.holist.deephol_loop.missing import recordio
-from experiments.holist.deephol_loop.missing import runner
 from experiments.holist.utilities import deephol_stat_pb2
+import logging
 from experiments.holist.utilities import stats
+
+
+pipeline_options = PipelineOptions([
+  '--direct_running_mode=multi_threading',
+  '--direct_num_workers=4'
+])
+
+runner = DirectRunner()
+# runner = DirectRunner()
+# runner = apache_beam.runners.direct
 
 STATS_BASENAME = 'proof_stats'
 AGGREGATE_STAT_BASENAME = 'aggregate_stat'
@@ -100,7 +112,11 @@ def proven_or_open(proof_stat):
 
 
 def make_proof_logs_collection(root, proof_logs: Text):
-  return (root | 'Create' >> recordio.ReadFromRecordIO(
+
+  # return (root | 'Create' >> recordio.ReadFromRecordIO(
+  #   proof_logs, beam.coders.ProtoCoder(deephol_pb2.ProofLog)))
+
+  return (root | 'Create' >> beam.io.ReadFromText(
       proof_logs, beam.coders.ProtoCoder(deephol_pb2.ProofLog)))
 
 
@@ -119,21 +135,31 @@ def reporting_pipeline(proof_logs_collection, stats_out: Text,
   Returns:
     A beam pipeline for writing statistics.
   """
+  # proof_stats = (proof_logs_collection | 'Stats' >> beam.ParDo(StatDoFn()))
+  # _ = proof_stats | 'WriteStats' >> recordio.WriteToRecordIO(
+  #     file_path_prefix=stats_out,
+  #     coder=beam.coders.ProtoCoder(deephol_stat_pb2.ProofStat))
+  #
+
   proof_stats = (proof_logs_collection | 'Stats' >> beam.ParDo(StatDoFn()))
-  _ = proof_stats | 'WriteStats' >> recordio.WriteToRecordIO(
-      file_path_prefix=stats_out,
-      coder=beam.coders.ProtoCoder(deephol_stat_pb2.ProofStat))
+  _ = proof_stats | 'WriteStats' >> beam.io.WriteToText(
+    file_path_prefix=stats_out,
+    coder=beam.coders.ProtoCoder(deephol_stat_pb2.ProofStat))
+
   _ = (
       proof_stats
       | 'AggregateStats' >> beam.CombineGlobally(AggregateStatsFn())
       | 'MapProtoToString' >> beam.Map(text_format.MessageToString)
       | 'WriteAggregates' >> beam.io.WriteToText(aggregate_stats, '.pbtxt'))
+
   results = proof_stats | (
       'ProvenOrOpen' >> beam.FlatMap(proven_or_open).with_outputs())
+
   _ = (
       results.proven
       | 'UniqueProven' >> beam.CombineGlobally(UniqueFn())
       | 'WriteProven' >> beam.io.WriteToText(proven_goals, '.txt'))
+
   _ = (
       results.open
       | 'UniqueOpen' >> beam.CombineGlobally(UniqueFn())
@@ -141,7 +167,7 @@ def reporting_pipeline(proof_logs_collection, stats_out: Text,
 
 
 def file_lines_set(fname):
-  with gfile.Open(fname) as f:
+  with open(fname) as f:
     return set([line.rstrip() for line in f])
 
 
@@ -150,7 +176,7 @@ class ReportingPipeline(object):
 
   def __init__(self, out_dir: Text):
     self.out_dir = out_dir
-    gfile.MakeDirs(out_dir)
+    os.makedirs(out_dir)
     self.proof_stats_filename = os.path.join(out_dir, STATS_BASENAME)
     self.aggregate_stat_filename = os.path.join(out_dir,
                                                 AGGREGATE_STAT_BASENAME)
@@ -172,9 +198,9 @@ class ReportingPipeline(object):
     aggregate_stat = io_util.load_text_proto(
         fname, deephol_stat_pb2.ProofAggregateStat, 'aggregate statistics')
     if aggregate_stat is None:
-      tf.logging.warning('Could not read aggregate statistics "%s"', fname)
+      logging.warning('Could not read aggregate statistics "%s"', fname)
       return
-    tf.logging.info('Stats:\n%s',
+    logging.info('Stats:\n%s',
                     stats.aggregate_stat_to_string(aggregate_stat))
     open_goals = file_lines_set(self.open_goals_filename +
                                 '-00000-of-00001.txt')
@@ -183,21 +209,21 @@ class ReportingPipeline(object):
     never_proven = open_goals - proven_goals
     num_open_goals = len(never_proven)
     num_proven_goals = len(proven_goals)
-    tf.logging.info('Open goals: %d', num_open_goals)
-    tf.logging.info('Proved goals: %d', num_proven_goals)
+    logging.info('Open goals: %d', num_open_goals)
+    logging.info('Proved goals: %d', num_proven_goals)
     perc_proven = 100.0 * num_proven_goals / float(num_open_goals +
                                                    num_proven_goals)
-    tf.logging.info('Percentage proven: %.2f', perc_proven)
-    with gfile.Open(self.proven_stats_filename, 'w') as f:
+    logging.info('Percentage proven: %.2f', perc_proven)
+    with open(self.proven_stats_filename, 'w') as f:
       f.write('%d %d %.2f\n' % (num_open_goals, num_proven_goals, perc_proven))
-    with gfile.Open(self.pretty_stats_filename, 'w') as f:
+    with open(self.pretty_stats_filename, 'w') as f:
       f.write('%s\n' % stats.detailed_statistics(aggregate_stat))
 
     # Write cactus plot
     if aggregate_stat.proof_closed_after_millis:
       cactus_data = list(aggregate_stat.proof_closed_after_millis)
       cactus_data.sort()
-      with gfile.Open(self.cactus_data_filename, 'w') as f:
+      with open(self.cactus_data_filename, 'w') as f:
         f.write('\n'.join(map(str, cactus_data)))
       fig = plot.figure()
       plot.xlabel('Number of proofs closed')
@@ -205,7 +231,7 @@ class ReportingPipeline(object):
       plot.plot([ms * .001 for ms in cactus_data])  # convert to seconds
       buf = io.BytesIO()
       fig.savefig(buf, format='pdf', bbox_inches='tight')
-      with gfile.Open(self.cactus_plot_filename, 'wb') as f:
+      with open(self.cactus_plot_filename, 'wb') as f:
         f.write(buf.getvalue())
 
   def run_pipeline(self, proof_logs: Text):
@@ -214,6 +240,11 @@ class ReportingPipeline(object):
       proof_logs_collection = make_proof_logs_collection(root, proof_logs)
       self.setup_pipeline(proof_logs_collection)
 
-    runner.Runner().run(pipeline).wait_until_finish()
+    # runner.Runner().run(pipeline).wait_until_finish()
+    # print ('rep')
+    runner.run(pipeline, options=pipeline_options).wait_until_finish()
+
+    # runner.run(pipeline).wait_until_finish()
+
     self.write_final_stats()
-    tf.logging.info('Finished reporting.')
+    logging.info('Finished reporting.')

@@ -3,9 +3,8 @@ path_tactics_replace: 'data/holist/hollight_tactics_replacements.textpb'
 path_theorem_database: 'data/holist/theorem_database_v1.1.textpb'
 
 model_architecture: PARAMETERS_CONDITIONED_ON_TAC
-theorem_embeddings: 'data/holist/theorem_embeddings'
-
-# action_generator_options: {asm_meson_only: true}
+theorem_embeddings: 'experiments/holist/checkpoints/checkpoint.npy'
+path_model_prefix: 'experiments/holist/checkpoints/checkpoint'
 
 prover: 'bfs'
 bfs_options: {
@@ -13,6 +12,6 @@ bfs_options: {
   max_successful_branches: 5
   max_explored_nodes: 120
 }
-library_tags: "clifford.ml"
+library_tags: "complex"
 splits_to_prove: VALIDATION
 timeout_seconds: 120.0

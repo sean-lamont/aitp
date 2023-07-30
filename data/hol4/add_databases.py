@@ -120,7 +120,7 @@ def add_databases():
 
     vocab_dict['VAR'] = len(vocab_dict)
     vocab_dict['VARFUNC'] = len(vocab_dict)
-    vocab_dict['UNKNOWN'] = len(vocab_dict)
+    vocab_dict['UNK'] = len(vocab_dict)
 
     for k, v in tqdm(vocab_dict.items()):
         info = vocab.insert_one({"_id": k, "index": v})

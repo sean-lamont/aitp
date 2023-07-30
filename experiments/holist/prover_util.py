@@ -9,7 +9,6 @@ from __future__ import division
 # Import Type Annotations
 from __future__ import print_function
 import time
-# import tensorflow as tf
 import logging
 from typing import Iterable, Iterator, List, Optional, Text
 from google.protobuf import text_format

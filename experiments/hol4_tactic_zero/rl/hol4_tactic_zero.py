@@ -5,6 +5,7 @@ from torch.distributions import Categorical
 from torch_geometric.data import Batch
 
 from data.hol4 import ast_def
+from data.utils.graph_data_utils import list_to_graph
 from environments.hol4.new_env import *
 from experiments.hol4_tactic_zero.rl.tactic_zero_module import TacticZeroLoop
 
@@ -31,7 +32,6 @@ class HOL4TacticZero(TacticZeroLoop):
                  ):
 
         super().__init__(config)
-        logging.basicConfig(level=logging.DEBUG)
 
         self.goal_net = goal_net
         self.tac_net = tac_net
@@ -49,7 +49,6 @@ class HOL4TacticZero(TacticZeroLoop):
         self.converter = converter
         self.proof_db = proof_db
         self.proof_logs = []
-
 
         self.config = config
         self.dir = self.config.exp_config.directory
@@ -93,8 +92,12 @@ class HOL4TacticZero(TacticZeroLoop):
 
         batch = self.converter(reverted)
 
-        if not isinstance(batch, list):
+        if self.config.data_config.type == 'graph':
             batch = batch.to(self.device)
+
+        # sequence case, where batch is (data, attention_mask)
+        elif self.config.data_config.type == 'sequence':
+            batch = (batch[0].to(self.device), batch[1].to(self.device))
 
         representations = torch.unsqueeze(self.encoder_goal(batch), 1)
 
@@ -117,23 +120,25 @@ class HOL4TacticZero(TacticZeroLoop):
             fringe = fringe_m.sample()
 
         fringe_prob = fringe_m.log_prob(fringe)
-        # take the first context in the chosen fringe
+        # take the first context in the chosen fre
         target_context = contexts_by_fringe[fringe][0]
         target_goal = target_context["polished"]["goal"]
         target_representation = representations[contexts.index(target_context)]
 
         return target_representation, target_goal, fringe, fringe_prob
 
-    # for now, use GNN for Induct tac
+    # determine term for induction based on data type (graph, fixed, sequence)
     def get_term_tac(self, target_goal, target_representation, tac, replay_term=None):
         arg_probs = []
 
         induct_expr = self.converter([target_goal])
-        induct_expr = Batch.to_data_list(induct_expr)
-        assert len(induct_expr) == 1
-        induct_expr = induct_expr[0]
 
-        if not isinstance(induct_expr, list):
+        if self.config.data_config.type == 'graph':
+            induct_expr = Batch.to_data_list(induct_expr)
+
+            assert len(induct_expr) == 1
+            induct_expr = induct_expr[0]
+
             labels = ast_def.goal_to_dict(target_goal)['labels']
             induct_expr = induct_expr.to(self.device)
             induct_expr.labels = labels
@@ -144,18 +149,31 @@ class HOL4TacticZero(TacticZeroLoop):
                 induct_nodes = self.induct_net(induct_expr)
                 # select representations of Variable nodes with ('V' label only)
                 token_representations = torch.index_select(induct_nodes, 0, torch.tensor(token_inds).to(self.device))
+                target_representations = einops.repeat(target_representation, '1 d -> n d', n=len(tokens))
 
-        # fixed encoder case
         else:
             tokens = target_goal.split()
             tokens = list(dict.fromkeys(tokens))
-            tokens = [[t] for t in tokens if t[0] == "V"]
-            if tokens:
-                token_representations = self.encoder_goal(tokens).to(self.device)
+            if self.config.data_config.type == 'sequence':
+                tokens = [t for t in tokens if t[0] == "V"]
+                tokens_ = self.converter(tokens)
+                tokens_ = (tokens_[0].to(self.device), tokens_[1].to(self.device))
+                if tokens_:
+                    token_representations = self.encoder_goal(tokens_).to(self.device)
+                    target_representations = einops.repeat(target_representation, '1 d -> n d',
+                                                           n=token_representations.shape[0])
+                    tokens = [[t] for t in tokens]
+
+            elif self.config.data_config.type == 'fixed':
+                tokens = [[t] for t in tokens if t[0] == "V"]
+                if tokens:
+                    token_representations = self.encoder_goal(tokens).to(self.device)
+                    target_representations = einops.repeat(target_representation, '1 d -> n d', n=len(tokens))
+            else:
+                raise NotImplementedError("Induction for non-supported data type")
 
         if tokens:
             # pass through term_net
-            target_representations = einops.repeat(target_representation, '1 d -> n d', n=len(tokens))
             candidates = torch.cat([token_representations, target_representations], dim=1)
             scores = self.term_net(candidates, tac)
             term_probs = F.softmax(scores, dim=0)
@@ -222,7 +240,7 @@ class HOL4TacticZero(TacticZeroLoop):
                     try:
                         name_parser = replay_arg[i].split(".")
                     except:
-                        logging.debug(f"error in parser {i, replay_arg}")
+                        logging.warning(f"error in parser {i, replay_arg}")
                         raise Exception
                     theory_name = name_parser[0][:-6]  # get rid of the "Theory" substring
                     theorem_name = name_parser[1]
@@ -299,7 +317,6 @@ class HOL4TacticZero(TacticZeroLoop):
 
             target_representation, target_goal, selected_goal, goal_prob = self.get_goal(env.history)
 
-
             goal_pool.append(goal_prob)
 
             tac, tac_prob = self.get_tac(target_representation)
@@ -330,7 +347,7 @@ class HOL4TacticZero(TacticZeroLoop):
                 reward, done = env.step(action)
                 # print(f"Step taken: {action, reward, done}")
             except Exception:
-                logging.debug(f"Step exception: {action, goal}")
+                logging.warning(f"Step exception: {action, goal}")
                 return ("Step error", action)
 
             steps += 1
@@ -356,7 +373,7 @@ class HOL4TacticZero(TacticZeroLoop):
                     if env.history is not None:
                         self.replays[goal] = (steps, env.history)
                     else:
-                        logging.debug(f"History is none. {env.history}")
+                        logging.warning(f"History is none. {env.history}")
                 break
 
             elif t == max_steps - 1:
@@ -370,7 +387,6 @@ class HOL4TacticZero(TacticZeroLoop):
                 #          'tac': [t.item() for t in tac_pool]}
                 #
                 # self.save_proof_attempt(goal, env.history, probs)
-
 
                 if goal in self.replays:
                     return self.run_replay(allowed_arguments_ids, candidate_args, env, encoded_fact_pool, goal)
@@ -441,9 +457,9 @@ class HOL4TacticZero(TacticZeroLoop):
 
             elif self.tactic_pool[true_tac] == "Induct_on":
                 _, arg_probs = self.get_term_tac(target_goal=target_goal,
-                                            target_representation=target_representation,
-                                            tac=true_tac,
-                                            replay_term=true_args_text)
+                                                 target_representation=target_representation,
+                                                 tac=true_tac,
+                                                 replay_term=true_args_text)
 
             else:
                 _, arg_probs = self.get_arg_tac(target_representation=target_representation,
@@ -453,7 +469,6 @@ class HOL4TacticZero(TacticZeroLoop):
                                                 candidate_args=candidate_args,
                                                 env=env,
                                                 replay_arg=true_args_text)
-
 
             arg_pool.append(arg_probs)
 

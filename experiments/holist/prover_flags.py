@@ -34,6 +34,7 @@ flags.DEFINE_string(
     'Required: path to file containing the ProverOptions proto'
 )
 
+
 flags.DEFINE_string(
     'task_list', None,
     'Optional ProverTaskList text protobuf to specify the theorem proving '

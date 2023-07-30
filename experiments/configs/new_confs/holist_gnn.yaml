@@ -19,7 +19,7 @@ model_config:
   model_attributes:
     vocab_size: 1500
     embedding_dim: ${tac_embed_dim}
-    gnn_layers: 12
+    gnn_layers: 4
     dropout: 0.2
 
 logging_config:

@@ -40,35 +40,35 @@ class TacticZeroLoop(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         if batch is None:
-            logging.debug("Error in batch")
+            logging.warning("Error in batch")
             return
         try:
             out = self(batch)
             if len(out) != 6:
-                logging.debug(f"Error in run: {out}")
+                logging.warning(f"Error in run: {out}")
                 return
 
             reward_pool, goal_pool, arg_pool, tac_pool, steps, done = out
             loss = self.update_params(reward_pool, goal_pool, arg_pool, tac_pool, steps)
 
             if type(loss) != torch.Tensor:
-                logging.debug(f"Error in loss: {loss}")
+                logging.warning(f"Error in loss: {loss}")
                 return
 
             return loss
 
         except Exception as e:
-            logging.debug(f"Error in training: {traceback.print_exc()}")
+            logging.warning(f"Error in training: {traceback.print_exc()}")
             return
 
     def validation_step(self, batch, batch_idx):
         if batch is None:
-            logging.debug("Error in batch")
+            logging.warning("Error in batch")
             return
         try:
             out = self(batch, train_mode=False)
             if len(out) != 6:
-                logging.debug(f"Error in run: {out}")
+                logging.warning(f"Error in run: {out}")
                 return
             reward_pool, goal_pool, arg_pool, tac_pool, steps, done = out
 
@@ -77,7 +77,7 @@ class TacticZeroLoop(pl.LightningModule):
             return
 
         except:
-            logging.debug(f"Error in training: {traceback.print_exc()}")
+            logging.warning(f"Error in training: {traceback.print_exc()}")
             return
 
     def on_train_epoch_end(self):
@@ -130,4 +130,4 @@ class TacticZeroLoop(pl.LightningModule):
             # for n,p in self.named_parameters():
             #     print (n, p.grad)
         except Exception as e:
-            logging.debug(f"Error in backward {e}")
+            logging.warning(f"Error in backward {e}")

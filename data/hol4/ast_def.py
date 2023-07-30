@@ -561,8 +561,10 @@ def reduce_subexpressions(ast):
 
 def goal_to_dict(polished_goal):
     ast = goal_to_graph_labelled(polished_goal)
-    return  graph_to_dict(ast)
-
+    ret = graph_to_dict(ast)
+    full_tokens = polished_goal.split(" ")
+    ret['full_tokens'] = full_tokens
+    return ret
 
 def process_ast(polished_goal, vocab):
     ast = goal_to_graph_labelled(polished_goal)

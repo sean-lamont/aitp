@@ -355,11 +355,11 @@ class ActionGenerator(object):
             logging.info('thm_ranked: %s', str(thm_ranked))
             tactic_str = str(tactic.name)
             try:
-                print ("param_types:")
-                print (list(tactic.parameter_types))
+                # print ("param_types:")
+                # print (list(tactic.parameter_types))
                 tactic_params = _compute_parameter_string(
                     list(tactic.parameter_types), pass_no_arguments, thm_ranked)
-                print (f"tac_params{tactic_params}")
+                # print (f"tac_params{tactic_params}")
                 for params_str in tactic_params:
                     ret.append(
                         Suggestion(

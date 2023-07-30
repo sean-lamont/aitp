@@ -29,7 +29,6 @@ def config_to_dict(conf):
 @hydra.main(config_path="configs/new_confs", config_name="holist_premise_selection")
 def holist_pretrain_experiment(config):
     OmegaConf.resolve(config)
-    print (config)
     os.makedirs(config.exp_config.directory + '/checkpoints')
 
     torch.set_float32_matmul_precision('high')
@@ -79,7 +78,9 @@ def holist_pretrain_experiment(config):
         devices=config.exp_config.device
     )
 
-    trainer.val_check_interval = config.val_frequency
+    # ensure consistent frequency of validation independent of batch size
+    trainer.val_check_interval = config.val_frequency * (16 // config.data_config.batch_size)
+
     if config.limit_val_batches:
         trainer.limit_val_batches = config.val_size // config.data_config.batch_size
 

@@ -3,7 +3,7 @@ defaults:
 
 tac_embed_dim: 128
 final_embed_dim: 1024
-epochs: 3
+epochs: 10
 
 data_config:
   data_options:
@@ -17,7 +17,7 @@ data_config:
 
 exp_config:
   name: SAT Full
-  device: [1]
+#  device: [1]
 
 model_config:
   model_type: 'holist_sat'
