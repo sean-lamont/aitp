@@ -35,7 +35,7 @@ Generate full lean set towards the end
 
 ## 31/7
 - Experiments:
-  - Run SAT HOL4 pretrain, and start TacticZero with it
+  - Run SAT + Directed SAT HOL4 pretrain, and start TacticZero with it
   - Run GNN, SAT and Transformer Variants with HOList pretraining for remaining machines
   - Transformer over HOLStep expressions (i.e. run TOKEN_RE and use that as sequence)
 - Paper:
