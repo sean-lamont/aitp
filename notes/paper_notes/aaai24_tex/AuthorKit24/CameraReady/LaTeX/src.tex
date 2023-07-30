@@ -204,23 +204,22 @@
     and assisting human ITP guidance, but there remain many challenges in the area.
     With the current state of the art achieving $42\%$ accuracy on the (highly difficult) miniF2F-curriculum benchmark (cite),
     there is still much progress to be made.
-%    To assist this, it is important for researchers to be able to efficiently and fairly compare approaches,
 %    which is a .
 
 %    we present a framework for rapid experimentation and development in AI-ITP.
 %    We use this to unify several datasets, environments and algorithms in the area,
 
-    Current results are divided across multiple ITP systems.
-    Evaluation is done with either labelled datasets extracted from proof data, such as HOLStep, LeanStep and MIZAR40,
+    To that end, it is important to efficiently and fairly compare approaches,
+    which is difficult as results are fragmented across multiple ITP systems.
+    Current results are evaluated either with labelled datasets extracted from proof data, as in HOLStep, LeanStep and MIZAR40,
     or through direct interaction with a proving environment.
     Environments for agent interaction have been shown to be vital in improving performance (cite),
     as they allow for the generation of new data through automated proof attempts.
     Such environments include HOList~\cite{bansal_holist_2019} for HOL Light, CoqGym for Coq (cite)
     LeanGym for Lean (cite), and INT as an AI-ITP specific (in)equality proving system.
     These provide a broad set of tasks for benchmarking, however as they are all isolated to a single system
-    it is difficult to efficiently compare approaches.
+    it is difficult to compare approaches between them.
     This is further complicated by the variety and complexity of algorithms used, which can vary over several axes.
-%    These include model architecture, proof search strategy and learning procedure.
     For example, TacticZero \cite{wu_tacticzero_2021} uses a seq2seq autoencoder for expressions,
     and learns through online Reinforcement Learning (RL) with a custom goal selection algorithm.
     \cite{bansal_holist_2019} instead use Breadth First Search (BFS) for goal selection,
@@ -229,34 +228,27 @@
     Despite this, many fundamental components are common across AI-ITP systems.
     We leverage these to develop a modular, unified framework for accelerating research in the area.
     XXX brings together several environments, datasets and models from AI-ITP, with a central interface
-    for ...
+    for running experiments and sharing components between systems.
     Being fully open source, the addition of new benchmarks and algorithms is facilitated
-    through a modular and decoupled design of the system.
+    by a modular and decoupled design.
     We combine this with automatic logging, checkpointing and configuration management
     to allow for rapid testing and prototyping of ideas with minimal overhead.
 
-    A large focus of this paper is to demonstrate the utility of xx through a comparison of embedding architectures in AI-ITP.
-    There are several architectures used in the literature, with few thorough comparisons.
-    Embeddings of the logical expressions are required for the application of learning algorithms,
-    These are used for tasks such as premise selection, goal selection which are essential for proof guidance.
-
-    Expressions are either treated as a natural language sequence, or as a directed graph derived from their abstract syntax tree
-    representation. It has been argued that a graph representation is more appropriate, with a large body of work in AI-ITP
-    using Graph Neural Network (GNN) as the embedding model to achieve strong results in several tasks.
-
-    However, Transformer models applied to the sequence representation have also demonstrated strong performance by
-    leveraging large models pre-trained on NLP datasets.
-
-    Both architectures have fundamental limitations, as GNNs suffer from poor integration of global information, and vanlla
-    Transformers ignore the structural information of the expression.
-    Recent work has shown that combining both architectures leads to improved performance on several graph learning tasks.
-    In the context of theorem proving however, there has been no thorough comparison between approaches.
-
-    We address these two issues by ... our contributions can be summarised as ...
-
-%    AITP research encompasses several mathematical reasoning tasks such as Math Word Problems (cite) and autoformalisation (cite),
-%    with (cite) giving a survey of the current landscape.
-%    The focus of this paper is specifically on applications to Interactive Theorem Proving, which we refer to as AI-ITP.
+    A large focus of this paper is using xx to perform a comparison of embedding architectures in AI-ITP.
+    ITP expressions are either treated as a natural language sequence,
+    or as a directed graph derived from their abstract syntax tree representation.
+    It has been argued that a graph representation is more appropriate, with a large body of work in AI-ITP
+    using Graph Neural Network (GNN) as the embedding model to achieve strong results
+    in several tasks\cite{wang_premise_nodate, paliwal_graph_2019, bansal_learning_2019}.
+    However, Transformer models applied to the sequence representation have also demonstrated strong performance through
+    leveraging large models pre-trained on NLP datasets (cite).
+    Both architectures have fundamental limitations, as GNNs suffer from poor integration of global information and
+    Transformers are trained without the structural information in graphs.
+    The INT environment, which we include, was used to compare these approaches in a synthetic setting,
+    however we extend this to a comparison across a suite of tasks in various ITPs.
+    We also compare the recent SAT (cite) architecture which combines both approaches, and show ...
+    Additionally, we provide a qualitative analysis supporting the intuition that better performing models
+    generate more semantically aware embeddings.
 
 %    The limited availability of quality proof data is cited as a strong limiting factor (cite).
 %    There has been solid progress in the generation of quality ITP proof data, with (cite leanstep, holstep, isarstep).
@@ -275,26 +267,35 @@
 % (still small in the context of large models and compared to NLP. )
 % (Through curating these data sources into a centralised platform, we have created a large dataset  of xxx examples and xxx GB of proof data.)
 
-
     \subsection{Related Work}
-    Unified toolkit proposed for MWP, MWPToolkit.
+    As we have highlighted, current frameworks in AI-ITP are focused on a single proving system.
+    Our approach is complementary to this, and builds upon the extensive work done developing these benchmarks
+    by creating a unified framework for interfacing with them.
 
-    - However, AI for ITP has several additional considerations:
-    - Fundamentally different learning approaches. Range from E2E RL, direct supervised learning, pretrained LLMs ..
-    - Makes it difficult to be fully modular as there are some unavoidable dependencies between e.g. environment and
-    model (e.g. HOL4 environment for TacticZero)
-    - Interaction with an environment
-    - Several axes of variation in algorithm design. Learning paradigm, proof search, embedding arch., action selection
-    arch.
+    Similar unified frameworks have been across areas such as NLP, CV, GNN (graph benchmarks),
+    which have provided strong value to their respective areas
 
-    Note we restrict ourselves to the problem of automating the human interaction with ITP, through the setup in Figure x.
-    Other approaches such as ML for Hammers, also promising
+    The most directly related to our work are MWPToolkit and LImA? for Math Word Problems (MWP),
+    another area of AI for Mathematical Reasoning.
+    These similarly bring together datasets and approaches across the area into a single framework.
 
-    AIITP benchmarks mentioned, limited in single system.
-    Other unified frameworks, e.g. NLP, CV, GNN (graph benchmarks), which have provided strong value to their respective areas
+    There are additional considerations in our case:
+
+    \begin{itemize}
+        \item Environment interaction makes it difficult to be fully decouple data and model. (e.g. HOL4 environment for TacticZero)
+        \item Several axes of variation in algorithm design. Learning paradigm, proof search, embedding arch., action selection
+        arch, whereas MWP focuses primarily on NLP pipelines
+    \end{itemize}
+
+
+    Although we focus on automating the human interaction with ITP, other approaches such as ML for Hammers (cite) have also
+    provided promising directions for automated and assisting ITP proofs.
 
 
     \section{Background}
+
+    \subsection{ITP}
+% - Lean, metamath (mizar), HOL4, HOL-Light
 
     \subsection{Datasets and Benchmarks}
 %- LeanStep, mizar40, mizar60?, HOLStep,
@@ -329,53 +330,93 @@
 %and LeanStep/LeanGym are the two largest and
 %
 
-    \subsection{ITP}
-% - Lean, metamath (mizar), HOL4, HOL-Light
 
-    \subsection{Approaches}
+    \subsection{AI-ITP}
     \begin{figure}[h]
         \centering
-        \includegraphics[width=\linewidth]{AI-ITP}
-        \caption{General Framework for AI-ITP approaches. xxx incorporates all aspects, allowing for streamlined development and experimentation across all components}
+        \includegraphics[width=\linewidth]{AI-ITP_colour_1.drawio}
+        \caption{General Framework for AI-ITP approaches. Dashed lines represent different learning approaches,
+            specifically Reinforcement Learning and Supervised Learning.
+            XXX implements this through highly decoupled Data, Model and Environment modules,
+            simplifying development by enabling the reuse of shared components.}
         \label{fig:ai-itp}
     \end{figure}
 
+    \subsubsection{Problem Setup}
+%    Figure \ref{fig:ai-itp} presents a general, high level framework for AI-ITP systems.
+    As done in \cite{wu_tacticzero_2021}, the AI-ITP problem can be represented by a discrete Markov Decision Process (MDP),
+    although our presentation here is more general to extend over multiple ITPs.
+    The objective in each round is to prove an initial theorem, defined as the goal $g$.
+    The initial state $s \in \mathcal{S}$ includes $g$ along with auxiliary information such as allowed premises and axioms.
+    The agent $\pi$ is a mapping from the state to an action $a \in \mathcal{A}$, i.e. $\pi: \mathcal{S} \to \mathcal{A}$.
+    The environment $\mathcal{E}: \mathcal{A} \to \mathcal{S}$ is a superset of the ITP system,
+    taking an action $a$ to a new state $s' \in \mathcal{S}$.
+    $s'$ is either a terminal state confirming the proof of the original goal,
+    or represents a new state with goal(s) equivalent to proving $g$.
+    $\mathcal{E}$ is effectively a wrapper over the ITP environment, and can include reward signals for reinforcement learning.
+    The wrapper may also keep track of previous states such that $s'$ represents a \textit{proof tree},
+    representing all current paths to proving the original goal.
+
+    In practice, there are many choices for the learning system $\pi$, which we outline below.
+
     \subsubsection{Learning Approach}
-    There are multiple distinct learning paradigms used in AI-ITP, which is an important consideration in the design of a centralised system.
+    The learning paradigm is an important consideration in the design of an AI-ITP system, representing how the
+    parameters of $\pi$ are updated.
     The simplest approach is direct supervised learning over proof logs.
     As shown in \ref{fig:ai-itp},
     these logs are either collected from human proofs or collected as part of the interaction of the AI system with the ITP environment.
     For the HOList benchmark,~\cite{bansal_learning_2019} demonstrate strong results with supervised training over human and synthetic logs,
     improving over~\cite{paliwal_graph_2019} which used only human proofs.
-    Both train a model to rank premises and tactics based on log information, which is then used to guide ITP interaction. \\
+    Both approaches train a model to rank premises and tactics based on log information,
+    which is then used to guide ITP interaction.
 
-    TacticZero~\cite{wu_tacticzero_2021} learned only using synthetic proof data.
-    In this case, learning was done through Reinforcement Learning with Policy Gradient,
-    with the agent "replaying" previously recorded proof traces.
-    Compared to supervised learning, this has the advantage of removing biases in the labelling of data.
-    For example, it is common to assign negative labels to premises not used in an original human proof,
+    TacticZero~\cite{wu_tacticzero_2021} learns only using synthetic proof data.
+    In this case, learning is done through Reinforcement Learning with Policy Gradient,
+    with the agent replaying previously recorded proof traces.
+    Compared to supervised learning approaches, RL has the advantage of removing biases in the labelling of data.
+    For example, it is common to assign negative labels to premises not used in an original human proof
     ~\cite{kaliszyk_holstep_2017, kaliszyk_mizar_2015, bansal_holist_2019}
-    despite the potential for these to be useful in a different proof of the same conjecture.
-    However, RL (in particular Policy Gradient) is known to suffer from high variance in the gradient updates CITE
-    It remains unclear which approach is superior, further motivating a centralised comparison platform. \\
+    despite the potential for these premises to be useful in a different proof of the same conjecture.
+    However, RL (in particular Policy Gradient) is known to suffer from high variance in the gradient updates (CITE)
+    It remains unclear which approach is superior in AI-ITP, further motivating a centralised comparison platform.
 
     Recent advancements in NLP have led to more recent work applying pretrained language models in the context of AI-ITP.
+    HyperTree, LeanStep, GPT-f, Curriculum learning
     Pre-training over proof data (PACT)
     Pre-training over NLP corpus
 
     \subsubsection{Proof Search}
-    BFS, Fringe, HyperTree MCTS
+    Proof search, represented by the goal model in \ref{fig:ai-itp}, is a core component of AI-ITP systems.
+    Many approaches in the literature, including GamePad(cite), \cite{bansal_learning_2019}, (cite curriculum) apply Breadth First Search (BFS)
+    to select goals. TacticZero \cite{wu_tacticzero_2021} shows an improvement over naive BFS through ablations with their fringe approach,
+    which considers the likelihood of proving distinct sets of goals equivalent to the original proof.
+    Improvements have also been found in (cite hypertree) through an adapted MCTS algorithm. Other approaches..?
 
     \subsubsection{State Embedding}
-    Transformer, GNN, SAT, Directed SAT, Autoencoder
+    The state embedding model converts the current proof state into a vector representation.
+    An effective embedding model is important, as it is the only information used by the tactic and goal selection models.
+    The form of the proof state varies between approaches and ITPs,
+    however includes at least the current set of goals required to prove the initial proposition.
+
+    For goal selection approaches such as BFS which are independent of the state embedding,
+    this component reduces to embedding the expression of the selected goal.
+    Other approaches such as (cite hypertree) and \cite{wu_tacticzero_2021} compute embeddings for each goal separately,
+    followed by a learned model deciding the final goal from this.
+    Finally, approaches such as
+
 
     For NLP models, the state is fed in natural language as a text prompt for the tactic selection model.
 
     \subsubsection{Tactic Selection}
+    Tactic selection, along with goal selection, form the
     Fixed set of tactics/arguments (TacticZero, HOList), generative model (GPT-f, Curriculum learning, lean)
 
     \subsection{Embedding Architecture}
 
+    Graph expressions in GamePad, HOLStep, HOList, MIZAR, INT, until recently were the primary representation.
+    Transformers have now been a
+
+    Transformer, GNN, SAT, Directed SAT, Autoencoder
     Figure (Table):
     Interactive Approaches vs Details
     Proof search

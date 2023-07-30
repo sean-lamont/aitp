@@ -11,6 +11,7 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
+import random
 from typing import List
 from typing import Text
 
@@ -57,12 +58,13 @@ def run_pipeline(prover_tasks: List[proof_assistant_pb2.ProverTask],
     proof_logs = []
 
     print (f"Running {len(prover_tasks)}..")
+    random.shuffle(prover_tasks)
     for i, task in tqdm(enumerate(prover_tasks)):
         proof_log = this_prover.prove(task)
         # proof_log.build_data = build_data.BuildData()
         proof_logs.append(proof_log)
 
-        if (i + 1) % 100 == 0:
+        if (i + 1) % 10 == 0:
             if path_output:
                 logging.info('Writing %d proof logs as text proto to %s',
                              len(proof_logs), path_output)

@@ -6,12 +6,18 @@ model_architecture: PARAMETERS_CONDITIONED_ON_TAC
 theorem_embeddings: 'experiments/holist/checkpoints/checkpoint.npy'
 path_model_prefix: 'experiments/holist/checkpoints/checkpoint'
 
+tactic_timeout_ms: 500
+
 prover: 'bfs'
+
 bfs_options: {
   max_top_suggestions: 20
   max_successful_branches: 5
-  max_explored_nodes: 120
+  max_explored_nodes: 1000000
 }
+
 library_tags: "complex"
+
 splits_to_prove: VALIDATION
-timeout_seconds: 120.0
+
+timeout_seconds: 500.0

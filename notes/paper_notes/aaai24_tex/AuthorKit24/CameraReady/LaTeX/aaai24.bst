@@ -1,4 +1,4 @@
-r%
+%
 %% This is file `aaai22.bst',
 %% generated with the docstrip utility.
 %%

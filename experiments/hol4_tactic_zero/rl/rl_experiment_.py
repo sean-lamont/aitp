@@ -1,3 +1,4 @@
+import logging
 import warnings
 
 import lightning.pytorch as pl
@@ -35,7 +36,7 @@ class RLExperiment:
         encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
 
     def run(self):
-        logging.basicConfig(filename=self.config.exp_config.directory + '/log', level=logging.INFO)
+        logging.basicConfig(filename=self.config.exp_config.directory + '/log', level=logging.DEBUG)
         torch.set_float32_matmul_precision('high')
 
         resume = self.config.exp_config.resume
