@@ -11,6 +11,8 @@ from models.tacticzero_autoencoder.tacticzero_autoencoder import TacticZeroAutoE
 from models.transformer.transformer_encoder_model import TransformerWrapper
 from models.holist_models.gnn.gnn_encoder import GNNEncoder
 from models.holist_models.transformer.transformer_encoder_model import TransformerWrapper as HOListTransformer
+from models.ensemble.ensemble import EnsembleEmbedder
+
 '''
 Utility function to fetch model given a configuration dict
 '''
@@ -158,6 +160,30 @@ def get_model(model_config):
                           num_iterations=model_config.model_attributes['gnn_layers'],
                           dropout=model_config.model_attributes[
                               'dropout'] if 'dropout' in model_config.model_attributes else 0.5)
+
+    elif model_config.model_type == 'ensemble':
+        model_0 =  FormulaNetEdges(input_shape=model_config.model_attributes['vocab_size'],
+                               embedding_dim=model_config.model_attributes['embedding_dim'],
+                               num_iterations=model_config.model_attributes['gnn_layers'],
+                               batch_norm=model_config.model_attributes[
+                                   'batch_norm'] if 'batch_norm' in model_config.model_attributes else True)
+
+
+        model_1 =  TransformerWrapper(ntoken=model_config.model_attributes['vocab_size'],
+                                  d_model=model_config.model_attributes['embedding_dim'],
+                                  nhead=model_config.model_attributes['num_heads'],
+                                  nlayers=model_config.model_attributes['num_layers'],
+                                  dropout=model_config.model_attributes['dropout'],
+                                  d_hid=model_config.model_attributes['dim_feedforward'],
+                                  small_inner=model_config.model_attributes[
+                                      'small_inner'] if 'small_inner' in model_config.model_attributes else False,
+                                  max_len=model_config.model_attributes[
+                                      'max_len'] if 'max_len' in model_config.model_attributes else 512)
+
+        return EnsembleEmbedder(d_model=model_config.model_attributes['embedding_dim'],
+                                gnn_model=model_0,
+                                transformer_model=model_1,
+                                dropout=model_config.model_attributes['dropout'])
 
 
     elif model_config.model_type == 'holist_sat':

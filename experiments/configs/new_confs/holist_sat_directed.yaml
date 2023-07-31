@@ -18,7 +18,7 @@ data_config:
   batch_size: 16
 
 exp_config:
-  name: SAT Directed
+  name: SAT Directed Dropout
   devices: [0]
 
 model_config:
@@ -36,7 +36,7 @@ model_config:
     se: 'gnn-encoder'
     abs_pe: False
     use_edge_attr: True
-    dropout: 0.
+    dropout: 0.2
     gnn_layers: 1
     small_inner: False
     abs_pe_dim: 256

@@ -87,16 +87,27 @@ if __name__ == '__main__':
         train_expr.update(test_expr)
         train_expr.update(val_expr)
 
+        logging.info("Adding vocab Dictionary to MongoDB..")
+        loader = data_loader.DataLoader("data/holstep/raw_data/train", "data/holstep/raw_data/hol_train_dict")
+        # add dictionary to mongodb
+        vocab = {}
+        for k, v in loader.dict.items():
+            vocab[k] = v
+            vocab_col.insert_one({"_id": k, "index": v})
+
         for k, v in train_expr.items():
             d = {"_id": k, "data": v}
             d['data']['full_tokens'] = TOKEN_RE.findall(k)
-            expr_col.insert_one()
 
-    logging.info("Adding vocab Dictionary to MongoDB..")
-    loader = data_loader.DataLoader("data/holstep/raw_data/train", "data/holstep/raw_data/hol_train_dict")
-    # add dictionary to mongodb
-    for k, v in loader.dict.items():
-        vocab_col.insert_one({"_id": k, "index": v})
+            for tok in d['data']['full_tokens']:
+                if d not in vocab:
+                    new_ind = len(vocab)
+                    vocab[tok] = new_ind
+                    vocab_col.insert_one({'id': tok, 'index': new_ind})
+
+            expr_col.insert_one({'_id': d, 'data': d['data']})
+
+
 
     logging.info("Adding training split data to MongoDB..")
     for i, data in enumerate(train_split):

@@ -127,6 +127,16 @@ class PremiseDataModule(LightningDataModule):
         else:
             raise NotImplementedError
 
+    def transfer_batch_to_device(self, batch, device: torch.device, dataloader_idx: int):
+        if self.config.type == 'custom':
+            pass
+            # add batch transfers here for custom data types
+        else:
+            batch = super().transfer_batch_to_device(batch, device, dataloader_idx)
+        return batch
+
+
+
     def list_to_data(self, data_list):
         # either stream from database when too large for memory, or we can save all to disk for quick access
         if self.config.source == 'mongodb' and not self.config.data_options['dict_in_memory']:

@@ -139,6 +139,16 @@ def list_to_relation(data_list, max_len):
     return Data(xi=xi, xj=xj, edge_attr_=edge_attr_, mask=mask)
 
 
+# return list of tuples, with graph and sequence data in first/second positions (currently only (Graph, Sequence) ensembles)
+def list_to_ensemble(data_list, attributes):
+    data_list_0 = [a[0] for a in data_list]
+    data_list_1 = [a[1] for a in data_list]
+    data_list_0 = list_to_graph(data_list_0, attributes)
+    data_list_1 = list_to_sequence(data_list_1, attributes['max_len'])
+    data_list_1 = (data_list_1[0], data_list_1[1])
+    return (data_list_0, data_list_1)
+
+
 def list_to_graph(data_list, attributes):
     data_list = Batch.from_data_list(data_list)
     if 'attention_edge' in attributes and attributes['attention_edge'] == 'full':
@@ -178,6 +188,9 @@ def to_data(expr, data_type, vocab, config=None):
     elif data_type == 'sequence_polished':
         return torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in expr['polished']])
 
+    elif data_type == 'ensemble':
+        return (to_data(expr, 'graph', vocab, config), to_data(expr, 'sequence', vocab, config))
+
     # add other transforms here, map from stored expression data to preprocessed format.
     # Could include e.g. RegEx transforms to tokenise on the fly and avoid storing in memory
     # could also include positional encoding computations beyond default, e.g. Magnetic Laplacian for graphs
@@ -194,3 +207,5 @@ def list_to_data(batch, config):
         return list_to_relation(batch, config.attributes['max_len'])
     elif config.type == 'fixed':
         return batch
+    elif config.type == 'ensemble':
+        return list_to_ensemble(batch, config.attributes)
