@@ -1,22 +1,24 @@
 epochs: 800
 max_steps: 5
-pretrain: True
+pretrain: False
 pretrain_ckpt: ''#'experiments/runs/premise_selection/2023_07_28/formula_net_19_24_20/checkpoints/epoch=9-acc=0.9163475036621094.ckpt'
 proof_db: ['hol4', 'proof_logs']
 # tactic_config
 exp_config:
+  device: [1]
   name: "directed_sat_pretrain"
   resume: False
   experiment: "tactic_zero"
-  directory: #
+  directory: 'experiments/runs/'#
   logging_config:
     project: "rl_new"
-    offline: False
+    offline: True
 #    id: 'wp30q42c'
     notes: "Directed SAT Pretrained"
 optimiser_config:
   learning_rate: 5e-5
 model_config:
+  vocab_size: 2200
   model_type: 'sat'
   model_attributes:
     vocab_size: 2200
