@@ -31,7 +31,7 @@ tactic_pool = thms_tactic + thm_tactic + term_tactic + no_arg_tactic
 
 UNEXPECTED_REWARD = -10
 
-HOLPATH = "/home/sean/Documents/phd/hol_old/HOL/bin/hol --maxheap=256"
+HOLPATH = "environments/hol4/hol/HOL/bin/hol --maxheap=256"
 
 
 EXCLUDED_THEORIES = ["min"]

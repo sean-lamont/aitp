@@ -6,9 +6,11 @@ from torch_geometric.nn import global_max_pool as gmp
 from torch_geometric.utils import degree
 
 
-#####################################################################################################
-# GNN from Paliwal et al.
-#####################################################################################################
+'''
+
+ GNN from Paliwal et al.
+ 
+'''
 
 class MLPAggr(nn.Module):
     def __init__(self, embedding_dim, dropout=0.5):
@@ -72,7 +74,8 @@ class MLPParentNodes(MessagePassing):
         return self.mlp(tmp)
 
     def forward(self, x, edge_index, edge_attr):
-        deg = degree(edge_index[0], x.size(0), dtype=x.dtype)
+        # edge_index[1] gives the number of messages to each node, with degree being the number of parents
+        deg = degree(edge_index[1], x.size(0), dtype=x.dtype)
         deg_inv = 1. / deg
         deg_inv[deg_inv == float('inf')] = 0
         return deg_inv.view(-1, 1) * self.propagate(edge_index, x=x, edge_attr=edge_attr)
@@ -104,9 +107,11 @@ class GNNEncoder(nn.Module):
                                                   nn.Linear(embedding_dim, embedding_dim),
                                                   nn.ReLU())
 
-        self.mlp_parent_nodes = MLPParentNodes(embedding_dim, embedding_dim)
-        self.mlp_child_nodes = MLPChildNodes(embedding_dim, embedding_dim)
-        self.final_agg = MLPAggr(embedding_dim)
+        self.mlp_parent_nodes = MLPParentNodes(embedding_dim, embedding_dim,dropout=dropout)
+
+        self.mlp_child_nodes = MLPChildNodes(embedding_dim, embedding_dim,dropout=dropout)
+
+        self.final_agg = MLPAggr(embedding_dim,dropout=dropout)
 
         # 1x1 conv equivalent to linear projection in output channel
         self.out_proj = nn.Sequential(nn.Dropout(dropout),
@@ -125,9 +130,9 @@ class GNNEncoder(nn.Module):
             edge_attr = self.edge_encoder(edge_attr)
 
         for t in range(self.num_iterations):
-            fi_sum = self.mlp_parent_nodes(nodes, edges, edge_attr)
-            fo_sum = self.mlp_child_nodes(nodes, edges, edge_attr)
-            node_update = self.final_agg(torch.cat([nodes, fi_sum, fo_sum], dim=-1))
+            parent_sum = self.mlp_parent_nodes(nodes, edges, edge_attr)
+            child_sum = self.mlp_child_nodes(nodes, edges, edge_attr)
+            node_update = self.final_agg(torch.cat([nodes, parent_sum, child_sum], dim=-1))
             nodes = nodes + node_update
 
         if self.global_pool:

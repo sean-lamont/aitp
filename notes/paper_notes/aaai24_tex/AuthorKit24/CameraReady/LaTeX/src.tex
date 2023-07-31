@@ -92,7 +92,7 @@
 % nouns, adverbs, adjectives should be capitalized, including both words in hyphenated terms, while
 % articles, conjunctions, and prepositions are lower case unless they
 % directly follow a colon or long dash
-\title{MEDIAIT: A Modular Environment for Driving Insights in Automated Interactive Theorem-Proving}
+\title{X: A Modular Environment for Driving Insights in Automated Interactive Theorem-Proving}
 \author{
 %Authors
 % All authors must be in the same font size and format.
@@ -160,6 +160,8 @@
 % REMOVE THIS: bibentry
 % This is only needed to show inline citations in the guidelines document. You should not need it and can safely delete it.
 \usepackage{bibentry}
+\usepackage{amsfonts}
+\usepackage{tabularx}
 %\usepackage{hyperref}
 % END REMOVE bibentry
 
@@ -172,12 +174,12 @@
         methodologies, particularly in the area of Interactive Theorem Proving (ITP).
         Research in the area is fragmented, with a diverse set of approaches being spread across several ITP systems.
         This presents a significant challenge to the comparison of methods, which are often complex and difficult to replicate.
-        To address this, we present MEDIAIT: A Modular Environment for Driving Insights in AI for IT(P).
-        By separating the learning approach from the data and ITP environment, MEDIAIT allows for the fair and efficient
+        To address this, we present X..
+        By separating the learning approach from the data and ITP environment, X allows for the fair and efficient
         comparison of approaches between systems.
-        MEDIAIT is designed to seamlessly incorporate new systems and benchmarks, currently integrating the HOList, HOLStep,
+        X is designed to seamlessly incorporate new systems and benchmarks, currently integrating the HOList, HOLStep,
         MIZAR40, LeanStep, LeanGym and TacticZero benchmarks.
-        We demonstrate the utility of MEDIAIT through a study of embedding architectures in the context of the above systems.
+        We demonstrate the utility of X through a study of embedding architectures in the context of the above systems.
         % (Through comparing the performance of approaches across a variety of ITP settings, we provide strong evidence that..)
         These experiments lay the foundations for future work in evaluation of performance of formula embedding,
         while simultaneously demonstrating the capability of the framework.
@@ -186,7 +188,7 @@
         We complement these with a qualitative analysis of embeddings within and between systems, illustrating that improved
         performance was associated with more semantically aware embeddings.
         By streamlining the implementation and comparison of Machine Learning algorithms in the ITP context,
-        we anticipate MEDIAIT will be a springboard for future
+        we anticipate X will be a springboard for future
         research.
 
     \end{abstract}
@@ -268,14 +270,17 @@
 % (Through curating these data sources into a centralised platform, we have created a large dataset  of xxx examples and xxx GB of proof data.)
 
     \subsection{Related Work}
-    As we have highlighted, current frameworks in AI-ITP are focused on a single proving system.
+    The very recent LeanDojo (cite) is similar to this work, in that they provide an open source environment
+    which is replicable and with reasonable resource requirements.
+    As with other current frameworks in AI-ITP, it is focused on a single proving system.
     Our approach is complementary to this, and builds upon the extensive work done developing these benchmarks
-    by creating a unified framework for interfacing with them.
+    by creating a unified cross platform framework for interfacing with them.
+
 
     Similar unified frameworks have been across areas such as NLP, CV, GNN (graph benchmarks),
     which have provided strong value to their respective areas
 
-    The most directly related to our work are MWPToolkit and LImA? for Math Word Problems (MWP),
+    Closely related to our work are MWPToolkit and LImA? for Math Word Problems (MWP),
     another area of AI for Mathematical Reasoning.
     These similarly bring together datasets and approaches across the area into a single framework.
 
@@ -294,22 +299,40 @@
 
     \section{Background}
 
-    \subsection{ITP}
+    \subsection{Datasets and Benchmarks}
+
+%    \subsection{ITP}
 % - Lean, metamath (mizar), HOL4, HOL-Light
 
-    \subsection{Datasets and Benchmarks}
-%- LeanStep, mizar40, mizar60?, HOLStep,
-%- Environments
-%- HOList, LeanGym, CoqGym, HOL4
+    \begin{table}[ht]
+        \centering
+        \begin{tabular}[t]{lcccc}
+            \hline
+            & System    & Interactive & Included & Task \\
+            \hline
+            HOList   & HOL Light & Y           & Y        & a    \\
+            HOL4 MDP & HOL4      & Y           & Y        & a    \\
+            LeanStep & Lean      & N           & Y        & a    \\
+            LeanGym  & Lean      & Y           & Y        & a    \\
+            HOLStep  & HOL Light & N           & Y        & a    \\
+            CoqGym   & Coq       & Y           & N        & a    \\
+            GamePad  & MML?      & Y           & N        & a    \\
+            MIZAR40  & MML       & N           & Y        & a    \\
+            IsarStep & Isar      & N           & N        & a    \\
+            INT      & INT       & Y           & Y        & a    \\
+            LISA     & Isabelle  & Y           & N        & a    \\
+            LeanDojo & Lean      & Y           & N        & a    \\
+            \hline
+        \end{tabular}
+        \caption{Current Benchmarks in AI-ITP, including interactive environments and those integrated in X.}
+    \end{table}%
+
 
     Figure x provides a summary of current datasets and benchmarks related to AI-ITP.
     Fields marked as non-interactive represent labelled datasets derived from proofs in ITP systems, an
     A common task in the literature is predicting whether a premise was useful in the proof of a given conjecture.
 
-    % todo
     HOLStep \cite{kaliszyk_holstep_2017}, MIZAR40 \cite{kaliszyk_mizar_2015},.. provide datasets around this (ISARstep ..., look at INT paper intro)
-    This is a
-
 
     LeanStep for others
 
@@ -330,7 +353,6 @@
 %and LeanStep/LeanGym are the two largest and
 %
 
-
     \subsection{AI-ITP}
     \begin{figure}[h]
         \centering
@@ -343,26 +365,24 @@
     \end{figure}
 
     \subsubsection{Problem Setup}
-%    Figure \ref{fig:ai-itp} presents a general, high level framework for AI-ITP systems.
-    As done in \cite{wu_tacticzero_2021}, the AI-ITP problem can be represented by a discrete Markov Decision Process (MDP),
-    although our presentation here is more general to extend over multiple ITPs.
+    The AI-ITP problem is fundamentally a sequential decision process (cite).
     The objective in each round is to prove an initial theorem, defined as the goal $g$.
-    The initial state $s \in \mathcal{S}$ includes $g$ along with auxiliary information such as allowed premises and axioms.
+    The initial state $(s \supseteq g) \in \mathcal{S}$ includes $g$ along with auxiliary information such as allowed premises and axioms.
     The agent $\pi$ is a mapping from the state to an action $a \in \mathcal{A}$, i.e. $\pi: \mathcal{S} \to \mathcal{A}$.
     The environment $\mathcal{E}: \mathcal{A} \to \mathcal{S}$ is a superset of the ITP system,
     taking an action $a$ to a new state $s' \in \mathcal{S}$.
     $s'$ is either a terminal state confirming the proof of the original goal,
-    or represents a new state with goal(s) equivalent to proving $g$.
+    or represents a new state with subgoal(s) equivalent to proving $g$.
+    We assume that $s'$ includes all previous states so that the agent has a full view of the history.
     $\mathcal{E}$ is effectively a wrapper over the ITP environment, and can include reward signals for reinforcement learning.
     The wrapper may also keep track of previous states such that $s'$ represents a \textit{proof tree},
     representing all current paths to proving the original goal.
-
     In practice, there are many choices for the learning system $\pi$, which we outline below.
 
     \subsubsection{Learning Approach}
     The learning paradigm is an important consideration in the design of an AI-ITP system, representing how the
     parameters of $\pi$ are updated.
-    The simplest approach is direct supervised learning over proof logs.
+    The simplest approach is direct supervised learning over proof logs with gradient descent.
     As shown in \ref{fig:ai-itp},
     these logs are either collected from human proofs or collected as part of the interaction of the AI system with the ITP environment.
     For the HOList benchmark,~\cite{bansal_learning_2019} demonstrate strong results with supervised training over human and synthetic logs,
@@ -385,72 +405,117 @@
     Pre-training over proof data (PACT)
     Pre-training over NLP corpus
 
+    \subsubsection{State Embedding}
+    The state embedding model $E: \mathcal{S} \to \mathbb{R}^{D}$
+    maps the current proof state $s'$ into Euclidean space, with $D \in \mathbb{N}^k$ depending upon the approach.
+    An effective embedding model is critical, as it is the only information used by the tactic and goal selection models.
+    Approaches such as (cite) curriculum and (cite hypertree) use Transformer Encoders,
+    treating the current goal $g \subseteq s'$ as a Natural Language sequence.
+    The final embedding in this case are $E(g) \in \mathbb{R}^{n \times k \times d}$ where $n, k, d$ are the number of
+    goals, tokens and embedding dimension respectively.
+    Other approaches produce a single vector for each goal, such that $E(g) \in \mathbb{R}^{n \times d}$.
+    Architectures used in this case include GNNs \cite{bansal_learning_2019, paliwal_graph_2019, wang_premise_nodate},
+    Tree LSTMs (cite) and seq2seq autoencoders \cite{wu_tacticzero_2021}, ..
+
+%    Our system was designed to accommodate both approaches, making it possible to, for example generate
+%    node embeddings in
+
+%    The form of the proof state varies between approaches and ITPs,
+%    however includes at least the current set of goals required to prove the initial proposition.
+
+%    For goal selection approaches such as BFS which are independent of the state embedding,
+%    this component reduces to embedding the expression of the selected goal $g \in s'$.
+
     \subsubsection{Proof Search}
-    Proof search, represented by the goal model in \ref{fig:ai-itp}, is a core component of AI-ITP systems.
+    Proof search follows state embedding, and is represented by the goal model in Figure~\ref{fig:ai-itp}.
+    It is the sub-policy $\pi(g | s')$ mapping from the complete (encoded) environment state $s' \in \mathbb{R}^{n \times D}$
+    to a subset of goals $g \subseteq s'$.
     Many approaches in the literature, including GamePad(cite), \cite{bansal_learning_2019}, (cite curriculum) apply Breadth First Search (BFS)
-    to select goals. TacticZero \cite{wu_tacticzero_2021} shows an improvement over naive BFS through ablations with their fringe approach,
-    which considers the likelihood of proving distinct sets of goals equivalent to the original proof.
+    for goal selection. Best first search based on a learned goal score was used in ..
+    TacticZero \cite{wu_tacticzero_2021} showed an improvement over these by considering the likelihood of proving distinct sets of goals (fringes)
+    equivalent to the original proof.
     Improvements have also been found in (cite hypertree) through an adapted MCTS algorithm. Other approaches..?
 
-    \subsubsection{State Embedding}
-    The state embedding model converts the current proof state into a vector representation.
-    An effective embedding model is important, as it is the only information used by the tactic and goal selection models.
-    The form of the proof state varies between approaches and ITPs,
-    however includes at least the current set of goals required to prove the initial proposition.
 
-    For goal selection approaches such as BFS which are independent of the state embedding,
-    this component reduces to embedding the expression of the selected goal.
-    Other approaches such as (cite hypertree) and \cite{wu_tacticzero_2021} compute embeddings for each goal separately,
-    followed by a learned model deciding the final goal from this.
-    Finally, approaches such as
-
-
-    For NLP models, the state is fed in natural language as a text prompt for the tactic selection model.
+    \begin{table*}[ht]
+        \centering
+        \begin{tabular}[t]{lcccc}
+            \hline
+            & SAT    & GNN      & Transformer & Ensemble \\
+            \hline
+            HOL4 Premise Selection & 91\%   & ? 91.8\% & ?           & ?        \\
+            HOList Tactic Accuracy & X\%   & ?        & ?           & ?        \\
+            HOList Rel. Param Acc  & X\%   & N        & ?           & ?        \\
+            HOList TopK Acc        & X\%   & ?        & ?           & ?        \\
+            HOLStep                & 91.5\% & 91\%     & 8?\%        & ?        \\
+            INT                    & ?      & ?        & ?           & ?        \\
+            MIZAR40                & ?      & ?        & ?           & ?        \\
+            \hline
+        \end{tabular}
+        \caption{Results for Embedding architectures across Pretraining Tasks}
+        \label{fig:results}
+    \end{table*}%
 
     \subsubsection{Tactic Selection}
-    Tactic selection, along with goal selection, form the
-    Fixed set of tactics/arguments (TacticZero, HOList), generative model (GPT-f, Curriculum learning, lean)
+    Tactic selection maps the selected goals to an action, with $\pi(t | g) : \mathbb{R}^{n \times D} \to \mathcal{T}$.
+    ITP tactics themselves are usually a small, fixed size list.
+    As they also include arguments, which can be arbitrary expressions,
+    tactic selection is a difficult problem.
+    It is common to restrict the argument space to only include other theorems, lemmas or terms available in the current context.
+    In these cases, the tactic and argument models consist of predicting the tactic to apply,
+    followed by predicting the arguments conditioned on the tactic.
+    Despite the much larger action space, generative models such as Transformer Decoders have also been successful in
+    predicting the entire tactic and argument as a sequence of text (cite)
 
     \subsection{Embedding Architecture}
 
-    Graph expressions in GamePad, HOLStep, HOList, MIZAR, INT, until recently were the primary representation.
-    Transformers have now been a
+    \subsubsection{GNN}
 
-    Transformer, GNN, SAT, Directed SAT, Autoencoder
-    Figure (Table):
-    Interactive Approaches vs Details
-    Proof search
-    BFS, MCTS, Fringe
-    Embedding architecture
-    GNN, Transformer, Autoencoder
-    Tactic/Argument selection
-    Generative (lean, hypertree), Fixed set (HOL4, HOList)
-    Learning approach
-    RL (TacticZero), Supervised proof logs (HOList, Lean, Hypertree?)
+    \subsubsection{Transformer}
+
+    \subsubsection{SAT}
 
 
     \section{XXX (framework)}
 
-    Current integrated benchmarks/datasets done to show good variety, over approach and environment, (RL, NLP (lean), INT etc..)
+    \begin{figure}[h]
+        \centering
+        \includegraphics[width=\linewidth]{framework}
+        \caption{Design of X. }
+        \label{fig:framework}
+    \end{figure}
+
 
     Diagram and explanation of system architecture,
 
     Open Source additions:
     LeanGym/LeanStep output s-expressions
+
     HOList using non-google tools, and independent of TF1 and ML framework
 
     Curated, large dataset of varied ITPs
 
     Modular framework
 
+    HOL4 Pretraining Task
+
 
     \section{Embedding Experiments}
 
     \subsection{Supervised}
+
+
     MIZAR, HOLStep, HOL4 pretrain, HOList Pretrain, Lean?
 
     \subsection{End to End}
     TacticZero, HOList?
+
+    \begin{figure}[h]
+        \centering
+        \includegraphics[width=\linewidth]{tz_plot.png}
+        \caption{Unseen goals proved in one attempt (pass@1 rate) for different encoder architectures on the TacticZero benchmark.}
+        \label{fig:tz_plot}
+    \end{figure}
 
     \subsection{Qualitative Analysis}
 
@@ -471,7 +536,7 @@
 %\nobibliography*
 %Formatted bibliographies should look like the following examples. You should use BibTeX to generate the references. Missing fields are unacceptable when compiling references, and usually indicate that you are using the wrong type of entry (BibTeX class).
 %
-%\paragraph{Book with multiple authors~\nocite{em:86}} Use the \texttt{@book} class.\\[.2em]
+%\paragraph{Book with multiple authors~\nocite{em:86}} Use the \texttt{@book} class.\\
 %\bibentry{em:86}.
 %
 %\paragraph{Journal and magazine articles~\nocite{r:80, hcr:83}} Use the \texttt{@article} class.\\[.2em]

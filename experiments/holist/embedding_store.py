@@ -141,5 +141,6 @@ class TheoremEmbeddingStore(object):
         assert not self.assumption_embeddings
         thm_embeddings = self.thm_embeddings[:thm_index]
         assert len(thm_embeddings) == thm_index + len(self.assumptions)
+
         return self.predictor.batch_thm_scores(goal_embedding, thm_embeddings,
                                                tactic_id)

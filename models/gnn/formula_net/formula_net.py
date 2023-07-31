@@ -100,9 +100,6 @@ class ParentAggregation(MessagePassing):
         return self.mlp(tmp)
 
     def forward(self, x, edge_index):
-        # x has shape [N, in_channels]
-        # edge_index has shape [2, E]
-
         # edge index 1 for degree wrt parents
         deg = degree(edge_index[1], x.size(0), dtype=x.dtype)
         deg_inv = 1. / deg

@@ -339,8 +339,10 @@ class ActionGenerator(object):
                 thm_scores = self._get_theorem_scores(proof_state_enc, thm_number,
                                                       tactic_id)
                 # logging.debug(f"thm_scores: {thm_scores}")
+
                 no_params_score = self.predictor.batch_thm_scores(
                     proof_state_enc, empty_emb_batch, tactic_id)[0]
+
                 logging.info('Theorem score for empty theorem: %f0.2',
                              no_params_score)
 

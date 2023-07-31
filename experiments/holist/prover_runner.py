@@ -44,6 +44,7 @@ def compute_stats(output):
     aggregate_stat = stats.aggregate_stats(stat_list)
     logging.info('Aggregated statistics:')
     logging.info(stats.aggregate_stat_to_string(aggregate_stat))
+    return aggregate_stat
 
 
 def run_pipeline(prover_tasks: List[proof_assistant_pb2.ProverTask],
