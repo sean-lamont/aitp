@@ -13,7 +13,7 @@ parameters:
   model_config.model_attributes.global_pool:
     values: ['mean']
   model_config.model_attributes.num_heads:
-    values: [4,2]
+    values: [4]
   model_config.model_attributes.num_layers:
     values: [4,2]
   model_config.model_attributes.abs_pe:

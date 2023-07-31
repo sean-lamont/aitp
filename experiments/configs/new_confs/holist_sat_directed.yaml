@@ -1,7 +1,7 @@
 defaults:
   - holist_pretrain
 
-batch_size: 8
+batch_size: 16
 tac_embed_dim: 128
 final_embed_dim: 1024
 #epochs: 3
@@ -15,7 +15,7 @@ data_config:
     filter: ['tokens', 'edge_attr', 'edge_index', 'attention_edge_index', 'depth']
   attributes:
     attention_edge: 'directed'
-  batch_size: 8
+  batch_size: 16
 
 exp_config:
   name: SAT Directed
@@ -36,7 +36,7 @@ model_config:
     se: 'gnn-encoder'
     abs_pe: False
     use_edge_attr: True
-    dropout: 0.2
+    dropout: 0.
     gnn_layers: 1
     small_inner: False
     abs_pe_dim: 256

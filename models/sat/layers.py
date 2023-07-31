@@ -129,8 +129,11 @@ class Attention(gnn.MessagePassing):
                 subgraph_edge_attr=subgraph_edge_attr,
             )
         else:
-            input = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
-            x_struct = self.structure_extractor(input)
+            if self.se != 'gnn-encoder':
+                x_struct = self.structure_extractor(x, edge_index, edge_attr)
+            else:
+                input = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
+                x_struct = self.structure_extractor(input)
             # can set x_struct = x here for normal transformer
 
         # Compute query and key matrices

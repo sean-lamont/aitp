@@ -3,7 +3,6 @@ defaults:
 
 epochs: 10
 
-
 model_config:
   model_type: 'sat'
   model_attributes:
@@ -27,13 +26,13 @@ model_config:
 data_config:
   data_options:
     db: 'hol4_original_ast'
-    filter: [ 'tokens', 'edge_attr', 'edge_index', 'attention_edge_index', 'depth' ]
+    filter: [ 'tokens', 'edge_attr', 'edge_index']
   attributes:
-    attention_edge: 'directed'
+    attention_edge: 'full'
 
 exp_config:
-  name: sat_directed
-  devices: [1]
+  name: sat_full
+  device: [1]
 
 logging_config:
   project: hol4_premise_pretrain

@@ -10,7 +10,7 @@ from models.holist_models.sat.models import GraphTransformer as HOListSAT
 from models.tacticzero_autoencoder.tacticzero_autoencoder import TacticZeroAutoEncoder
 from models.transformer.transformer_encoder_model import TransformerWrapper
 from models.holist_models.gnn.gnn_encoder import GNNEncoder
-
+from models.holist_models.transformer.transformer_encoder_model import TransformerWrapper as HOListTransformer
 '''
 Utility function to fetch model given a configuration dict
 '''
@@ -103,6 +103,20 @@ def get_model(model_config):
                                       'small_inner'] if 'small_inner' in model_config.model_attributes else False,
                                   max_len=model_config.model_attributes[
                                       'max_len'] if 'max_len' in model_config.model_attributes else 512)
+
+
+    elif model_config.model_type == 'holist_transformer':
+        return HOListTransformer(ntoken=model_config.model_attributes['vocab_size'],
+                                  d_model=model_config.model_attributes['embedding_dim'],
+                                  nhead=model_config.model_attributes['num_heads'],
+                                  nlayers=model_config.model_attributes['num_layers'],
+                                  dropout=model_config.model_attributes['dropout'],
+                                  d_hid=model_config.model_attributes['dim_feedforward'],
+                                  small_inner=model_config.model_attributes[
+                                      'small_inner'] if 'small_inner' in model_config.model_attributes else False,
+                                  max_len=model_config.model_attributes[
+                                      'max_len'] if 'max_len' in model_config.model_attributes else 512)
+
 
     elif model_config.model_type == 'transformer_relation':
         return AttentionRelations(ntoken=model_config.model_attributes['vocab_size'],

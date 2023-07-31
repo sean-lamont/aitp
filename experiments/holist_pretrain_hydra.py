@@ -78,8 +78,7 @@ def holist_pretrain_experiment(config):
         devices=config.exp_config.device
     )
 
-    # ensure consistent frequency of validation independent of batch size
-    trainer.val_check_interval = config.val_frequency * (16 // config.data_config.batch_size)
+    trainer.val_check_interval = config.val_frequency
 
     if config.limit_val_batches:
         trainer.limit_val_batches = config.val_size // config.data_config.batch_size

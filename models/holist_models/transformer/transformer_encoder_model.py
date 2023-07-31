@@ -5,17 +5,17 @@ from models.transformer.transformer_encoder_model import TransformerEmbedding
 
 """
 
-Wrapper for transformer taking in tuple with first element as data, second as mask
+Wrapper for transformer, with final layer projection following HOList GNN models
 
 """
 
 
 class TransformerWrapper(nn.Module):
     def __init__(self, ntoken: int, d_model: int, nhead: int, d_hid: int,
-                 nlayers: int, dropout: float = 0.5, enc=True, in_embed=False, global_pool=True, small_inner=False):
+                 nlayers: int, dropout: float = 0.5, enc=True, in_embed=False, global_pool=True, small_inner=False,
+                 max_len=512):
 
         super().__init__()
-
 
         self.global_pool = global_pool
 
@@ -24,23 +24,24 @@ class TransformerWrapper(nn.Module):
         if self.small_inner:
             d_model = d_model // 2
 
-            self.expand_proj = nn.Sequential(nn.Dropout(dropout),
-                                          nn.Linear(d_model, d_model * 4),
-                                          nn.ReLU(),
-                                          nn.Linear(d_model * 4, d_model * 8),
-                                          nn.ReLU())
+        self.expand_proj = nn.Sequential(nn.Dropout(dropout),
+                                         nn.Linear(d_model, d_model * 4),
+                                         nn.ReLU(),
+                                         nn.Linear(d_model * 4, d_model * 8),
+                                         nn.ReLU())
 
         self.transformer_embedding = TransformerEmbedding(ntoken=None, d_model=d_model, nhead=nhead, d_hid=d_hid,
                                                           nlayers=nlayers, dropout=dropout, enc=enc,
-                                                          global_pool=False, in_embed=in_embed)
+                                                          global_pool=False, in_embed=in_embed, max_len=max_len
+                                                          )
 
         self.embedding = nn.Sequential(nn.Embedding(ntoken, d_model * 2),
-                                             nn.Dropout(dropout),
-                                             nn.Linear(d_model * 2, d_model),
-                                             nn.ReLU(),
-                                             nn.Dropout(dropout),
-                                             nn.Linear(d_model, d_model),
-                                             nn.ReLU())
+                                       nn.Dropout(dropout),
+                                       nn.Linear(d_model * 2, d_model),
+                                       nn.ReLU(),
+                                       nn.Dropout(dropout),
+                                       nn.Linear(d_model, d_model),
+                                       nn.ReLU())
 
         self.cls_token = nn.Parameter(torch.randn(1, d_model))
 
@@ -59,8 +60,7 @@ class TransformerWrapper(nn.Module):
 
         out = self.transformer_embedding(x, mask)
 
-        if self.small_inner:
-            out = self.expand_proj(out)
+        out = self.expand_proj(out)
 
         if self.global_pool:
             return torch.max(out, dim=1)[0]

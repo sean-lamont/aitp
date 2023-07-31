@@ -154,8 +154,6 @@ def to_data(expr, data_type, vocab, config=None):
                             edge_attr=torch.LongTensor(expr['edge_attr']), )
 
         if config is not None:
-
-            # todo add full
             if 'attention_edge' in config.attributes and config.attributes['attention_edge'] == 'directed':
                 data.attention_edge_index = torch.LongTensor(expr['attention_edge_index'])
             if 'pe' in config.attributes:
@@ -177,11 +175,20 @@ def to_data(expr, data_type, vocab, config=None):
         xj = torch.LongTensor([x[i] for i in edge_index[1]])
         return (xi, xj, edge_attr)
 
+    elif data_type == 'sequence_polished':
+        return torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in expr['polished']])
+
+    # add other transforms here, map from stored expression data to preprocessed format.
+    # Could include e.g. RegEx transforms to tokenise on the fly and avoid storing in memory
+    # could also include positional encoding computations beyond default, e.g. Magnetic Laplacian for graphs
+    # need to specify the transformation in the data_config, data_type,
+    # as well as add any additional processing for converting a list of elements into a batch for the model
+
 
 def list_to_data(batch, config):
     if config.type == 'graph':
         return list_to_graph(batch, config.attributes)
-    elif config.type == 'sequence':
+    elif config.type == 'sequence' or config.type == 'sequence_polished':
         return list_to_sequence(batch, config.attributes['max_len'])
     elif config.type == 'relation':
         return list_to_relation(batch, config.attributes['max_len'])
