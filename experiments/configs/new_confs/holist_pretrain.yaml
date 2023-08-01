@@ -7,6 +7,8 @@ defaults:
 
 data_config.batch_size: 16
 
+resume: False
+
 num_tactics: 41
 tac_embed_dim: 128
 final_embed_dim: 1024

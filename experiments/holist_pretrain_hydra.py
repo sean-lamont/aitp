@@ -29,7 +29,7 @@ def config_to_dict(conf):
 @hydra.main(config_path="configs/new_confs", config_name="holist_premise_selection")
 def holist_pretrain_experiment(config):
     OmegaConf.resolve(config)
-    os.makedirs(config.exp_config.directory + '/checkpoints')
+    os.makedirs(config.exp_config.directory + '/checkpoints', exist_ok=True)
 
     torch.set_float32_matmul_precision('high')
 
