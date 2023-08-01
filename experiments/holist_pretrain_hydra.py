@@ -83,7 +83,16 @@ def holist_pretrain_experiment(config):
     if config.limit_val_batches:
         trainer.limit_val_batches = config.val_size // config.data_config.batch_size
 
-    trainer.fit(model=experiment, datamodule=data_module)
+
+
+    if config.resume:
+        logging.debug("Resuming experiment from last checkpoint..")
+        ckpt_dir = config.exp_config.checkpoint_dir + "/last.ckpt"
+        trainer.fit(model=experiment, datamodule=data_module, ckpt_path=ckpt_dir)
+    else:
+        trainer.fit(model=experiment, datamodule=data_module)
+
+
     logger.experiment.finish()
 
 

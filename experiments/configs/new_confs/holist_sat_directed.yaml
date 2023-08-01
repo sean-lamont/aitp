@@ -11,7 +11,7 @@ data_config:
     db: 'holist'
     thms_col: 'train_thm_ls'
     # use a MongoDB cursor to retrieve expression data
-    dict_in_memory: False
+    dict_in_memory: True
     filter: ['tokens', 'edge_attr', 'edge_index', 'attention_edge_index', 'depth']
   attributes:
     attention_edge: 'directed'

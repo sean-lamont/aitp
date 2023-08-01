@@ -3,14 +3,13 @@ defaults:
 
 tac_embed_dim: 128
 final_embed_dim: 1024
-epochs: 10
 
 data_config:
   data_options:
     db: 'holist'
     thms_col: 'train_thm_ls'
     # use a MongoDB cursor to retrieve expression data
-    dict_in_memory: False
+    dict_in_memory: True
     filter: ['tokens', 'edge_attr', 'edge_index']#, 'attention_edge_index', 'depth']
   attributes:
     attention_edge: 'full'
@@ -31,7 +30,7 @@ model_config:
     num_heads: 4
     num_layers: 4
     in_embed: True
-    se: 'formula-net'
+    se: 'gnn-encoder'
     abs_pe: False
     use_edge_attr: True
     dropout: 0.2
