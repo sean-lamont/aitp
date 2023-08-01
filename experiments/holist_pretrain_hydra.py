@@ -47,6 +47,18 @@ def holist_pretrain_experiment(config):
 
     data_module = get_data(config.data_config, experiment='holist_pretrain')
 
+    # if self.config.exp_config.resume:
+    #     logger = WandbLogger(project=config.logging_config.project,
+    #                          name=config.exp_config.name,
+    #                          config=config_to_dict(config),
+    #                          notes=config.logging_config.notes,
+    #                          offline=config.logging_config.offline,
+    #                          save_dir=config.exp_config.directory,
+    #                          id=config.exp_config.logging_config.id,
+    #                          resume='must',
+    #                          )
+    #
+    # else:
     logger = WandbLogger(project=config.logging_config.project,
                          name=config.exp_config.name,
                          config=config_to_dict(config),
@@ -54,7 +66,6 @@ def holist_pretrain_experiment(config):
                          offline=config.logging_config.offline,
                          save_dir=config.exp_config.directory,
                          )
-
     callbacks = []
 
     checkpoint_callback = ModelCheckpoint(monitor="rel_param_acc", mode="max",
@@ -63,7 +74,7 @@ def holist_pretrain_experiment(config):
                                           filename="{epoch}-{rel_param_acc}-{topk_acc}",
                                           save_on_train_epoch_end=True,
                                           save_last=True,
-                                          save_weights_only=True,
+                                          # save_weights_only=True,
                                           dirpath=config.exp_config.checkpoint_dir)
 
     callbacks.append(checkpoint_callback)
