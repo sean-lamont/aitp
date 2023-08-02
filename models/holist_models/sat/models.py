@@ -34,7 +34,7 @@ class GraphTransformer(nn.Module):
     def __init__(self, in_size, num_class, d_model, num_heads=4,
                  dim_feedforward=512, dropout=0.2, num_layers=2,
                  batch_norm=False, abs_pe=False, abs_pe_dim=0, k_hop=2,
-                 gnn_type="graph", se="gnn", use_edge_attr=False, num_edge_features=4,
+                 gnn_type="graph", se="gnn", use_edge_attr=False, num_edge_features=3,
                  in_embed=True, edge_embed=True, use_global_pool=True, max_seq_len=None,
                  global_pool='max', small_inner=False, **kwargs):
         super().__init__()
@@ -46,11 +46,13 @@ class GraphTransformer(nn.Module):
         if self.small_inner:
             d_model = d_model // 2
 
-        self.expand_proj = nn.Sequential(nn.Dropout(dropout),
-                                         nn.Linear(d_model, d_model * 4),
-                                         nn.ReLU(),
-                                         nn.Linear(d_model * 4, d_model * 8),
-                                         nn.ReLU())
+        self.expand_proj = nn.Sequential(
+            nn.Linear(d_model, d_model * 4),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(d_model * 4, d_model * 8),
+            nn.ReLU(),
+            nn.Dropout(dropout))
 
         if abs_pe and abs_pe_dim > 0:
             self.embedding_abs_pe = nn.Embedding(abs_pe_dim, d_model)
@@ -60,10 +62,10 @@ class GraphTransformer(nn.Module):
                 self.embedding = nn.Sequential(nn.Embedding(in_size, d_model * 2),
                                                nn.Dropout(dropout),
                                                nn.Linear(d_model * 2, d_model),
-                                               nn.ReLU(),
-                                               nn.Dropout(dropout),
-                                               nn.Linear(d_model, d_model),
-                                               nn.ReLU())
+                                               nn.ReLU(), )
+                # nn.Dropout(dropout),
+                # nn.Linear(d_model, d_model),
+                # nn.ReLU())
 
 
             elif isinstance(in_size, nn.Module):
@@ -84,10 +86,10 @@ class GraphTransformer(nn.Module):
                     self.embedding_edge = nn.Sequential(nn.Embedding(num_edge_features, d_model * 2),
                                                         nn.Dropout(dropout),
                                                         nn.Linear(d_model * 2, d_model),
-                                                        nn.ReLU(),
-                                                        nn.Dropout(dropout),
-                                                        nn.Linear(d_model, d_model),
-                                                        nn.ReLU())
+                                                        nn.ReLU(), )
+                    # nn.Dropout(dropout),
+                    # nn.Linear(d_model, d_model),
+                    # nn.ReLU())
                 else:
                     raise ValueError("Not implemented!")
             else:

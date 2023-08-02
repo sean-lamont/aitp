@@ -26,6 +26,7 @@ def config_to_dict(conf):
     return OmegaConf.to_container(
         conf, resolve=True, throw_on_missing=True
     )
+
 @hydra.main(config_path="configs/new_confs", config_name="holist_premise_selection")
 def holist_pretrain_experiment(config):
     OmegaConf.resolve(config)
@@ -35,13 +36,16 @@ def holist_pretrain_experiment(config):
 
     experiment = torch_training_module.HOListTraining_(embedding_model_goal=get_model(config.model_config),
                                                        embedding_model_premise=get_model(config.model_config),
+
                                                        tac_model=TacticPrecdictor(
                                                            embedding_dim=config.final_embed_dim,
                                                            num_tactics=config.num_tactics),
+
                                                        combiner_model=CombinerNetwork(
                                                            embedding_dim=config.final_embed_dim,
                                                            num_tactics=config.num_tactics,
                                                            tac_embed_dim=config.tac_embed_dim),
+
                                                        lr=config.optimiser_config.learning_rate,
                                                        batch_size=config.data_config.batch_size)
 

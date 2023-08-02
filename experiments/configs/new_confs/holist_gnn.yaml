@@ -14,7 +14,7 @@ data_config:
   batch_size: 16
 
 exp_config:
-  name: gnn_small_dropout
+  name: gnn_small
   device: [0]
 
 model_config:
@@ -22,7 +22,7 @@ model_config:
   model_attributes:
     gnn_layers: 12
     vocab_size: 1500
-    dropout: 0.1
+    dropout: 0.2
     embedding_dim: 128
 
 logging_config:

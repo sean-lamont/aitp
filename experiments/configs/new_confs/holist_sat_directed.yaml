@@ -11,14 +11,14 @@ data_config:
     db: 'holist'
     thms_col: 'train_thm_ls'
     # use a MongoDB cursor to retrieve expression data
-    dict_in_memory: True
+    dict_in_memory: False
     filter: ['tokens', 'edge_attr', 'edge_index', 'attention_edge_index', 'depth']
   attributes:
     attention_edge: 'directed'
   batch_size: 16
 
 exp_config:
-  name: SAT Directed Dropout
+  name: SAT Directed Small
   devices: [0]
 
 model_config:
@@ -26,8 +26,8 @@ model_config:
   model_attributes:
     vocab_size: 1500
     embedding_dim: 128
-    batch_norm: True
-    global_pool: 'mean'
+    batch_norm: False
+    global_pool: 'max'
     num_edge_features: 3
     dim_feedforward: 256
     num_heads: 4

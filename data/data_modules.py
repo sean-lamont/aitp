@@ -18,13 +18,6 @@ from experiments.pyrallis_configs import DataConfig
 
 Experiment plan
 
-holist attention data + end to end + transformer
-
-tacticzero
-    pretrained SAT, transformer for 5 steps
-    
-ensemble
-   
 INT 
  
 lean
@@ -35,9 +28,6 @@ lean
     leanenv tactics
     model (pretrain only)
             
-holstep
-    process data and run sweep
-    
 save wandb run in directory so not required in config 
     
 standardise experiments

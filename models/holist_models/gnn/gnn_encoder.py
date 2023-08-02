@@ -5,12 +5,12 @@ from torch_geometric.nn import MessagePassing
 from torch_geometric.nn import global_max_pool as gmp
 from torch_geometric.utils import degree
 
-
 '''
 
  GNN from Paliwal et al.
  
 '''
+
 
 class MLPAggr(nn.Module):
     def __init__(self, embedding_dim, dropout=0.5):
@@ -39,10 +39,10 @@ class MLPChildNodes(MessagePassing):
                        ReLU(),
                        nn.Dropout(dropout),
                        Linear(2 * out_channels, out_channels),
-                       ReLU(),
-                       nn.Dropout(dropout),
-                       Linear(out_channels, out_channels),
-                       ReLU())
+                       ReLU(), )
+        # nn.Dropout(dropout),
+        # Linear(out_channels, out_channels),
+        # ReLU())
 
     def message(self, x_i, x_j, edge_attr):
         tmp = torch.cat([x_i, x_j, edge_attr], dim=1)
@@ -64,10 +64,10 @@ class MLPParentNodes(MessagePassing):
                        ReLU(),
                        nn.Dropout(dropout),
                        Linear(2 * out_channels, out_channels),
-                       ReLU(),
-                       nn.Dropout(dropout),
-                       Linear(out_channels, out_channels),
-                       ReLU())
+                       ReLU(), )
+        # nn.Dropout(dropout),
+        # Linear(out_channels, out_channels),
+        # ReLU())
 
     def message(self, x_i, x_j, edge_attr):
         tmp = torch.cat([x_i, x_j, edge_attr], dim=1)
@@ -92,33 +92,35 @@ class GNNEncoder(nn.Module):
 
         if self.in_embed:
             self.initial_encoder = nn.Sequential(nn.Embedding(input_shape, embedding_dim * 2),
-                                                     nn.Dropout(dropout),
-                                                     nn.Linear(embedding_dim * 2, embedding_dim),
-                                                     nn.ReLU(),
-                                                     nn.Dropout(dropout),
-                                                     nn.Linear(embedding_dim, embedding_dim),
-                                                     nn.ReLU())
+                                                 nn.Dropout(dropout),
+                                                 nn.Linear(embedding_dim * 2, embedding_dim),
+                                                 nn.ReLU(), )
+            # nn.Dropout(dropout),
+            # nn.Linear(embedding_dim, embedding_dim),
+            # nn.ReLU())
 
             self.edge_encoder = nn.Sequential(nn.Embedding(max_edges, embedding_dim * 2),
-                                                  nn.Dropout(dropout),
-                                                  nn.Linear(embedding_dim * 2, embedding_dim),
-                                                  nn.ReLU(),
-                                                  nn.Dropout(dropout),
-                                                  nn.Linear(embedding_dim, embedding_dim),
-                                                  nn.ReLU())
+                                              nn.Dropout(dropout),
+                                              nn.Linear(embedding_dim * 2, embedding_dim),
+                                              nn.ReLU(), )
+            # nn.Dropout(dropout),
+            # nn.Linear(embedding_dim, embedding_dim),
+            # nn.ReLU())
 
-        self.mlp_parent_nodes = MLPParentNodes(embedding_dim, embedding_dim,dropout=dropout)
+        self.mlp_parent_nodes = MLPParentNodes(embedding_dim, embedding_dim, dropout=dropout)
 
-        self.mlp_child_nodes = MLPChildNodes(embedding_dim, embedding_dim,dropout=dropout)
+        self.mlp_child_nodes = MLPChildNodes(embedding_dim, embedding_dim, dropout=dropout)
 
-        self.final_agg = MLPAggr(embedding_dim,dropout=dropout)
+        self.final_agg = MLPAggr(embedding_dim, dropout=dropout)
 
         # 1x1 conv equivalent to linear projection in output channel
-        self.out_proj = nn.Sequential(nn.Dropout(dropout),
-                                      nn.Linear(embedding_dim, embedding_dim * 4),
-                                      nn.ReLU(),
-                                      nn.Linear(embedding_dim * 4, embedding_dim * 8),
-                                      nn.ReLU())
+        self.out_proj = nn.Sequential(
+            nn.Linear(embedding_dim, embedding_dim * 4),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(embedding_dim * 4, embedding_dim * 8),
+            nn.ReLU(),
+            nn.Dropout(dropout),)
 
     def forward(self, batch):
         nodes = batch.x
