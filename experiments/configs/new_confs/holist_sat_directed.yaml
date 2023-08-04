@@ -31,13 +31,13 @@ model_config:
     num_edge_features: 3
     dim_feedforward: 256
     num_heads: 4
-    num_layers: 4
+    num_layers: 2
     in_embed: True
     se: 'gnn-encoder'
     abs_pe: False
     use_edge_attr: True
     dropout: 0.2
-    gnn_layers: 1
+    gnn_layers: 4
     small_inner: False
     abs_pe_dim: 256
 

@@ -1,7 +1,7 @@
 defaults:
-  - data_config:
-      - mongodb
-  - data_config/data_options: graph_premise_selection
+#  - data_config:
+#      - mongodb
+#  - data_config/data_options: graph_premise_selection
   - optimiser_config
   - logging_config
 
