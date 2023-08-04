@@ -3,23 +3,15 @@ import os
 
 import hydra
 import lightning.pytorch as pl
-import pyrallis
 import torch
+from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.loggers import WandbLogger
 from omegaconf import OmegaConf
 
 from data.get_data import get_data
-from experiments.pyrallis_configs import HOListPretrainConfig
+from experiments.holist.train import torch_training_module
 from models.get_model import get_model
 from models.holist_models.tactic_predictor import TacticPrecdictor, CombinerNetwork
-from lightning.pytorch.callbacks import ModelCheckpoint
-from lightning.pytorch.loggers import WandbLogger
-
-from experiments.holist.train import torch_training_module
-
-#
-#         k: config_to_dict(v) if hasattr(v, '__dict__') else v
-#         for k, v in vars(conf).items()
-#     }
 
 
 def config_to_dict(conf):
@@ -51,25 +43,26 @@ def holist_pretrain_experiment(config):
 
     data_module = get_data(config.data_config, experiment='holist_pretrain')
 
-    # if self.config.exp_config.resume:
-    #     logger = WandbLogger(project=config.logging_config.project,
-    #                          name=config.exp_config.name,
-    #                          config=config_to_dict(config),
-    #                          notes=config.logging_config.notes,
-    #                          offline=config.logging_config.offline,
-    #                          save_dir=config.exp_config.directory,
-    #                          id=config.exp_config.logging_config.id,
-    #                          resume='must',
-    #                          )
-    #
-    # else:
-    logger = WandbLogger(project=config.logging_config.project,
-                         name=config.exp_config.name,
-                         config=config_to_dict(config),
-                         notes=config.logging_config.notes,
-                         offline=config.logging_config.offline,
-                         save_dir=config.exp_config.directory,
-                         )
+    if config.exp_config.resume:
+        print ('resuming')
+        logger = WandbLogger(project=config.logging_config.project,
+                             name=config.exp_config.name,
+                             config=config_to_dict(config),
+                             notes=config.logging_config.notes,
+                             offline=config.logging_config.offline,
+                             save_dir=config.exp_config.directory,
+                             id=config.logging_config.id,
+                             resume='must',
+                             )
+
+    else:
+        logger = WandbLogger(project=config.logging_config.project,
+                             name=config.exp_config.name,
+                             config=config_to_dict(config),
+                             notes=config.logging_config.notes,
+                             offline=config.logging_config.offline,
+                             save_dir=config.exp_config.directory,
+                             )
     callbacks = []
 
     checkpoint_callback = ModelCheckpoint(monitor="rel_param_acc", mode="max",
@@ -100,9 +93,18 @@ def holist_pretrain_experiment(config):
 
 
 
-    if config.resume:
+    if config.exp_config.resume:
+
         logging.debug("Resuming experiment from last checkpoint..")
         ckpt_dir = config.exp_config.checkpoint_dir + "/last.ckpt"
+
+        if not os.path.exists(ckpt_dir):
+            raise Exception(f"Missing checkpoint in {ckpt_dir}")
+
+        logging.debug("Resuming experiment from last checkpoint..")
+        ckpt_dir = config.exp_config.checkpoint_dir + "/last.ckpt"
+        state_dict = torch.load(ckpt_dir)['state_dict']
+        experiment.load_state_dict(state_dict)
         trainer.fit(model=experiment, datamodule=data_module, ckpt_path=ckpt_dir)
     else:
         trainer.fit(model=experiment, datamodule=data_module)

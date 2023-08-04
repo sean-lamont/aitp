@@ -16,6 +16,8 @@ data_config:
 exp_config:
   name: gnn_small
   device: [0]
+  resume: True
+  directory: 'experiments/runs/holist_pretrain/2023_08_02/gnn_small_17_19_53'
 
 model_config:
   model_type: holist_gnn
@@ -27,5 +29,6 @@ model_config:
 
 logging_config:
   project: test_hydra
+  id: 'wxm6gt6t'
 
 hydra.verbose: True

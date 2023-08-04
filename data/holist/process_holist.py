@@ -30,10 +30,14 @@ def sexpression_to_polish(sexpression_text):
     def process_node(node):
         if len(sexpression.get_children(node)) == 0:
             out.append(node)
+
+
         for i, child in enumerate(sexpression.get_children(node)):
             if i == 0:
+                # out.append('@') for i in range(sexpression.get_children(node) - 1)
                 out.append(sexpression.to_text(child))
                 continue
+            # todo add special char when adding child? e.g. out.append('@') for i in range(sexpression.get_children(node) - 1)
             process_node(sexpression.to_text(child))
 
     process_node(sexpression.to_text(sexpression.roots()[0]))
