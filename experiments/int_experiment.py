@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import pickle
+import random
 
 import hydra
 import lightning.pytorch as pl
@@ -15,6 +16,8 @@ from environments.int_environment.algos.lib.obs import nodename2index, thm2index
 from environments.int_environment.algos.model.thm_model import ThmNet
 from environments.int_environment.data_generation.generate_problems import generate_multiple_problems
 from environments.int_environment.data_generation.utils import Dataset
+from environments.int_environment.proof_system.graph_seq_conversion import Parser
+
 
 
 def load_data(data_dir, mode="train"):
@@ -57,12 +60,23 @@ def load_all_data(train_dirs, test_dirs):
         "test_first": test_first_dataset
     }
 
-
 class INTDataModule(pl.LightningDataModule):
     def __init__(self, config):
         self.config = config
+
         super().__init__()
 
+        # setup vocab for sequence encoder
+        if self.config.encoder_type == 'seq':
+            input_names = [chr(ord('a') + i) for i in range(25)] + \
+                          [str(i) for i in range(10)] \
+                          + ['+', '/', '*', '-', '=', ')', '(', '<space>',
+                             '<', '>', '<=', '>=', '^', '&', 't', 'o']  # %%
+
+            self.vocab = {v: k for k, v in enumerate(input_names)}
+
+
+        # all_first datasets are only the first step in the proof, and are used to intialise the rollout in evaluation
         if not self.config.online:
             train_dirs = [os.path.join(self.config.path_to_data, train_dir) for train_dir in config.train_sets]
             test_dirs = [os.path.join(self.config.path_to_data, test_dir) for test_dir in config.test_sets]
@@ -120,6 +134,25 @@ class INTDataModule(pl.LightningDataModule):
 
         # Every epoch this is checked, simplified with DataModule by reloading
 
+    def collate(self, batch):
+        # if self.config.encoder_type == 'graph':
+        return batch_process(batch)
+        #
+        # elif self.config.encoder_type == 'seq':
+        #     batch_states, batch_actions, batch_name_actions = batch_process(batch, mode='seq')
+        #     # use vocab to create tensors from batch states
+        #     batch_states = [torch.LongTensor([self.vocab(v) for v in seq]) for seq in batch_states]
+        #
+        #     batch_states = torch.nn.utils.rnn.pad_sequence(batch_states)
+        #     batch_states = batch_states[:self.max_seq]
+        #     mask1 = (x1 == 0).T
+        #     mask1 = torch.cat([mask1, torch.zeros(mask1.shape[0]).bool().unsqueeze(1)], dim=1)
+        #
+        #     return batch_states,
+        #
+        # else:
+        #     raise NotImplementedError
+
     def reset(self):
         self.train_dataset = Dataset([])
         self.train_first_dataset = Dataset([])
@@ -132,7 +165,8 @@ class INTDataModule(pl.LightningDataModule):
             else:
                 keyword_arguments = {"orders": self.kl_dict}
 
-            one_piece_of_data, _ = generate_multiple_problems(k, l, num_probs=self.config.num_probs,
+
+            one_piece_of_data, problems = generate_multiple_problems(k, l, num_probs=self.config.num_probs,
                                                               train_test="train", backwards=True,
                                                               transform_gt=self.config.transform_gt,
                                                               degree=self.config.degree,
@@ -141,6 +175,8 @@ class INTDataModule(pl.LightningDataModule):
                                                               **keyword_arguments)
 
             self.train_dataset.merge(one_piece_of_data["all"])
+
+            # all_first used to initialise rollouts
             self.train_first_dataset.merge(one_piece_of_data["all_first"])
 
     def train_dataloader(self):
@@ -148,13 +184,13 @@ class INTDataModule(pl.LightningDataModule):
         # batcher = data_handler.BatchSampler(sampler, batch_size=self.config.batch_size, drop_last=False)
         # batch = self.train_dataset.get_multiple(indices=indices)
         # batch_states, batch_actions, batch_name_actions = batch_process(batch, mode=self.config.obs_mode)
-        return torch.utils.data.DataLoader(self.train_dataset, batch_size=32, collate_fn=batch_process)
+        return torch.utils.data.DataLoader(self.train_dataset, batch_size=32, collate_fn=self.collate)
 
     def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=32, collate_fn=batch_process)
+        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=32, collate_fn=self.collate)
 
     def test_dataloader(self):
-        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=32, collate_fn=batch_process)
+        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=32, collate_fn=self.collate)
 
 
 class INTLoop(pl.LightningModule):
@@ -184,6 +220,7 @@ class INTLoop(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         batch_states, batch_actions, batch_name_actions = batch
 
+
         log_probs, _, _, (
             lemma_acc, ent_acc, name_acc, diff_lemma_indices, diff_ent_lemma_indices) = self.forward(
             batch_states, batch_actions)
@@ -208,18 +245,23 @@ class INTLoop(pl.LightningModule):
 
         loss = -log_probs.mean()
 
-        self.log_dict({'loss': loss.detach(),
-                       'lemma_acc': lemma_acc.detach(),
-                       'ent_acc': ent_acc.detach(),
-                       'name_acc': name_acc.detach()}, batch_size=self.config.batch_size)
+        self.log_dict({'val_loss': loss.detach(),
+                       'val_lemma_acc': lemma_acc.detach(),
+                       'val_ent_acc': ent_acc.detach(),
+                       'val_name_acc': name_acc.detach()}, batch_size=self.config.batch_size)
 
         return
 
-    def test_rollout(self, dataset):
+    def test_rollout(self, dataset, full_dataset=False):
+        if full_dataset:
+            eval_data = dataset.trajectories
+        else:
+            indices = range(len(dataset.trajectories))
+            eval_data = [dataset.trajectories[index] for index in random.sample(indices, k=self.config.num_test_probs)]
 
         env_config = {
             "mode": "eval",
-            "eval_dataset": dataset.trajectories,
+            "eval_dataset": eval_data,
             "online": False,
             "batch_eval": False,
             "verbo": True,
@@ -235,10 +277,10 @@ class INTLoop(pl.LightningModule):
         return success_rate, wrong_cases, success_cases, avg_num_steps
 
     def on_train_epoch_end(self):
-        if self.current_epoch % self.config.epoch_per_case_record == 0:
-            logging.info("Running rollout..")
+        if self.current_epoch % self.config.epochs_per_case_record == 0:
+            logging.info("Testing success rate on current proofs..")
 
-            # First-step rollouts
+            # Test success rate after training
             train_first_success_rate, train_first_wrong_case, train_first_right_case, train_first_avg_proof_length = \
                 self.test_rollout(self.data_module.train_first_dataset)
 
@@ -252,7 +294,7 @@ class INTLoop(pl.LightningModule):
             #                "val_first_avg_proof_length": val_first_avg_proof_length})
 
             test_first_success_rate, test_first_wrong_case, test_first_right_case, test_first_avg_proof_length = \
-                self.test_rollout(self.data_module.eval_first_dataset)
+                self.test_rollout(self.data_module.eval_first_dataset, full_dataset=True)
 
             self.log_dict({"test_first_success_rate": test_first_success_rate,
                            "test_first_avg_proof_length": test_first_avg_proof_length}, batch_size=self.config.batch_size)
@@ -271,11 +313,20 @@ class INTLoop(pl.LightningModule):
                           os.path.join(
                               self.config.dump,
                               str(self.config.timestamp),
-                              "cases_record{0:.0%}.json".format(int(self.global_step / self.config.updates))),
+                              f"cases_record{(int(self.global_step / self.config.updates))}.json"),
                           "w")
                       )
 
+        if self.current_epoch % self.config.epochs_per_online_dataset == 0:
+            logging.info("Generating new proofs..")
             self.data_module.reset()
+
+            train_first_success_rate, train_first_wrong_case, train_first_right_case, train_first_avg_proof_length = \
+                self.test_rollout(self.data_module.train_first_dataset)
+
+            self.log_dict({"new_dataset_success_rates": train_first_success_rate,
+                           "new_dataset_avg_proof_lengths": train_first_avg_proof_length}, batch_size=self.config.batch_size)
+
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
@@ -341,6 +392,7 @@ def int_experiment(config):
     callbacks.append(checkpoint_callback)
 
     trainer = pl.Trainer(
+        check_val_every_n_epoch=10,
         max_epochs=config.epochs,
         logger=logger,
         enable_progress_bar=True,

@@ -7,7 +7,7 @@ batch_size: 32
 
 logging_config:
   project: INT
-  offline: False
+  offline: True
 
 resume: False
 
@@ -36,10 +36,10 @@ path_to_data: ""
 train_sets: ["k=3_l=5"]
 test_sets: ["k=3_l=5"]
 obs_mode: "geometric"
-num_probs: 40 #1000
-evaluation_size: 40 #256
-num_val_probs: 40 #100
-num_test_probs: 40 #100
+num_probs: 1000
+evaluation_size: 256
+num_val_probs: 100
+num_test_probs: 100
 transform_gt: True
 online: True
 combo_path: ???
@@ -51,8 +51,8 @@ resume_dir: ""
 pretrain_dir: ""
 fix_policy: False
 epoch_per_record: 1
-epoch_per_case_record: 2
-epochs_per_online_dataset: 2#10
+epochs_per_case_record: 50
+epochs_per_online_dataset: 10
 epoch: 100000
 updates: 200000
 time_limit: 15

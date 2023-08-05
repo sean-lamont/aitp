@@ -21,6 +21,8 @@ from experiments.holist.utilities import process_sexp
 from experiments.holist.utilities.sexpression_to_graph import sexpression_to_graph
 from models.holist_models.gnn.gnn_encoder import GNNEncoder
 from pymongo import MongoClient
+
+from models.holist_models.sat.models import GraphTransformer
 from models.holist_models.tactic_predictor import TacticPrecdictor, CombinerNetwork
 from tqdm import tqdm
 
@@ -70,10 +72,14 @@ class HolparamPredictor(predictions.Predictions):
 
         # todo load model arch from config and get_model
 
-        self.embedding_model_goal = GNNEncoder(input_shape=1500,
+        self.embedding_model_goal = GraphTransformer(input_shape=1500,
                                                embedding_dim=128,
-                                               num_iterations=12,
-                                               dropout=0.2).cuda()
+                                               k_hop=1,
+                                               dropout=0.2,
+                                                batch_norm=False,
+                                                     global_pool='max',
+                                                     num_edge_features=3,
+                                                     ).cuda()
 
         self.embedding_model_premise = GNNEncoder(input_shape=1500,
                                                   embedding_dim=128,

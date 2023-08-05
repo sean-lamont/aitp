@@ -81,6 +81,7 @@ class ThmNet(torch.nn.Module):
         else:
             self.encoder = GroundTruthEncoderTransformer(num_nodes + 4, state_dim, state_dim,
                                                             gnn_type=gnn_type, hidden_layers=hidden_layers)
+
             self.lemma_encoder = nn.Linear(num_lemmas, 2*state_dim)
             self.key_transform = nn.Linear(2*state_dim, state_dim, bias=False)
             self.ent_transform = nn.Linear(state_dim, 2*state_dim, bias=False)
@@ -198,6 +199,7 @@ class ThmNet(torch.nn.Module):
         gnn_ind = []
         prev_max_ent = 0
         # if isinstance(observations, np.ndarray) or isinstance(observations, list):
+
         if rl_batch:
             flatten_obs = []
             for i in range(len(observations)):
@@ -226,6 +228,7 @@ class ThmNet(torch.nn.Module):
         else:
             batch_ind = torch.LongTensor(batch_ind)
             gnn_ind = torch.LongTensor(gnn_ind)
+
         batch_state = dgl.batch(gnns)
         state_tensor, out = self.encoder(batch_state, gnn_ind)
         vf = self.vf_net(out)

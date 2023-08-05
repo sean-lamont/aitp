@@ -151,6 +151,7 @@ if __name__ == "__main__":
                                                           degree=args.degree,
                                                           online_order_generation=args.online_order_generation,
                                                           **keyword_arguments)
+
         extracted_first_steps = [steps[0] for steps in separate_problems]
         eval_dataset = Dataset(extracted_first_steps)
         pickle.dump(eval_dataset, open(data_path, "wb"))
@@ -193,6 +194,7 @@ if __name__ == "__main__":
                             args.num_order_or_combo, args.num_probs, args.degree, args.last_num_order_or_combo,
                             timestamp
                         )
+
                         sr_path = os.path.join(args.dump, "{}success_rate.json".format(prefix))
                         ans_path = os.path.join(args.dump, "{}avg_num_steps.json".format(prefix))
 

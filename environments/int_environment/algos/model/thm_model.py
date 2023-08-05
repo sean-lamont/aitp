@@ -1,7 +1,6 @@
 import os
 import sys
 
-
 sys.path.insert(0, os.path.abspath('../../Inequality'))
 
 import numpy as np
@@ -9,11 +8,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from environments.int_environment.algos.model.gnns import TransGATEncoder, GraphEncoder, GraphTransformingEncoder, GraphIsomorphismEncoder,\
+from environments.int_environment.algos.model.gnns import TransGATEncoder, GraphEncoder, GraphTransformingEncoder, \
+    GraphIsomorphismEncoder, \
     FCResBlock, RawGATEncoder
 
 from environments.int_environment.algos.lib.ops import one_hot, graph_softmax
-from environments.int_environment.algos.lib.obs import tile_obs_acs, thm2index, compute_mask, compute_trans_ind, theorem_no_input, index2thm
+from environments.int_environment.algos.lib.obs import tile_obs_acs, thm2index, compute_mask, compute_trans_ind, \
+    theorem_no_input, index2thm
 
 from torch_geometric.data import Batch
 from torch.distributions import Categorical, Uniform
@@ -92,6 +93,11 @@ class GroundTruthEncoder(torch.nn.Module):
         return state_tensor, out
 
 
+# todo convert graph batch to transformer
+# batch will be (N x M x max_len) where N is number of batches, M is number of graphs (i.e. nodes/expressions)
+# and max_len for transformers. Take gnn_id for M, batches for N and fix max_len
+# also need to wrap transformer to take one hot input (just add Linear layer instead of embedding)
+
 class ThmNet(torch.nn.Module):
     def __init__(self, **options):
         super().__init__()
@@ -120,13 +126,13 @@ class ThmNet(torch.nn.Module):
         else:
             self.obj_encoder = self.gt_encoder
 
-        self.lemma_encoder = nn.Linear(num_lemmas, 2*hidden_dim)
-        self.key_transform = nn.Linear(2*hidden_dim, hidden_dim, bias=False)
-        self.ent_transform = nn.Linear(hidden_dim, 2*hidden_dim, bias=False)
+        self.lemma_encoder = nn.Linear(num_lemmas, 2 * hidden_dim)
+        self.key_transform = nn.Linear(2 * hidden_dim, hidden_dim, bias=False)
+        self.ent_transform = nn.Linear(hidden_dim, 2 * hidden_dim, bias=False)
         self.gt_ent_transform = nn.Linear(hidden_dim, hidden_dim, bias=False)
         self.obj_ent_transform = nn.Linear(hidden_dim, hidden_dim, bias=False)
-        self.lemma_q = FCResBlock(2*hidden_dim)
-        self.lemma_out = nn.Linear(2*hidden_dim, num_lemmas)
+        self.lemma_q = FCResBlock(2 * hidden_dim)
+        self.lemma_out = nn.Linear(2 * hidden_dim, num_lemmas)
 
         self.vf_net = nn.Sequential(
             nn.Linear(2 * hidden_dim, hidden_dim),
@@ -168,9 +174,8 @@ class ThmNet(torch.nn.Module):
         else:
             gt_out = torch.zeros_like(obj_out)
 
-
         if gt_out.shape[0] < obj_out.shape[0]:
-            zero_out_tensor = torch.zeros(obj_out.shape[0]-gt_out.shape[0], gt_out.shape[1]).to(device)
+            zero_out_tensor = torch.zeros(obj_out.shape[0] - gt_out.shape[0], gt_out.shape[1]).to(device)
             gt_out = torch.cat((gt_out, zero_out_tensor), 0)
         # output by GNNs
         out = torch.cat((obj_out, gt_out), 1)
@@ -210,13 +215,15 @@ class ThmNet(torch.nn.Module):
             state_tensor = obj_state_tensor
 
         if gt_out.shape[0] < obj_out.shape[0]:
-            zero_out_tensor = torch.zeros(obj_out.shape[0]-gt_out.shape[0], gt_out.shape[1]).to(device)
+            zero_out_tensor = torch.zeros(obj_out.shape[0] - gt_out.shape[0], gt_out.shape[1]).to(device)
             gt_out = torch.cat((gt_out, zero_out_tensor), 0)
 
         # output by GNNs
         out = torch.cat((obj_out, gt_out), 1)
+
         # value function
         vf = self.vf_net(out)
+
         # Lemma outputs
         lemma_outputs = self.lemma_out(F.relu(self.lemma_q(out)))
         lemma_m = Categorical(probs=self.softmax(lemma_outputs))
@@ -245,25 +252,37 @@ class ThmNet(torch.nn.Module):
             lemma_entropy = torch.mean(lemma_m.entropy())
 
         batch_lemmas = one_hot(lemma_actions, len(thm2index))
+
         # condition on lemma actions
         out = F.relu(out.to(device) + F.relu(self.lemma_encoder(batch_lemmas).to(device)))
 
         # Prepare for entity actions
         ent_mask = compute_mask(obj_node_ent, gt_node_ent)
         rev_trans_ind = compute_trans_ind(obj_trans_ind, gt_trans_ind)
+        # entity representations?
         ent_rep = torch.index_select(state_tensor[ent_mask, :].clone(), 0, rev_trans_ind)
 
+        # todo see what to change here if we use a sequence. might need to look above at shape of 'out' and see how
+        #  it matches up with batch/number of entities
+
         if actions is None:
+
             entity_actions = []
             h_uniform = Uniform(torch.zeros(ent_rep.shape[0]), torch.ones(ent_rep.shape[0]))
+
             for ii in range(max_num_ent):
+
                 if cuda:
                     mask = (masks[:, ii] != -1).cuda()
                 else:
                     mask = (masks[:, ii] != -1)
+
                 if sum(mask) > 0:
                     key = torch.index_select(out, 0, batch_ind)
+
+                    #
                     h = torch.mean(self.key_transform(key) * ent_rep, 1)
+
                     gumble_h = h - torch.log(-torch.log(h_uniform.sample().to(device)))
                     # calculate loss term.
                     entity_action = scatter_max(gumble_h, batch_ind)[1]
@@ -271,28 +290,40 @@ class ThmNet(torch.nn.Module):
                     # use a zero tensor to fill in empty ent representation that
                     # refers to an empty action slot
                     zero_ind = torch.LongTensor(np.arange(entity_action.shape[0])).to(device)
+
                     cur_ent_rep = torch.index_select(
                         ent_rep, 0, entity_action[mask].to(device))
+
                     zero_tensor = torch.zeros(entity_action.shape[0], cur_ent_rep.shape[1]).to(device)
+
                     cur_ent_rep = \
                         scatter_add(torch.cat((cur_ent_rep, zero_tensor), 0),
                                     torch.cat((torch.LongTensor(np.argwhere(mask.cpu().numpy() == 1)).squeeze(1).to(
                                         device), zero_ind), 0), 0)
+
                     # get new key vector
                     out = F.relu(out + F.relu(self.ent_transform(cur_ent_rep)))
+
                     # append entity actions; plus 1 because 0 is saved for no_op
                     # entity_action = entity_action[mask] + 1 - torch.LongTensor(prev_max_ents)
                     entity_action = (entity_action - torch.LongTensor(prev_max_ents).to(device))
+
                     entity_action = ((entity_action.float() + 1) * mask.float()).long()
+
                     entity_action = torch.cat(
                         [entity_action,
                          torch.zeros(masks.shape[0] - entity_action.shape[0]).long().to(device)])
+
                     entity_actions.append(entity_action)
+
             entity_actions = torch.stack(entity_actions).t()
+
             entity_actions = torch.cat([entity_actions,
                                         torch.zeros([masks.shape[0],
                                                      masks.shape[1] - entity_actions.shape[1]]).long().to(device)], 1)
+
             actions = torch.cat([lemma_actions.view(-1, 1), entity_actions], 1)
+
             actions = actions.cpu().numpy()
             # print(actions)
             return actions, vf
@@ -308,30 +339,37 @@ class ThmNet(torch.nn.Module):
                 all_lemma_wrong_ent_indices = []
                 right_lemma_wrong_ent_indices = []
             for ii in range(max_num_ent):
+                # -1 is the overall expression?
                 if cuda:
                     mask = (entity_actions[:, ii] != -1).cuda()
                 else:
                     mask = (entity_actions[:, ii] != -1)
+
                 if sum(mask) > 0:
                     key = torch.index_select(out, 0, batch_ind)
                     h = torch.mean(self.key_transform(key) * ent_rep, 1)
+
                     # calculate loss term.
                     max_h = torch.index_select(
                         scatter_max(h, batch_ind)[0], 0, batch_ind)
                     logsoftmax = h - max_h - torch.index_select(
-                        torch.log(scatter_add(torch.exp(h-max_h), batch_ind)), 0, batch_ind)
+                        torch.log(scatter_add(torch.exp(h - max_h), batch_ind)), 0, batch_ind)
+
                     # mask out unused loss.
                     ent_logprob = ent_logprob + torch.mean(torch.index_select(
                         logsoftmax, 0, entity_actions[:, ii][mask].to(device)))
+
                     zero_tensor = torch.zeros(entity_actions.shape[0]).to(device)
                     zero_ind = torch.LongTensor(np.arange(entity_actions.shape[0])).to(device)
                     cur_logsoftmax = torch.index_select(
                         logsoftmax, 0, entity_actions[:, ii][mask].to(device))
+
                     cur_logsoftmax = \
-                        scatter_add(torch.cat((cur_logsoftmax, zero_tensor),0),
+                        scatter_add(torch.cat((cur_logsoftmax, zero_tensor), 0),
                                     torch.cat(
                                         (torch.LongTensor(np.argwhere(mask.cpu().numpy() == 1)).squeeze(1).to(device),
                                          zero_ind), 0))
+
                     ent_logprob = ent_logprob + cur_logsoftmax
 
                     # calculate entropy.
@@ -339,10 +377,14 @@ class ThmNet(torch.nn.Module):
                         scatter_add(torch.exp(h), batch_ind), 0, batch_ind)
                     # mask out unused probs.
                     # TODO: Check whether scale makes sense? sum entropy of different entity action? but mean over data?
+
                     ent_entropy = ent_entropy + torch.mean(scatter_add(logsoftmax * prob, batch_ind)[mask])
+
                     cur_ent_rep = torch.index_select(
                         ent_rep, 0, entity_actions[:, ii][mask].to(device))
+
                     zero_tensor = torch.zeros(entity_actions.shape[0], cur_ent_rep.shape[1]).to(device)
+
                     cur_ent_rep = \
                         scatter_add(torch.cat((cur_ent_rep, zero_tensor), 0),
                                     torch.cat(
@@ -355,18 +397,20 @@ class ThmNet(torch.nn.Module):
                         num_ent_correct += (entity_actions[:, ii].to(device) == h_max).float()[mask].sum()
                         right_lemma_mask = lemma_outputs.argmax(1) != lemma_actions
                         wrong_ent_lemma_mask = entity_actions[:, ii].to(device) != h_max
-                        all_lemma_wrong_ent_indices.extend(list(lemma_actions[wrong_ent_lemma_mask & mask].cpu().numpy()))
-                        right_lemma_wrong_ent_indices.extend(list(lemma_actions.cpu()[wrong_ent_lemma_mask.cpu() & mask.cpu() & right_lemma_mask.cpu()].numpy()))
+                        all_lemma_wrong_ent_indices.extend(
+                            list(lemma_actions[wrong_ent_lemma_mask & mask].cpu().numpy()))
+                        right_lemma_wrong_ent_indices.extend(list(lemma_actions.cpu()[
+                                                                      wrong_ent_lemma_mask.cpu() & mask.cpu() & right_lemma_mask.cpu()].numpy()))
 
                     out = F.relu(out + F.relu(self.ent_transform(cur_ent_rep)))
 
                 logprobs = self.lemma_cost * lemma_logprobs + self.entity_cost * ent_logprob
-                entropy = lemma_entropy #+ ent_entropy
+                entropy = lemma_entropy  # + ent_entropy
                 # action = torch.LongTensor(actions)
 
             if sl_train:
 
-                lemma_acc = torch.mean((lemma_outputs.argmax(1)==lemma_actions).float())
+                lemma_acc = torch.mean((lemma_outputs.argmax(1) == lemma_actions).float())
                 different_lemma_indices = []
                 if lemma_acc < 1:
                     different_obs_indices = (lemma_outputs.argmax(1).cpu() != lemma_actions.cpu())
@@ -385,8 +429,9 @@ class ThmNet(torch.nn.Module):
                 ent_acc = num_ent_correct / num_ent
                 name_acc = num_name_correct / num_ent
                 # assert name_acc >= ent_acc
-                different_ent_lemma_indices = dict(all_lemma_wrong_ent_indices=collections.Counter(all_lemma_wrong_ent_indices),
-                                                   right_lemma_wrong_ent_indices=collections.Counter(right_lemma_wrong_ent_indices))
+                different_ent_lemma_indices = dict(
+                    all_lemma_wrong_ent_indices=collections.Counter(all_lemma_wrong_ent_indices),
+                    right_lemma_wrong_ent_indices=collections.Counter(right_lemma_wrong_ent_indices))
                 acc = (lemma_acc, ent_acc, name_acc, different_lemma_indices, different_ent_lemma_indices)
 
                 return logprobs, vf.squeeze(1), entropy, acc

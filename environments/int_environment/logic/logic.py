@@ -59,6 +59,7 @@ class Entity:
         self.root = None
         self.recent_numerical_function = recent_numerical_function
         self.operands = operands
+
         if name is not None:
             assert operands is None
             assert recent_numerical_function is None

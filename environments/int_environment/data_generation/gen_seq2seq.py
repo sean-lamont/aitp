@@ -65,8 +65,10 @@ if __name__ == "__main__":
                                                                 num_probs=1000, train_test="train",
                                                                 orders=orders, degree=args.degree,
                                                                 num_order_or_combo=args.num_order_or_combo)
+
             sources_to_targets = generate_multiple_seq2seq(multiple_problems=problems,
                                                            all_sources_to_targets=sources_to_targets)
+
             pickle.dump(problems, open(os.path.join(args.dump_path, "problems_part{}.pkl".format(j+1)), "wb"))
     else:
         datasets, problems = generate_multiple_problems(num_axioms=args.k, length=args.l,

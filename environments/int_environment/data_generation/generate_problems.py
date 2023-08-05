@@ -347,7 +347,6 @@ def generate_multiple_problems(num_axioms, length, num_probs, **kwargs):
     assert sum(num_problems_per_subprocess) == num_probs
     generate_problem_args = dict(num_axioms=num_axioms, length=length, **kwargs)
 
-    print ('break')
     with ProcessPoolExecutor(max_workers=20) as executor:
         for generated_steps_arr in executor.map(_generate_many_problems, num_problems_per_subprocess,
                                                 (generate_problem_args for _ in range(num_sub_works))):
