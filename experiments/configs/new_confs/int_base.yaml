@@ -1,0 +1,117 @@
+defaults:
+  - optimiser_config
+  - logging_config
+
+epochs: 100000
+batch_size: 32
+
+logging_config:
+  project: INT
+  offline: False
+
+resume: False
+
+exp_config:
+  name: int_experiment
+  experiment: holist_pretrain
+  directory: experiments/runs/${.experiment}/${now:%Y_%m_%d}/${.name}_${now:%H_%M_%S}
+  checkpoint_dir: ${.directory}/checkpoints
+  accelerator: gpu
+  device: [0]
+
+#model_config:
+#  model_type: ???
+#  model_attributes: ???
+
+hydra:
+  run:
+    dir: ${exp_config.directory}
+  job:
+    chdir: False
+
+
+use_gpu: True
+timestamp: ${now:%Y_%m_%d_%H_%M_%S}
+path_to_data: ""
+train_sets: ["k=3_l=5"]
+test_sets: ["k=3_l=5"]
+obs_mode: "geometric"
+num_probs: 40 #1000
+evaluation_size: 40 #256
+num_val_probs: 40 #100
+num_test_probs: 40 #100
+transform_gt: True
+online: True
+combo_path: ???
+online_order_generation: True
+num_order_or_combo: -1
+cuda: True
+dump: ???
+resume_dir: ""
+pretrain_dir: ""
+fix_policy: False
+epoch_per_record: 1
+epoch_per_case_record: 2
+epochs_per_online_dataset: 2#10
+epoch: 100000
+updates: 200000
+time_limit: 15
+seed: 0
+
+# optimization hps
+#batch_size: 32
+lemma_cost: 1.0
+entity_cost: 1.0
+dropout_rate: 0.0
+gat_dropout_rate: 0.0
+
+# neural architecture hps
+hidden: 6
+hidden_dim: 512
+gnn_type: 'GIN'
+atten_type: 0
+attention_heads: 8
+norm: None
+
+# TODO: change this boolean arugment to be false
+combined_gt_obj: False
+bag_of_words: False
+
+# Environment setting
+mode: 'solve'
+verbo: True
+degree: 0
+
+# RL specific setting
+
+eval_interval: None
+algo: 'a2c'
+gail: 'False'
+gail-experts-dir: './gail_experts'
+gail-batch-size: 128
+gail-epoch: 5
+eps: 1e-5
+alpha: 0.99
+gamma: 0.99
+use-gae: False
+gae-lambda: 0.95
+entropy-coef: 0.01
+value-loss-coef: 0.5
+max-grad-norm: 0.5
+cuda-deterministic: False
+num_processes: ???
+num_steps: 4
+ppo-epoch: 4
+num-mini-batch: 32
+clip-param: 0.2
+log-interval: 10
+save-interval: 100
+eval-interval: None
+num-env-steps: 10e6
+env-name: 'PongNoFrameskip-v4'
+saving_dir: '/tmp/gym/'
+save-dir: './trained_models/'
+no-cuda: False
+use-proper-time-limits: False
+recurrent-policy: False
+use-linear-lr-decay: False

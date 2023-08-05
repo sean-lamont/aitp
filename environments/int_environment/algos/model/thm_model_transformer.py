@@ -108,12 +108,16 @@ class ThmNet(torch.nn.Module):
         obj_state = obs["obj"]
         gt_state = obs["gt"]
         obj_gnn = dgl.batch(obj_state["obj_graph"])
+
         obj_state_tensor, obj_out = self.obj_encoder.forward(obj_gnn, obj_state["obj_gnn_ind"])
+
         if len(gt_state["gt_graph"]) > 0:
             gt_gnn = dgl.batch(gt_state["gt_graph"])
             gt_state_tensor, gt_out = self.gt_encoder.forward(gt_gnn, gt_state["gt_gnn_ind"])
         else:
             gt_out = torch.zeros_like(obj_out)
+
+
         out = torch.cat((obj_out, gt_out), 1)
 
         vf = self.vf_net(out)
@@ -136,6 +140,7 @@ class ThmNet(torch.nn.Module):
         out = torch.cat((obj_out, gt_out), 1)
 
         vf = self.vf_net(out)
+
         # TODO: A modular q net for lemma?
         # lemma_outputs = self.lemma_q(out)
         lemma_outputs = self.lemma_out(F.relu(self.lemma_q(out)))
@@ -177,6 +182,7 @@ class ThmNet(torch.nn.Module):
             out = F.relu(out + F.relu(self.ent_transform(torch.index_select(ent_rep, 0, entity_action))))
             # add one because 0 is saved for NO_OP
             actions.append(entity_action.squeeze().cpu().numpy() + 1)
+
         while len(actions) < 6:
             actions.append(0)
         # action = torch.LongTensor(actions)
@@ -231,6 +237,7 @@ class ThmNet(torch.nn.Module):
             lemma_actions = torch.cuda.LongTensor(actions[:, 0])
         else:
             lemma_actions = torch.LongTensor(actions[:, 0])
+
         lemma_logprobs = lemma_m.log_prob(lemma_actions)
         # lemma_logprobs = (lemma_logprobs * (lemma_actions == 14).float() * 1 / 10 +
         #                   lemma_logprobs * (1 - (lemma_actions == 14).float()))
@@ -244,6 +251,7 @@ class ThmNet(torch.nn.Module):
             different_lemma_indices = []
             if lemma_acc < 1:
                 different_obs_indices = (lemma_outputs.argmax(1).cpu() != lemma_actions.cpu()).nonzero().numpy().tolist()
+
                 different_obs_indices = [inner_list[0] for inner_list in different_obs_indices]
 
                 different_lemma_indices = [
@@ -352,6 +360,7 @@ class ThmNet(torch.nn.Module):
             acc = (lemma_acc, ent_acc, name_acc, different_lemma_indices)
             # acc = (lemma_acc, torch.zeros(1), torch.zeros(1), different_lemma_indices)
             return logprobs, vf.squeeze(1), entropy, acc
+
         return logprobs, vf.squeeze(1), entropy
 
     def batch_compute_action(self, observations):

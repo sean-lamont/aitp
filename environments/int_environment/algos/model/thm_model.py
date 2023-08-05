@@ -1,6 +1,7 @@
 import os
 import sys
 
+
 sys.path.insert(0, os.path.abspath('../../Inequality'))
 
 import numpy as np
@@ -22,6 +23,7 @@ import collections
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 cuda = torch.cuda.is_available()
 torch.manual_seed(0)
+
 if cuda:
     torch.cuda.manual_seed_all(0)
     torch.backends.cudnn.deterministic = True
@@ -81,8 +83,10 @@ class GroundTruthEncoder(torch.nn.Module):
             score = torch.sum(key * out, 1)
             attention = graph_softmax(score, batch_gnn_ind)
             out = out * attention.view(-1, 1)
+
         if isinstance(batch_gnn_ind, list):
             batch_gnn_ind = torch.LongTensor(batch_gnn_ind).to(device)
+
         out = scatter_add(out, batch_gnn_ind, 0)
 
         return state_tensor, out
@@ -112,7 +116,6 @@ class ThmNet(torch.nn.Module):
 
         if not combined_gt_obj:
             self.obj_encoder = GroundTruthEncoder(num_nodes + 4, hidden_dim, hidden_dim,
-                                                  gnn_type=gnn_type, hidden_layers=hidden_layers, norm=norm,
                                                   **options)
         else:
             self.obj_encoder = self.gt_encoder
@@ -153,6 +156,7 @@ class ThmNet(torch.nn.Module):
         batch_obj_state = Batch.from_data_list(obj_gnns)
         obj_state_tensor, obj_out = self.obj_encoder(
             batch_obj_state, obj_gnns_ind, obj_batch_gnn_ind)
+
         if len(gt_gnns) > 0:
             batch_gt_state = Batch.from_data_list(gt_gnns)
             if self.attention_type == 1:
@@ -163,6 +167,7 @@ class ThmNet(torch.nn.Module):
                     batch_gt_state, gt_gnns_ind, gt_batch_gnn_ind)
         else:
             gt_out = torch.zeros_like(obj_out)
+
 
         if gt_out.shape[0] < obj_out.shape[0]:
             zero_out_tensor = torch.zeros(obj_out.shape[0]-gt_out.shape[0], gt_out.shape[1]).to(device)
@@ -197,6 +202,7 @@ class ThmNet(torch.nn.Module):
             else:
                 gt_state_tensor, gt_out = self.gt_encoder(
                     batch_gt_state, gt_gnns_ind, gt_batch_gnn_ind)
+
             state_tensor = torch.cat((obj_state_tensor, gt_state_tensor), 0)
 
         else:

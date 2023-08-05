@@ -6,10 +6,11 @@ data_config:
     dict_in_memory: False
     db: 'leanstep_sexpression'
 
-epochs: 100
+epochs: 10
 
 exp_config:
   name: formula_net
+
 
 model_config:
   model_type: formula-net-edges

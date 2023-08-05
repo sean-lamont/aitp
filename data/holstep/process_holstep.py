@@ -169,30 +169,3 @@ if __name__ == '__main__':
                 pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
 
-# client = MongoClient()
-# db = client['hol_step']
-# expr_collection = db['expression_graphs']
-#
-# def update_attention_func(item):
-#     expr_collection.update_many({"_id": item["_id"]},
-#                                 {"$set":
-#                                     {
-#                                         "data.attention_edge_index":
-#                                             get_directed_edge_index(len(item['graph']['tokens']),
-#                                                                     torch.LongTensor(
-#                                                                         item['graph']['edge_index'])).tolist(),
-#                                         "data.depth":
-#                                             get_depth_from_graph(len(item['graph']['tokens']),
-#                                                                  torch.LongTensor(
-#                                                                      item['graph']['edge_index'])).tolist()
-#                                     }})
-#
-# items = []
-# for item in tqdm(expr_collection.find({})):
-#     items.append(item)
-#
-# pool = Pool(processes=3)
-# for _ in tqdm.tqdm(pool.imap_unordered(update_attention_func, items), total=len(items)):
-#     pass
-#
-#
