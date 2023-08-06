@@ -37,7 +37,7 @@ def list_to_sequence(data_list, max_len=1024):
 
     data_list = torch.nn.utils.rnn.pad_sequence(data_list, padding_value=0)
     data_list = data_list[:max_len]
-    mask = (data_list == -1).T
+    mask = (data_list == 0).T
     return (data_list, mask)
 
 
