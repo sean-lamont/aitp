@@ -4,7 +4,7 @@ from gym.utils import seeding
 
 from environments.int_environment.proof_system.all_axioms import all_axioms_to_prove
 from environments.int_environment.proof_system.prover import Prover
-from environments.int_environment.algos.lib.obs import obs_to_graphs, index2thm, obs_to_graphs_dgl
+from environments.int_environment.algos.lib.obs import obs_to_graphs, index2thm, obs_to_graphs_dgl, obs_to_seq
 from environments.int_environment.visualization.latex_parse import logic_statement_to_latex, entity_to_latex
 from environments.int_environment.data_generation.generate_problems import generate_problem
 import random
@@ -89,7 +89,7 @@ class TheoremProver(gym.Env):
             if self.eval_finish:
                 return self._get_obs(), 0, False, {"eval_finish": True}
 
-        if self.obs_mode == "seq":
+        if self.obs_mode == "hack":
             lemma, input_entities = self.proof.parser.find_action(self.proof.get_observation(), action)
         else:
             lemma = all_axioms_to_prove[index2thm[action[0]]]
@@ -164,17 +164,18 @@ class TheoremProver(gym.Env):
             return self._get_obs(), reward, done, info
 
     def _get_obs(self):
-        if self.obs_mode == "seq":
-            return self.parser.observation_to_source(self.proof.get_observation())
+        # if self.obs_mode == "seq":
+        #     return self.parser.observation_to_source(self.proof.get_observation())
 
         obs = {
             "objectives": self.proof.get_objectives(),
             "ground_truth": self.proof.get_ground_truth()
         }
-        if self.obs_mode == "dgl":
-            obj_graph, gt_graph, node_ent, node_name, ent_dic, name_dic = obs_to_graphs_dgl(obs)
+        if self.obs_mode == "seq":
+            obj_graph, gt_graph, node_ent, node_name, ent_dic, name_dic = obs_to_seq(obs, bag=self.bag_of_words)
         else:
             obj_graph, gt_graph, node_ent, node_name, ent_dic, name_dic = obs_to_graphs(obs, bag=self.bag_of_words)
+            # obj_graph, gt_graph, node_ent, node_name, ent_dic, name_dic = obs_to_seq(obs, bag=self.bag_of_words)
         self.ind_to_ent = {v[0]: (k, v[1]) for k, v in ent_dic.items()}
 
         return obj_graph, gt_graph, node_ent, node_name

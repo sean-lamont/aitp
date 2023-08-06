@@ -90,6 +90,8 @@ class GroundTruthEncoder(torch.nn.Module):
 
         out = scatter_add(out, batch_gnn_ind, 0)
 
+        # do it as 1 X M x D tensor, with M as the total number of nodes
+        # should return state_tensor as separate encoding of every entity in transformer
         return state_tensor, out
 
 
@@ -214,6 +216,8 @@ class ThmNet(torch.nn.Module):
             gt_out = torch.zeros_like(obj_out)
             state_tensor = obj_state_tensor
 
+        # state tensor is representation of every node
+
         if gt_out.shape[0] < obj_out.shape[0]:
             zero_out_tensor = torch.zeros(obj_out.shape[0] - gt_out.shape[0], gt_out.shape[1]).to(device)
             gt_out = torch.cat((gt_out, zero_out_tensor), 0)
@@ -262,9 +266,7 @@ class ThmNet(torch.nn.Module):
         # entity representations?
         ent_rep = torch.index_select(state_tensor[ent_mask, :].clone(), 0, rev_trans_ind)
 
-        # todo see what to change here if we use a sequence. might need to look above at shape of 'out' and see how
-        #  it matches up with batch/number of entities
-
+        #todo
         if actions is None:
 
             entity_actions = []

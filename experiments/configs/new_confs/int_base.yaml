@@ -7,17 +7,20 @@ batch_size: 32
 
 logging_config:
   project: INT
-  offline: True
+  offline: False
+#  offline: False
+#  id: 'bcqz72ui'
 
 resume: False
 
 exp_config:
-  name: int_experiment
-  experiment: holist_pretrain
-  directory: experiments/runs/${.experiment}/${now:%Y_%m_%d}/${.name}_${now:%H_%M_%S}
+  name: int_experiment_transformer
+  experiment: int_experiment
+  directory: 'experiments/runs/${.experiment}/${now:%Y_%m_%d}/${.name}_${now:%H_%M_%S}'#'experiments/runs/holist_pretrain/2023_08_05/int_experiment_17_55_27'
   checkpoint_dir: ${.directory}/checkpoints
   accelerator: gpu
   device: [0]
+  resume: False
 
 #model_config:
 #  model_type: ???
@@ -35,7 +38,8 @@ timestamp: ${now:%Y_%m_%d_%H_%M_%S}
 path_to_data: ""
 train_sets: ["k=3_l=5"]
 test_sets: ["k=3_l=5"]
-obs_mode: "geometric"
+# whether to test graph or transformer encoder
+obs_mode: "seq" # "geometric" #"seq"
 num_probs: 1000
 evaluation_size: 256
 num_val_probs: 100

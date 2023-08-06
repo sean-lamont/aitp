@@ -196,6 +196,7 @@ def train_epoch(model, dataset, optimizer, updates):
 
 
 # Validate every epoch
+
 def validate(model, e_dataset):
     model.eval()
     validation_batch = e_dataset.io_tuples[:args.evaluation_size]

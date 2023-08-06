@@ -10,13 +10,20 @@ import torch
 import torch.utils.data as data_handler
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
+from omegaconf import OmegaConf
 
 from environments.int_environment.algos.eval import eval_agent
 from environments.int_environment.algos.lib.obs import nodename2index, thm2index, batch_process
 from environments.int_environment.algos.model.thm_model import ThmNet
+from environments.int_environment.algos.model.thm_model_transformer import ThmNet as TransThmNet
 from environments.int_environment.data_generation.generate_problems import generate_multiple_problems
 from environments.int_environment.data_generation.utils import Dataset
 from environments.int_environment.proof_system.graph_seq_conversion import Parser
+
+def config_to_dict(conf):
+    return OmegaConf.to_container(
+        conf, resolve=True, throw_on_missing=True
+    )
 
 
 
@@ -67,13 +74,13 @@ class INTDataModule(pl.LightningDataModule):
         super().__init__()
 
         # setup vocab for sequence encoder
-        if self.config.encoder_type == 'seq':
-            input_names = [chr(ord('a') + i) for i in range(25)] + \
-                          [str(i) for i in range(10)] \
-                          + ['+', '/', '*', '-', '=', ')', '(', '<space>',
-                             '<', '>', '<=', '>=', '^', '&', 't', 'o']  # %%
-
-            self.vocab = {v: k for k, v in enumerate(input_names)}
+        # if self.config.encoder_type == 'seq':
+        #     input_names = [chr(ord('a') + i) for i in range(25)] + \
+        #                   [str(i) for i in range(10)] \
+        #                   + ['+', '/', '*', '-', '=', ')', '(', '<space>',
+        #                      '<', '>', '<=', '>=', '^', '&', 't', 'o']  # %%
+        #
+        #     self.vocab = {v: k for k, v in enumerate(input_names)}
 
 
         # all_first datasets are only the first step in the proof, and are used to intialise the rollout in evaluation
@@ -135,23 +142,10 @@ class INTDataModule(pl.LightningDataModule):
         # Every epoch this is checked, simplified with DataModule by reloading
 
     def collate(self, batch):
-        # if self.config.encoder_type == 'graph':
-        return batch_process(batch)
-        #
-        # elif self.config.encoder_type == 'seq':
-        #     batch_states, batch_actions, batch_name_actions = batch_process(batch, mode='seq')
-        #     # use vocab to create tensors from batch states
-        #     batch_states = [torch.LongTensor([self.vocab(v) for v in seq]) for seq in batch_states]
-        #
-        #     batch_states = torch.nn.utils.rnn.pad_sequence(batch_states)
-        #     batch_states = batch_states[:self.max_seq]
-        #     mask1 = (x1 == 0).T
-        #     mask1 = torch.cat([mask1, torch.zeros(mask1.shape[0]).bool().unsqueeze(1)], dim=1)
-        #
-        #     return batch_states,
-        #
-        # else:
-        #     raise NotImplementedError
+        if self.config.obs_mode == 'geometric':
+            return batch_process(batch)
+        else:
+            return batch_process(batch, mode='seq')
 
     def reset(self):
         self.train_dataset = Dataset([])
@@ -369,24 +363,46 @@ def int_experiment(config):
 
     data_module = INTDataModule(config)
 
-    experiment = INTLoop(ThmNet(**options),
-                         data_module=data_module,
-                         config=config)
+    if config.obs_mode == 'geometric':
+        experiment = INTLoop(ThmNet(**options),
+                             data_module=data_module,
+                             config=config)
+    else:
+        experiment = INTLoop(TransThmNet(**options),
+                             data_module=data_module,
+                             config=config)
 
-    logger = WandbLogger(project=config.logging_config.project,
-                         name=config.exp_config.name,
-                         notes=config.logging_config.notes,
-                         offline=config.logging_config.offline,
-                         save_dir=config.exp_config.directory,
-                         )
+    if config.exp_config.resume:
+        print ('resuming')
+        logger = WandbLogger(project=config.logging_config.project,
+                             name=config.exp_config.name,
+                             # config=config_to_dict(config),
+                             notes=config.logging_config.notes,
+                             offline=config.logging_config.offline,
+                             save_dir=config.exp_config.directory,
+                             id=config.logging_config.id,
+                             resume='must',
+                             )
+
+    else:
+        logger = WandbLogger(project=config.logging_config.project,
+                             name=config.exp_config.name,
+                             # config=config_to_dict(config),
+                             notes=config.logging_config.notes,
+                             offline=config.logging_config.offline,
+                             save_dir=config.exp_config.directory,
+                             )
+
+
 
     callbacks = []
 
-    checkpoint_callback = ModelCheckpoint(monitor="test_first_success_rate", mode="max",
+    checkpoint_callback = ModelCheckpoint(monitor="val_ent_acc", mode="max",
                                           auto_insert_metric_name=True,
                                           save_top_k=3,
-                                          filename="{epoch}-{acc}",
+                                          filename="{epoch}-{val_ent_acc}",
                                           save_last=True,
+                                          every_n_epochs=10,
                                           dirpath=config.exp_config.checkpoint_dir)
 
     callbacks.append(checkpoint_callback)
@@ -402,7 +418,24 @@ def int_experiment(config):
     )
 
 
-    trainer.fit(model=experiment, datamodule=data_module)
+    if config.exp_config.resume:
+
+        logging.debug("Resuming experiment from last checkpoint..")
+        ckpt_dir = config.exp_config.checkpoint_dir + "/last.ckpt"
+
+        if not os.path.exists(ckpt_dir):
+            raise Exception(f"Missing checkpoint in {ckpt_dir}")
+
+        logging.debug("Resuming experiment from last checkpoint..")
+        ckpt_dir = config.exp_config.checkpoint_dir + "/last.ckpt"
+        state_dict = torch.load(ckpt_dir)['state_dict']
+        experiment.load_state_dict(state_dict)
+        trainer.fit(model=experiment, datamodule=data_module, ckpt_path=ckpt_dir)
+    else:
+        trainer.fit(model=experiment, datamodule=data_module)
+
+
+    # trainer.fit(model=experiment, datamodule=data_module)
     logger.experiment.finish()
 
 
