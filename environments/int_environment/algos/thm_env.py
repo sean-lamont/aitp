@@ -39,11 +39,13 @@ class TheoremProver(gym.Env):
     """
     def __init__(self, env_config=None):
         if env_config is None:
+
             env_config = {
                 "mode": "solve",
                 "bag_of_words": False,
                 "obs_mode": "geometric"
             }
+
         self.env_config = env_config
         self.mode = env_config["mode"]
         self.bag_of_words = env_config["bag_of_words"]
@@ -54,7 +56,9 @@ class TheoremProver(gym.Env):
             self.kl_dict = env_config["kl_dict"]
         if "verbo" in env_config:
             self.verbo = env_config["verbo"]
+
         self.obs_mode = env_config["obs_mode"]
+
         self.eval_finish = False
         if self.mode == "eval":
             self.eval_finish = False

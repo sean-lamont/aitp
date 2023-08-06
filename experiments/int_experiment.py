@@ -126,8 +126,8 @@ class INTDataModule(pl.LightningDataModule):
                                                                       train_test="test", backwards=True,
                                                                       transform_gt=self.config.transform_gt,
                                                                       degree=self.config.degree,
-                                                                      # num_order_or_combo=self.config.num_order_or_combo,
-                                                                      num_order_or_combo=None,
+                                                                      num_order_or_combo=self.config.num_order_or_combo,
+                                                                      # num_order_or_combo=None,
                                                                       **keyword_arguments)
 
                     self.eval_dataset.merge(one_piece_of_data["all"])

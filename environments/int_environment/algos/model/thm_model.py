@@ -23,6 +23,7 @@ import collections
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 cuda = torch.cuda.is_available()
+
 torch.manual_seed(0)
 
 if cuda:

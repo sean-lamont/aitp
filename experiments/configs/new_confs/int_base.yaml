@@ -14,7 +14,7 @@ logging_config:
 resume: False
 
 exp_config:
-  name: int_experiment_transformer
+  name: gnn
   experiment: int_experiment
   directory: 'experiments/runs/${.experiment}/${now:%Y_%m_%d}/${.name}_${now:%H_%M_%S}'#'experiments/runs/holist_pretrain/2023_08_05/int_experiment_17_55_27'
   checkpoint_dir: ${.directory}/checkpoints
@@ -36,10 +36,10 @@ hydra:
 use_gpu: True
 timestamp: ${now:%Y_%m_%d_%H_%M_%S}
 path_to_data: ""
-train_sets: ["k=3_l=5"]
-test_sets: ["k=3_l=5"]
+train_sets: ["k=3_l=3"]
+test_sets: ["k=3_l=3"]
 # whether to test graph or transformer encoder
-obs_mode: "seq" # "geometric" #"seq"
+obs_mode: "seq"
 num_probs: 1000
 evaluation_size: 256
 num_val_probs: 100
@@ -53,7 +53,7 @@ cuda: True
 dump: ???
 resume_dir: ""
 pretrain_dir: ""
-fix_policy: False
+fix_policy: True
 epoch_per_record: 1
 epochs_per_case_record: 50
 epochs_per_online_dataset: 10
@@ -66,7 +66,7 @@ seed: 0
 #batch_size: 32
 lemma_cost: 1.0
 entity_cost: 1.0
-dropout_rate: 0.0
+dropout_rate: 0.1
 gat_dropout_rate: 0.0
 
 # neural architecture hps
@@ -77,7 +77,6 @@ atten_type: 0
 attention_heads: 8
 norm: None
 
-# TODO: change this boolean arugment to be false
 combined_gt_obj: False
 bag_of_words: False
 

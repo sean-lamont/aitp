@@ -104,10 +104,10 @@ class GroundTruthEncoder(torch.nn.Module):
 class ThmNet(torch.nn.Module):
     def __init__(self, **options):
         super().__init__()
-        # num_nodes = options["num_nodes"]
+        num_nodes = options["num_nodes"]
         num_lemmas = options["num_lemmas"]
         hidden_dim = options["hidden_dim"]
-        # gnn_type = options["gnn_type"]
+        gnn_type = options["gnn_type"]
         combined_gt_obj = options["combined_gt_obj"]
         attention_type = options["attention_type"]
         hidden_layers = options["hidden_layers"]
@@ -121,14 +121,12 @@ class ThmNet(torch.nn.Module):
         # self.gt_encoder = GroundTruthEncoder(num_nodes + 4, hidden_dim, hidden_dim,
         #                                      **options)
 
-        self.gt_encoder = GroundTruthEncoder(
-                                             **options)
+        self.gt_encoder = GroundTruthEncoder(**options)
 
         self.combined_gt_obj = combined_gt_obj
 
         if not combined_gt_obj:
-            self.obj_encoder = GroundTruthEncoder(
-                                                  **options)
+            self.obj_encoder = GroundTruthEncoder(**options)
         else:
             self.obj_encoder = self.gt_encoder
 

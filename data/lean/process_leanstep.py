@@ -5,7 +5,7 @@ import re
 from pymongo import MongoClient
 from tqdm import tqdm
 
-from experiments.holist.utilities.lean_sexpression_to_graph import sexpression_to_graph
+from experiments.holist.utilities.lean_sexpression_to_graph import sexpression_to_graph, sexpression_to_polish
 from experiments.holist.utilities.sexpression_graphs import SExpressionGraph
 
 if __name__ == '__main__':
@@ -72,26 +72,6 @@ if __name__ == '__main__':
         for d in data[int(0.9 * len(data)):]])
 
 
-    # todo
-    def sexpression_to_polish(sexpression_text):
-        sexpression = SExpressionGraph()
-        sexpression.add_sexp(sexpression_text)
-        out = []
-
-        def process_node(node):
-            if len(sexpression.get_children(node)) == 0:
-                out.append(node)
-            for i, child in enumerate(sexpression.get_children(node)):
-                # todo look at lean sexp, append e.g. special character for each child
-                if i == 0:
-                    out.append(sexpression.to_text(child))
-                    continue
-                process_node(sexpression.to_text(child))
-
-        process_node(sexpression.to_text(sexpression.roots()[0]))
-        return out
-
-
     # compute sexpression data for all expressions and add to database
     expr_col = db['expression_graphs']
 
@@ -104,7 +84,8 @@ if __name__ == '__main__':
             'data': {
                 'tokens': g['tokens'],
                 'edge_index': g['edge_index'],
-                'edge_attr': g['edge_attr']
+                'edge_attr': g['edge_attr'],
+                'full_tokens': sexpression_to_polish(expr)
             }
         })
 
@@ -125,3 +106,5 @@ if __name__ == '__main__':
     # len(vocab)
 
     db['vocab'].insert_many([{'_id': k, 'index': v} for k, v in vocab.items()])
+
+    db['vocab'].insert_one({'_id': '@', 'index': len(vocab)})
