@@ -14,7 +14,7 @@ logging_config:
 resume: False
 
 exp_config:
-  name: gnn
+  name: transformer
   experiment: int_experiment
   directory: 'experiments/runs/${.experiment}/${now:%Y_%m_%d}/${.name}_${now:%H_%M_%S}'#'experiments/runs/holist_pretrain/2023_08_05/int_experiment_17_55_27'
   checkpoint_dir: ${.directory}/checkpoints
@@ -39,7 +39,7 @@ path_to_data: ""
 train_sets: ["k=3_l=3"]
 test_sets: ["k=3_l=3"]
 # whether to test graph or transformer encoder
-obs_mode: "seq"
+obs_mode: "geometric"
 num_probs: 1000
 evaluation_size: 256
 num_val_probs: 100

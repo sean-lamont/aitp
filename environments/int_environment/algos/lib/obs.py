@@ -441,12 +441,7 @@ def batch_process(batch, mode="geometric", bag=False):
     for datapoint in batch:
         # Only use the last ground truth both as an info provider and where entities are chosen from
         obs = datapoint[0]
-
-        if mode == "dgl":
-            obj, gt, node_ent, node_name, ent_dic, name_dic = obs_to_graphs_dgl(obs)
-            obs_ = convert_obs_to_dict([obj, gt, node_ent, node_name])
-
-        elif mode == "geometric":
+        if mode == "geometric":
             obj, gt, node_ent, node_name, ent_dic, name_dic = obs_to_graphs(obs, bag=bag)
             obs_ = convert_obs_to_dict([obj, gt, node_ent, node_name])
 

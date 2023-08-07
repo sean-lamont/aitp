@@ -20,11 +20,11 @@ from environments.int_environment.data_generation.generate_problems import gener
 from environments.int_environment.data_generation.utils import Dataset
 from environments.int_environment.proof_system.graph_seq_conversion import Parser
 
+
 def config_to_dict(conf):
     return OmegaConf.to_container(
         conf, resolve=True, throw_on_missing=True
     )
-
 
 
 def load_data(data_dir, mode="train"):
@@ -32,7 +32,6 @@ def load_data(data_dir, mode="train"):
     with open(file_name, 'rb') as f:
         dataset = pickle.load(f)
     return dataset
-
 
 
 def load_all_data(train_dirs, test_dirs):
@@ -67,21 +66,12 @@ def load_all_data(train_dirs, test_dirs):
         "test_first": test_first_dataset
     }
 
+
 class INTDataModule(pl.LightningDataModule):
     def __init__(self, config):
         self.config = config
 
         super().__init__()
-
-        # setup vocab for sequence encoder
-        # if self.config.encoder_type == 'seq':
-        #     input_names = [chr(ord('a') + i) for i in range(25)] + \
-        #                   [str(i) for i in range(10)] \
-        #                   + ['+', '/', '*', '-', '=', ')', '(', '<space>',
-        #                      '<', '>', '<=', '>=', '^', '&', 't', 'o']  # %%
-        #
-        #     self.vocab = {v: k for k, v in enumerate(input_names)}
-
 
         # all_first datasets are only the first step in the proof, and are used to intialise the rollout in evaluation
         if not self.config.online:
@@ -122,12 +112,12 @@ class INTDataModule(pl.LightningDataModule):
                         keyword_arguments = {"combos": self.kl_dict}
                     else:
                         keyword_arguments = {"orders": self.kl_dict}
+
                     one_piece_of_data, _ = generate_multiple_problems(k, l, num_probs=self.config.num_probs,
                                                                       train_test="test", backwards=True,
                                                                       transform_gt=self.config.transform_gt,
                                                                       degree=self.config.degree,
                                                                       num_order_or_combo=self.config.num_order_or_combo,
-                                                                      # num_order_or_combo=None,
                                                                       **keyword_arguments)
 
                     self.eval_dataset.merge(one_piece_of_data["all"])
@@ -159,18 +149,16 @@ class INTDataModule(pl.LightningDataModule):
             else:
                 keyword_arguments = {"orders": self.kl_dict}
 
-
             one_piece_of_data, problems = generate_multiple_problems(k, l, num_probs=self.config.num_probs,
-                                                              train_test="train", backwards=True,
-                                                              transform_gt=self.config.transform_gt,
-                                                              degree=self.config.degree,
-                                                              num_order_or_combo=self.config.num_order_or_combo,
-                                                              avoid_objective_names=self.eval_objectives,
-                                                              **keyword_arguments)
-
-            self.train_dataset.merge(one_piece_of_data["all"])
+                                                                     train_test="train", backwards=True,
+                                                                     transform_gt=self.config.transform_gt,
+                                                                     degree=self.config.degree,
+                                                                     num_order_or_combo=self.config.num_order_or_combo,
+                                                                     avoid_objective_names=self.eval_objectives,
+                                                                     **keyword_arguments)
 
             # all_first used to initialise rollouts
+            self.train_dataset.merge(one_piece_of_data["all"])
             self.train_first_dataset.merge(one_piece_of_data["all_first"])
 
     def train_dataloader(self):
@@ -214,7 +202,6 @@ class INTLoop(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         batch_states, batch_actions, batch_name_actions = batch
 
-
         log_probs, _, _, (
             lemma_acc, ent_acc, name_acc, diff_lemma_indices, diff_ent_lemma_indices) = self.forward(
             batch_states, batch_actions)
@@ -247,10 +234,11 @@ class INTLoop(pl.LightningModule):
         return
 
     def test_rollout(self, dataset, full_dataset=False):
+        self.eval()
         if full_dataset:
             eval_data = dataset.trajectories
         else:
-            indices = range(len(dataset.trajectories))
+            indices = range(len(dataset))
             eval_data = [dataset.trajectories[index] for index in random.sample(indices, k=self.config.num_test_probs)]
 
         env_config = {
@@ -268,6 +256,7 @@ class INTLoop(pl.LightningModule):
         success_rate, wrong_cases, success_cases, avg_num_steps = \
             eval_agent(self.thm_net, env_config=env_config)
 
+        self.train()
         return success_rate, wrong_cases, success_cases, avg_num_steps
 
     def on_train_epoch_end(self):
@@ -279,7 +268,8 @@ class INTLoop(pl.LightningModule):
                 self.test_rollout(self.data_module.train_first_dataset)
 
             self.log_dict({"train_first_success_rate": train_first_success_rate,
-                           "train_first_avg_proof_length": train_first_avg_proof_length}, batch_size=self.config.batch_size)
+                           "train_first_avg_proof_length": train_first_avg_proof_length},
+                          batch_size=self.config.batch_size)
 
             # val_first_success_rate, val_first_wrong_case, val_first_right_case, val_first_avg_proof_length = \
             #     self.test_rollout(self.data_module.val_first_dataset)
@@ -291,7 +281,8 @@ class INTLoop(pl.LightningModule):
                 self.test_rollout(self.data_module.eval_first_dataset, full_dataset=True)
 
             self.log_dict({"test_first_success_rate": test_first_success_rate,
-                           "test_first_avg_proof_length": test_first_avg_proof_length}, batch_size=self.config.batch_size)
+                           "test_first_avg_proof_length": test_first_avg_proof_length},
+                          batch_size=self.config.batch_size)
 
             cases_record = {
                 "train_first_wrong_case": train_first_wrong_case,
@@ -319,8 +310,8 @@ class INTLoop(pl.LightningModule):
                 self.test_rollout(self.data_module.train_first_dataset)
 
             self.log_dict({"new_dataset_success_rates": train_first_success_rate,
-                           "new_dataset_avg_proof_lengths": train_first_avg_proof_length}, batch_size=self.config.batch_size)
-
+                           "new_dataset_avg_proof_lengths": train_first_avg_proof_length},
+                          batch_size=self.config.batch_size)
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
@@ -335,7 +326,6 @@ class INTLoop(pl.LightningModule):
 
 @hydra.main(config_path="configs/new_confs", config_name="int_base")
 def int_experiment(config):
-
     os.makedirs(config.exp_config.checkpoint_dir, exist_ok=True)
     os.makedirs(os.path.join(config.dump, str(config.timestamp)))
 
@@ -373,7 +363,7 @@ def int_experiment(config):
                              config=config)
 
     if config.exp_config.resume:
-        print ('resuming')
+        print('resuming')
         logger = WandbLogger(project=config.logging_config.project,
                              name=config.exp_config.name,
                              # config=config_to_dict(config),
@@ -392,8 +382,6 @@ def int_experiment(config):
                              offline=config.logging_config.offline,
                              save_dir=config.exp_config.directory,
                              )
-
-
 
     callbacks = []
 
@@ -414,9 +402,8 @@ def int_experiment(config):
         enable_progress_bar=True,
         callbacks=callbacks,
         accelerator=config.exp_config.accelerator,
-        devices = config.exp_config.device
+        devices=config.exp_config.device
     )
-
 
     if config.exp_config.resume:
 
@@ -434,10 +421,8 @@ def int_experiment(config):
     else:
         trainer.fit(model=experiment, datamodule=data_module)
 
-
     # trainer.fit(model=experiment, datamodule=data_module)
     logger.experiment.finish()
-
 
 
 if __name__ == '__main__':

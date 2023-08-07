@@ -189,7 +189,8 @@ def to_data(expr, data_type, vocab, config=None):
         return torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in expr['polished']])
 
     elif data_type == 'ensemble':
-        return (to_data(expr, 'graph', vocab, config), to_data(expr, 'sequence', vocab, config))
+        return (to_data(expr, 'graph', vocab, config), to_data(expr, 'sequence_polished', vocab, config))
+        # return (to_data(expr, 'graph', vocab, config), to_data(expr, 'sequence', vocab, config))
 
     # add other transforms here, map from stored expression data to preprocessed format.
     # Could include e.g. RegEx transforms to tokenise on the fly and avoid storing in memory
