@@ -151,6 +151,7 @@ def premise_selection_experiment(config):
     )
 
     trainer.val_check_interval = config.val_frequency
+
     if config.limit_val_batches:
         trainer.limit_val_batches = config.val_size // config.batch_size
 

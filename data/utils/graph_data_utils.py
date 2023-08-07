@@ -113,7 +113,7 @@ def get_depth_from_graph(num_nodes, edge_index):
     return depths
 
 
-def list_to_sequence(data_list, max_len):
+def list_to_sequence(data_list, max_len=1024):
     if data_list == []:
         data_list = torch.LongTensor([[0]])
 

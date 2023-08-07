@@ -4,6 +4,81 @@ from typing import Text
 import logging
 
 
+# def sexpression_to_polish(sexpression_text):
+#     sexpression = SExpressionGraph()
+#     sexpression.add_sexp(sexpression_text)
+#     out = []
+#
+#     def process_node(node):
+#         if len(sexpression.get_children(node)) == 0:
+#             out.append(node)
+#
+#
+#         for i, child in enumerate(sexpression.get_children(node)):
+#             if i == 0:
+#                 # out.append('@') for i in range(sexpression.get_children(node) - 1)
+#                 out.append(sexpression.to_text(child))
+#                 continue
+#             # todo add special char when adding child? e.g. out.append('@') for i in range(sexpression.get_children(node) - 1)
+#             process_node(sexpression.to_text(child))
+#
+#     process_node(sexpression.to_text(sexpression.roots()[0]))
+#     return out
+
+# def sexpression_to_polish(sexpression_text):
+#     sexpression = SExpressionGraph()
+#     sexpression.add_sexp(sexpression_text)
+#     out = []
+#
+#     def process_node(node):
+#         if len(sexpression.get_children(node)) == 0:
+#             out.append(node)
+#
+#
+#         for i, child in enumerate(sexpression.get_children(node)):
+#             if i == 0:
+#                 # out.append('@') for i in range(sexpression.get_children(node) - 1)
+#                 out.append(sexpression.to_text(child))
+#                 continue
+#             # todo add special char when adding child? e.g. out.append('@') for i in range(sexpression.get_children(node) - 1)
+#             process_node(sexpression.to_text(child))
+#
+#     process_node(sexpression.to_text(sexpression.roots()[0]))
+#     return out
+#
+
+def sexpression_to_polish(sexpression_text):
+    sexpression = SExpressionGraph()
+    sexpression.add_sexp(sexpression_text)
+    out = []
+
+    def process_node(node):
+        if len(sexpression.get_children(node)) == 0:
+            out.append(node)
+
+
+        for i, child in enumerate(sexpression.get_children(node)):
+            if i == 0:
+                node_text = sexpression.to_text(child)
+                # out.append(node_text)
+
+                if node_text[0] == '(':
+                    node_text = 'APPLY_TOK'
+                    out.append('@')
+                    out.append(node_text)
+                    process_node(sexpression.to_text(child))
+                    continue
+                else:
+                    for i in range(len(sexpression.get_children(node)) - 1):
+                        out.append('@')
+                    out.append(node_text)
+                    continue
+
+            process_node(sexpression.to_text(child))
+
+    process_node(sexpression.to_text(sexpression.roots()[0]))
+    return out
+
 def sexpression_to_graph(sexpression_txt: Text):
     sexpression = SExpressionGraph(sexpression_txt)
 

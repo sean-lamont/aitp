@@ -13,6 +13,7 @@ def eval_agent(agent, env_config, log_dir=None):
 
     env = make_thm_env(env_config, log_dir=log_dir)()
 
+
     actor_critic = agent
     obs = env.reset(index=0)
     successes = []

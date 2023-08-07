@@ -20,6 +20,8 @@ data_config:
 exp_config:
   name: SAT Directed Small
   devices: [0]
+  resume: True
+  directory: 'experiments/runs/holist_pretrain/2023_08_02/SAT Directed Small_17_21_39'
 
 model_config:
   model_type: 'holist_sat'
@@ -43,6 +45,7 @@ model_config:
 
 logging_config:
   project: test_hydra
+  id: '7yhqvdxe'
 
 hydra.verbose: True
 

@@ -2,8 +2,7 @@ import json
 import logging
 import os
 import pickle
-from datetime import datetime
-from time import time
+import random
 
 import hydra
 import lightning.pytorch as pl
@@ -14,12 +13,18 @@ from lightning.pytorch.loggers import WandbLogger
 from omegaconf import OmegaConf
 
 from environments.int_environment.algos.eval import eval_agent
-# from environments.int_environment.algos.lib.arguments import get_args
 from environments.int_environment.algos.lib.obs import nodename2index, thm2index, batch_process
 from environments.int_environment.algos.model.thm_model import ThmNet
-# todo use get_model with config
+from environments.int_environment.algos.model.thm_model_transformer import ThmNet as TransThmNet
 from environments.int_environment.data_generation.generate_problems import generate_multiple_problems
 from environments.int_environment.data_generation.utils import Dataset
+from environments.int_environment.proof_system.graph_seq_conversion import Parser
+
+def config_to_dict(conf):
+    return OmegaConf.to_container(
+        conf, resolve=True, throw_on_missing=True
+    )
+
 
 
 def load_data(data_dir, mode="train"):
@@ -27,6 +32,7 @@ def load_data(data_dir, mode="train"):
     with open(file_name, 'rb') as f:
         dataset = pickle.load(f)
     return dataset
+
 
 
 def load_all_data(train_dirs, test_dirs):
@@ -61,19 +67,26 @@ def load_all_data(train_dirs, test_dirs):
         "test_first": test_first_dataset
     }
 
-
 class INTDataModule(pl.LightningDataModule):
     def __init__(self, config):
         self.config = config
 
-        if config.num_order_or_combo < 0:
-            config.num_order_or_combo = None
-
         super().__init__()
 
+        # setup vocab for sequence encoder
+        # if self.config.encoder_type == 'seq':
+        #     input_names = [chr(ord('a') + i) for i in range(25)] + \
+        #                   [str(i) for i in range(10)] \
+        #                   + ['+', '/', '*', '-', '=', ')', '(', '<space>',
+        #                      '<', '>', '<=', '>=', '^', '&', 't', 'o']  # %%
+        #
+        #     self.vocab = {v: k for k, v in enumerate(input_names)}
+
+
+        # all_first datasets are only the first step in the proof, and are used to intialise the rollout in evaluation
         if not self.config.online:
-            train_dirs = [os.path.join(self.config.path_to_data, train_dir) for train_dir in self.config.train_sets]
-            test_dirs = [os.path.join(self.config.path_to_data, test_dir) for test_dir in self.config.test_sets]
+            train_dirs = [os.path.join(self.config.path_to_data, train_dir) for train_dir in config.train_sets]
+            test_dirs = [os.path.join(self.config.path_to_data, test_dir) for test_dir in config.test_sets]
             all_data = load_all_data(train_dirs, test_dirs)
 
             (self.train_dataset, self.val_dataset, self.eval_dataset, self.train_first_dataset,
@@ -113,8 +126,8 @@ class INTDataModule(pl.LightningDataModule):
                                                                       train_test="test", backwards=True,
                                                                       transform_gt=self.config.transform_gt,
                                                                       degree=self.config.degree,
-                                                                      # num_order_or_combo=self.config.num_order_or_combo,
-                                                                      num_order_or_combo=None,
+                                                                      num_order_or_combo=self.config.num_order_or_combo,
+                                                                      # num_order_or_combo=None,
                                                                       **keyword_arguments)
 
                     self.eval_dataset.merge(one_piece_of_data["all"])
@@ -126,23 +139,28 @@ class INTDataModule(pl.LightningDataModule):
             print("Eval first step dataset length ", len(self.eval_first_dataset))
             self.reset()
 
-    # Every epoch this is checked, simplified with DataModule by reloading
+        # Every epoch this is checked, simplified with DataModule by reloading
+
+    def collate(self, batch):
+        if self.config.obs_mode == 'geometric':
+            return batch_process(batch)
+        else:
+            return batch_process(batch, mode='seq')
+
     def reset(self):
         self.train_dataset = Dataset([])
         self.train_first_dataset = Dataset([])
         for kl in self.config.train_sets:
             k = kl.split("_")[0][-1]
             l = int(kl[-1])
-            print (k,l)
 
             if self.config.online_order_generation:
                 keyword_arguments = {"combos": self.kl_dict}
             else:
                 keyword_arguments = {"orders": self.kl_dict}
 
-            print
 
-            one_piece_of_data, _ = generate_multiple_problems(k, l, num_probs=self.config.num_probs,
+            one_piece_of_data, problems = generate_multiple_problems(k, l, num_probs=self.config.num_probs,
                                                               train_test="train", backwards=True,
                                                               transform_gt=self.config.transform_gt,
                                                               degree=self.config.degree,
@@ -151,21 +169,22 @@ class INTDataModule(pl.LightningDataModule):
                                                               **keyword_arguments)
 
             self.train_dataset.merge(one_piece_of_data["all"])
+
+            # all_first used to initialise rollouts
             self.train_first_dataset.merge(one_piece_of_data["all_first"])
 
     def train_dataloader(self):
-        return torch.utils.data.DataLoader(self.train_dataset, batch_size=32, collate_fn=batch_process)
-
-    def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=32, collate_fn=batch_process)
-
-    def test_dataloader(self):
         # sampler = data_handler.RandomSampler(self.train_dataset)
         # batcher = data_handler.BatchSampler(sampler, batch_size=self.config.batch_size, drop_last=False)
         # batch = self.train_dataset.get_multiple(indices=indices)
         # batch_states, batch_actions, batch_name_actions = batch_process(batch, mode=self.config.obs_mode)
+        return torch.utils.data.DataLoader(self.train_dataset, batch_size=32, collate_fn=self.collate)
 
-        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=32, collate_fn=batch_process)
+    def val_dataloader(self):
+        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=32, collate_fn=self.collate)
+
+    def test_dataloader(self):
+        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=32, collate_fn=self.collate)
 
 
 class INTLoop(pl.LightningModule):
@@ -173,6 +192,7 @@ class INTLoop(pl.LightningModule):
                  thm_net,
                  data_module,
                  config):
+
         super().__init__()
 
         self.config = config
@@ -186,13 +206,14 @@ class INTLoop(pl.LightningModule):
             self.test_rollout(self.data_module.train_first_dataset)
 
         self.log_dict({"train_first_success_rate": train_first_success_rate,
-                       "train_first_avg_proof_length": train_first_avg_proof_length}, prog_bar=True)
+                       "train_first_avg_proof_length": train_first_avg_proof_length}, batch_size=self.config.batch_size)
 
     def forward(self, batch_states, batch_actions, sl_train=True):
         return self.thm_net(batch_states, batch_actions, sl_train)
 
     def training_step(self, batch, batch_idx):
         batch_states, batch_actions, batch_name_actions = batch
+
 
         log_probs, _, _, (
             lemma_acc, ent_acc, name_acc, diff_lemma_indices, diff_ent_lemma_indices) = self.forward(
@@ -203,7 +224,7 @@ class INTLoop(pl.LightningModule):
         self.log_dict({'loss': loss.detach(),
                        'lemma_acc': lemma_acc.detach(),
                        'ent_acc': ent_acc.detach(),
-                       'name_acc': name_acc.detach()}, prog_bar=True)
+                       'name_acc': name_acc.detach()}, batch_size=self.config.batch_size)
 
         return loss
 
@@ -221,15 +242,20 @@ class INTLoop(pl.LightningModule):
         self.log_dict({'val_loss': loss.detach(),
                        'val_lemma_acc': lemma_acc.detach(),
                        'val_ent_acc': ent_acc.detach(),
-                       'val_name_acc': name_acc.detach()}, batch_size=self.batch_size, prog_bar=True)
+                       'val_name_acc': name_acc.detach()}, batch_size=self.config.batch_size)
 
         return
 
-    def test_rollout(self, dataset):
+    def test_rollout(self, dataset, full_dataset=False):
+        if full_dataset:
+            eval_data = dataset.trajectories
+        else:
+            indices = range(len(dataset.trajectories))
+            eval_data = [dataset.trajectories[index] for index in random.sample(indices, k=self.config.num_test_probs)]
 
         env_config = {
             "mode": "eval",
-            "eval_dataset": dataset.trajectories,
+            "eval_dataset": eval_data,
             "online": False,
             "batch_eval": False,
             "verbo": True,
@@ -245,27 +271,27 @@ class INTLoop(pl.LightningModule):
         return success_rate, wrong_cases, success_cases, avg_num_steps
 
     def on_train_epoch_end(self):
-        if self.current_epoch % self.config.epoch_per_case_record == 0:
-            logging.info("Running rollout..")
+        if self.current_epoch % self.config.epochs_per_case_record == 0:
+            logging.info("Testing success rate on current proofs..")
 
-            # First-step rollouts
+            # Test success rate after training
             train_first_success_rate, train_first_wrong_case, train_first_right_case, train_first_avg_proof_length = \
                 self.test_rollout(self.data_module.train_first_dataset)
 
             self.log_dict({"train_first_success_rate": train_first_success_rate,
-                           "train_first_avg_proof_length": train_first_avg_proof_length})
+                           "train_first_avg_proof_length": train_first_avg_proof_length}, batch_size=self.config.batch_size)
 
             # val_first_success_rate, val_first_wrong_case, val_first_right_case, val_first_avg_proof_length = \
             #     self.test_rollout(self.data_module.val_first_dataset)
 
-            # self.log_dict({"val_first_success_rates": val_first_success_rate,
+            # self.log_dict({"val_first_success_rate": val_first_success_rate,
             #                "val_first_avg_proof_length": val_first_avg_proof_length})
 
             test_first_success_rate, test_first_wrong_case, test_first_right_case, test_first_avg_proof_length = \
-                self.test_rollout(self.data_module.eval_first_dataset)
+                self.test_rollout(self.data_module.eval_first_dataset, full_dataset=True)
 
             self.log_dict({"test_first_success_rate": test_first_success_rate,
-                           "test_first_avg_proof_length": test_first_avg_proof_length})
+                           "test_first_avg_proof_length": test_first_avg_proof_length}, batch_size=self.config.batch_size)
 
             cases_record = {
                 "train_first_wrong_case": train_first_wrong_case,
@@ -281,16 +307,23 @@ class INTLoop(pl.LightningModule):
                           os.path.join(
                               self.config.dump,
                               str(self.config.timestamp),
-                              "cases_record{0:.0%}.json".format(int(self.global_step / self.config.updates))),
+                              f"cases_record{(int(self.global_step / self.config.updates))}.json"),
                           "w")
                       )
 
+        if self.current_epoch % self.config.epochs_per_online_dataset == 0:
+            logging.info("Generating new proofs..")
             self.data_module.reset()
+
+            train_first_success_rate, train_first_wrong_case, train_first_right_case, train_first_avg_proof_length = \
+                self.test_rollout(self.data_module.train_first_dataset)
+
+            self.log_dict({"new_dataset_success_rates": train_first_success_rate,
+                           "new_dataset_avg_proof_lengths": train_first_avg_proof_length}, batch_size=self.config.batch_size)
+
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
-        # scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[5, 15, 25], gamma=0.1)
-        # return {"optimizer": optimizer, "lr_scheduler": scheduler}
         return optimizer
 
     def backward(self, loss, *args, **kwargs) -> None:
@@ -300,23 +333,16 @@ class INTLoop(pl.LightningModule):
             print(f"Error in backward: {e}")
 
 
-def config_to_dict(conf):
-    return OmegaConf.to_container(
-        conf, resolve=True, throw_on_missing=True
-    )
-
-
 @hydra.main(config_path="configs/new_confs", config_name="int_base")
 def int_experiment(config):
-    OmegaConf.resolve(config)
-    # timestamp = str(datetime.fromtimestamp(time())).replace(" ", "_").replace(":", "_").replace("-", "_").replace(".",
-    #                                                                                                               "_")
-    # config.timestamp = timestamp
-    os.makedirs(os.path.join(config.dump, str(config.timestamp)))
-    # os.makedirs(config.exp_config.directory + '/checkpoints', exist_ok=True)
+
     os.makedirs(config.exp_config.checkpoint_dir, exist_ok=True)
+    os.makedirs(os.path.join(config.dump, str(config.timestamp)))
 
     torch.set_float32_matmul_precision('high')
+
+    if config.num_order_or_combo < 0:
+        config.num_order_or_combo = None
 
     options = dict(
         num_nodes=len(nodename2index),
@@ -337,75 +363,82 @@ def int_experiment(config):
 
     data_module = INTDataModule(config)
 
-    experiment = INTLoop(ThmNet(**options), data_module=data_module, config=config)
+    if config.obs_mode == 'geometric':
+        experiment = INTLoop(ThmNet(**options),
+                             data_module=data_module,
+                             config=config)
+    else:
+        experiment = INTLoop(TransThmNet(**options),
+                             data_module=data_module,
+                             config=config)
 
-    logger = WandbLogger(project=config.logging_config.project,
-                         name=config.exp_config.name,
-                         # config=config_to_dict(self.config),
-                         notes=config.logging_config.notes,
+    if config.exp_config.resume:
+        print ('resuming')
+        logger = WandbLogger(project=config.logging_config.project,
+                             name=config.exp_config.name,
+                             # config=config_to_dict(config),
+                             notes=config.logging_config.notes,
+                             offline=config.logging_config.offline,
+                             save_dir=config.exp_config.directory,
+                             id=config.logging_config.id,
+                             resume='must',
+                             )
 
-                         # offline=self.config.exp_config.logging_config.offline,
-                         offline=True,
-                         save_dir=config.exp_config.directory,
-                         # log_model='all'
-                         )
+    else:
+        logger = WandbLogger(project=config.logging_config.project,
+                             name=config.exp_config.name,
+                             # config=config_to_dict(config),
+                             notes=config.logging_config.notes,
+                             offline=config.logging_config.offline,
+                             save_dir=config.exp_config.directory,
+                             )
+
+
 
     callbacks = []
 
-    checkpoint_callback = ModelCheckpoint(monitor="test_first_success_rate", mode="max",
+    checkpoint_callback = ModelCheckpoint(monitor="val_ent_acc", mode="max",
                                           auto_insert_metric_name=True,
                                           save_top_k=3,
-                                          filename="{epoch}-{acc}",
-                                          # save_on_train_epoch_end=True,
+                                          filename="{epoch}-{val_ent_acc}",
                                           save_last=True,
-                                          # save_weights_only=True,
+                                          every_n_epochs=10,
                                           dirpath=config.exp_config.checkpoint_dir)
 
     callbacks.append(checkpoint_callback)
 
     trainer = pl.Trainer(
+        check_val_every_n_epoch=10,
         max_epochs=config.epochs,
         logger=logger,
         enable_progress_bar=True,
-        log_every_n_steps=500,
         callbacks=callbacks,
         accelerator=config.exp_config.accelerator,
-        devices=[0]
-        # devices = self.config.exp_config.device
+        devices = config.exp_config.device
     )
 
-    # trainer.val_check_interval = self.config.val_frequency
-    # if self.config.limit_val_batches:
-    #     trainer.limit_val_batches = self.config.val_size // self.config.batch_size
 
-    # experiment.test_rollout(data_module.train_first_dataset)
-    # exit()
+    if config.exp_config.resume:
 
-    trainer.fit(model=experiment, datamodule=data_module)
+        logging.debug("Resuming experiment from last checkpoint..")
+        ckpt_dir = config.exp_config.checkpoint_dir + "/last.ckpt"
+
+        if not os.path.exists(ckpt_dir):
+            raise Exception(f"Missing checkpoint in {ckpt_dir}")
+
+        logging.debug("Resuming experiment from last checkpoint..")
+        ckpt_dir = config.exp_config.checkpoint_dir + "/last.ckpt"
+        state_dict = torch.load(ckpt_dir)['state_dict']
+        experiment.load_state_dict(state_dict)
+        trainer.fit(model=experiment, datamodule=data_module, ckpt_path=ckpt_dir)
+    else:
+        trainer.fit(model=experiment, datamodule=data_module)
+
+
+    # trainer.fit(model=experiment, datamodule=data_module)
     logger.experiment.finish()
 
 
+
 if __name__ == '__main__':
-    # print('asdf')
-    # args = get_args()
-    # print(args)
-    # args.use_gpu = args.cuda and torch.cuda.is_available()
-    #
-    # device = torch.device("cuda" if args.use_gpu else "cpu")
-
-    # if args.num_order_or_combo < 0:
-    #     args.num_order_or_combo = None
-
-    # dgl = (args.obs_mode == "dgl")
-    # bow = args.bag_of_words
-    # print(args.transform_gt)
-    # if dgl and (not bow):
-    #     from environments.int_environment.algos.model.old.thm_model_dgl import ThmNet
-    # elif bow and (not dgl):
-    #     from environments.int_environment.algos.model.thm_model import ThmNet
-    # elif (not bow) and (not dgl):
-    #     from environments.int_environment.algos.model.thm_model import ThmNet
-    # else:
-    #     raise AssertionError
-
     int_experiment()

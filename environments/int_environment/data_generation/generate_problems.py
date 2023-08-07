@@ -91,11 +91,15 @@ def produce_operands_info_for_substitution(prover, result, how_to_extend, make_u
 
 def apply_ordinary_lemma(probability_no_transform, transform_gt, prover, lemma, core_gt, entities,
                          transformed_solutions, premise_names, no_atom_ents, steps):
+
     # Decide whether to do transformation or not according to a 1-e/e probability
     # Default e=0
+
     do_transform_this_time = False if random.random() < probability_no_transform else transform_gt
+
     action_info = produce_operands_info_for_ordinary_lemma(prover, lemma, core_gt, entities, do_transform_this_time,
                                                            transformed_solutions, premise_names, no_atom_ents)
+
     # There's no action that can be performed at this time, therefore an invalid problem
     if action_info is None:
         return
@@ -347,7 +351,6 @@ def generate_multiple_problems(num_axioms, length, num_probs, **kwargs):
     assert sum(num_problems_per_subprocess) == num_probs
     generate_problem_args = dict(num_axioms=num_axioms, length=length, **kwargs)
 
-    print ('break')
     with ProcessPoolExecutor(max_workers=20) as executor:
         for generated_steps_arr in executor.map(_generate_many_problems, num_problems_per_subprocess,
                                                 (generate_problem_args for _ in range(num_sub_works))):

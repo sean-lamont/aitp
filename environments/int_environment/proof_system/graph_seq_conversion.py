@@ -85,6 +85,7 @@ class Parser:
                 index_by_name_str = ""
             else:
                 index_by_name_str = f" {index_by_name}"
+
             target += entity_to_seq_string(argument) + " in " + root_name + index_by_name_str
 
             if i != len(step["input_entities"]) - 1:

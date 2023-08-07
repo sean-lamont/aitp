@@ -100,6 +100,7 @@ def entity_to_latex(entity, string=False):
 
 
 def logic_statement_to_latex(logic_statement, string=False):
+
     if string:
         logic_statement_name = logic_statement
     else:

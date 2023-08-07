@@ -2,110 +2,25 @@ defaults:
   - optimiser_config
   - logging_config
 
-#data_config.batch_size: 16
+epochs: 100000
+batch_size: 32
 
 logging_config:
-  project: 'INT'
-  offline: True
+  project: INT
+  offline: False
+#  offline: False
+#  id: 'bcqz72ui'
 
-batch_size: 32
 resume: False
 
-#val_size: 40000
-epochs: 20
-
-#limit_val_batches: True
-#val_frequency: 2048
-#batch_size: 32
-
-
-
-
-
-# arguments from original INT config
-use_gpu: True
-algo: 'a2c'
-alpha: 0.99
-atten_type: 0
-attention_heads: 8
-bag_of_words: False
-clip_param: 0.2
-combined_gt_obj: True
-combo_path: ???
-cuda: True
-cuda_deterministic: False
-degree: 0
-dropout_rate: 0.0
-dump: ???
-entity_cost: 1.0
-entropy_coef: 0.01
-env_name: 'PongNoFrameskip-v4'
-epoch: 100000
-epoch_per_case_record: 10
-epoch_per_record: 10
-epochs_per_online_dataset: 10
-eps: 1e-05
-eval_interval: None
-evaluation_size: 256
-fix_policy: False
-gae_lambda: 0.95
-gail: False
-gail_batch_size: 128
-gail_epoch: 5
-gail_experts_dir: './gail_experts'
-gamma: 0.99
-gat_dropout_rate: 0.0
-gnn_type: 'GIN'
-hidden: 6
-hidden_dim: 512
-lemma_cost: 1.0
-log_interval: 10
-lr: 0.0001
-max_grad_norm: 0.5
-mode: 'solve'
-no_cuda: False
-norm: None
-num_env_steps: 10000000.0
-num_mini_batch: 32
-num_order_or_combo: -1
-num_probs: 1000
-num_processes: 5
-num_steps: 4
-num_test_probs: 100
-num_val_probs: 100
-obs_mode: 'geometric'
-online: True
-online_order_generation: False
-path_to_data: None
-ppo_epoch: 4
-pretrain_dir: ''
-recurrent_policy: False
-resume_dir: ''
-save_dir: './trained_models/'
-save_interval: 100
-saving_dir: '/tmp/gym/'
-seed: 0
-test_sets: ['k=5_l=5']
-time_limit: 15
-train_sets: ['k=5_l=5']
-transform_gt: True
-updates: 1000000
-use_gae: False
-use_linear_lr_decay: False
-use_proper_time_limits: False
-value_loss_coef: 0.5
-verbo: False
-timestamp: ${now:%Y_%m_%d_%H_%M_%S}
-
-
 exp_config:
-  name: int_test
+  name: gnn
   experiment: int_experiment
-  directory: experiments/runs/${.experiment}/${now:%Y_%m_%d}/${.name}_${now:%H_%M_%S}
+  directory: 'experiments/runs/${.experiment}/${now:%Y_%m_%d}/${.name}_${now:%H_%M_%S}'#'experiments/runs/holist_pretrain/2023_08_05/int_experiment_17_55_27'
   checkpoint_dir: ${.directory}/checkpoints
   accelerator: gpu
-  device: [1]
-
+  device: [0]
+  resume: False
 
 #model_config:
 #  model_type: ???
@@ -116,3 +31,90 @@ hydra:
     dir: ${exp_config.directory}
   job:
     chdir: False
+
+
+use_gpu: True
+timestamp: ${now:%Y_%m_%d_%H_%M_%S}
+path_to_data: ""
+train_sets: ["k=3_l=3"]
+test_sets: ["k=3_l=3"]
+# whether to test graph or transformer encoder
+obs_mode: "seq"
+num_probs: 1000
+evaluation_size: 256
+num_val_probs: 100
+num_test_probs: 100
+transform_gt: True
+online: True
+combo_path: ???
+online_order_generation: True
+num_order_or_combo: -1
+cuda: True
+dump: ???
+resume_dir: ""
+pretrain_dir: ""
+fix_policy: True
+epoch_per_record: 1
+epochs_per_case_record: 50
+epochs_per_online_dataset: 10
+epoch: 100000
+updates: 200000
+time_limit: 15
+seed: 0
+
+# optimization hps
+#batch_size: 32
+lemma_cost: 1.0
+entity_cost: 1.0
+dropout_rate: 0.1
+gat_dropout_rate: 0.0
+
+# neural architecture hps
+hidden: 6
+hidden_dim: 512
+gnn_type: 'GIN'
+atten_type: 0
+attention_heads: 8
+norm: None
+
+combined_gt_obj: False
+bag_of_words: False
+
+# Environment setting
+mode: 'solve'
+verbo: True
+degree: 0
+
+# RL specific setting
+
+eval_interval: None
+algo: 'a2c'
+gail: 'False'
+gail-experts-dir: './gail_experts'
+gail-batch-size: 128
+gail-epoch: 5
+eps: 1e-5
+alpha: 0.99
+gamma: 0.99
+use-gae: False
+gae-lambda: 0.95
+entropy-coef: 0.01
+value-loss-coef: 0.5
+max-grad-norm: 0.5
+cuda-deterministic: False
+num_processes: ???
+num_steps: 4
+ppo-epoch: 4
+num-mini-batch: 32
+clip-param: 0.2
+log-interval: 10
+save-interval: 100
+eval-interval: None
+num-env-steps: 10e6
+env-name: 'PongNoFrameskip-v4'
+saving_dir: '/tmp/gym/'
+save-dir: './trained_models/'
+no-cuda: False
+use-proper-time-limits: False
+recurrent-policy: False
+use-linear-lr-decay: False

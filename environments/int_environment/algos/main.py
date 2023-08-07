@@ -196,6 +196,7 @@ def train_epoch(model, dataset, optimizer, updates):
 
 
 # Validate every epoch
+
 def validate(model, e_dataset):
     model.eval()
     validation_batch = e_dataset.io_tuples[:args.evaluation_size]
@@ -336,8 +337,10 @@ def train_eval_test(model, optimizer, kl_dict=None, all_data=None, resume_dir=No
 
             new_dataset_success_rate, new_dataset_wrong_case, new_dataset_right_case, new_dataset_avg_proof_length = \
                 test_rollout(model, train_first_dataset)
+
             new_dataset_success_rates.append(new_dataset_success_rate)
             new_dataset_avg_proof_lengths.append(new_dataset_avg_proof_length)
+
             record["new_dataset_success_rates"] = new_dataset_success_rates
             record["new_dataset_avg_proof_lengths"] = new_dataset_avg_proof_lengths
 
@@ -345,8 +348,10 @@ def train_eval_test(model, optimizer, kl_dict=None, all_data=None, resume_dir=No
         time0 = time()
         if updates >= args.updates:
             break
+
         train_loss, train_lemma_acc, train_ent_acc, train_name_acc, updates = \
             train_epoch(model, train_dataset, optimizer, updates)
+
         train_losses.append(train_loss)
         train_lemma_accs.append(train_lemma_acc)
         train_ent_accs.append(train_ent_acc)
@@ -409,6 +414,7 @@ def train_eval_test(model, optimizer, kl_dict=None, all_data=None, resume_dir=No
 
             train_first_success_rate, train_first_wrong_case, train_first_right_case, train_first_avg_proof_length = \
                 test_rollout(model, train_first_dataset)
+
             train_first_success_rates.append(train_first_success_rate)
             train_first_avg_proof_lengths.append(train_first_avg_proof_length)
             print("train success rate {}".format(train_first_success_rate))
@@ -424,6 +430,7 @@ def train_eval_test(model, optimizer, kl_dict=None, all_data=None, resume_dir=No
 
             test_first_success_rate, test_first_wrong_case, test_first_right_case, test_first_avg_proof_length = \
                 test_rollout(model, eval_first_dataset, whole_dataset=True)
+
             test_first_success_rates.append(test_first_success_rate)
             test_first_avg_proof_lengths.append(test_first_avg_proof_length)
             print("test success rate {}".format(test_first_success_rate))
@@ -460,6 +467,7 @@ def train_eval_test(model, optimizer, kl_dict=None, all_data=None, resume_dir=No
             timing["{}epoch_cases".format(args.epoch_per_case_record)] = time() - time0
             json.dump(record, open(os.path.join(args.dump, str(timestamp), "record.json"), "w"))
             torch.save(model, os.path.join(args.dump, str(timestamp), "model_checkpoint.pt"))
+
         json.dump(timing, open(os.path.join(args.dump, str(timestamp), "timing.json"), "w"))
 
 
