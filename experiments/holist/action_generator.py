@@ -144,6 +144,7 @@ class ActionGenerator(object):
             options: deephol_pb2.ActionGeneratorOptions,
             model_architecture: deephol_pb2.ProverOptions.ModelArchitecture,
             emb_store: Optional[embedding_store.TheoremEmbeddingStore] = None):
+
         self.theorem_database = theorem_database
         self.tactics = tactics
         self.predictor = predictor
@@ -303,6 +304,7 @@ class ActionGenerator(object):
         # generate goal embedding
         proof_state = predictions.ProofState(
             goal=str(normalization_lib.normalize(node.goal).conclusion))
+
 
         proof_state_emb = self.predictor.proof_state_embedding(proof_state)
         proof_state_enc = self.predictor.proof_state_encoding(proof_state_emb)

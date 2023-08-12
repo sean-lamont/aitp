@@ -11,8 +11,8 @@ from environments.hol4.new_env import *
 from experiments.hol4_tactic_zero.rl.agent_utils import *
 from experiments.hol4_tactic_zero.rl.hol4_tactic_zero import HOL4TacticZero
 from experiments.hol4_tactic_zero.rl.tactic_zero_data_module import *
-from experiments.premise_selection import config_to_dict
-from experiments.pyrallis_configs import TacticZeroRLConfig
+from experiments.premise_selection_old import config_to_dict
+from experiments.pyrallis_configs_old import TacticZeroRLConfig
 from models.get_model import get_model
 from models.gnn.formula_net.formula_net import FormulaNetEdges
 from models.tactic_zero.policy_models import ArgPolicy, TacPolicy, TermPolicy, ContextPolicy

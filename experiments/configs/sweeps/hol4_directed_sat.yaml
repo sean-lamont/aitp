@@ -9,17 +9,21 @@ metric:
   name: acc
 parameters:
   model_config.model_attributes.gnn_layers:
-    values: [1]
+    values: [1,2,4]
   model_config.model_attributes.global_pool:
-    values: ['mean']
+    values: ['max']
   model_config.model_attributes.num_heads:
-    values: [4]
+    values: [4, 2]
   model_config.model_attributes.num_layers:
-    values: [4,2]
-  model_config.model_attributes.abs_pe:
-    values: [True,False]
-  model_config.model_attributes.dropout:
-    values: [0.]
+    values: [4,2,1]
+#  model_config.model_attributes.abs_pe:
+#    values: [True,False]
+#  model_config.model_attributes.dropout:
+#    values: [0.]
+
+early_terminate:
+  type: hyperband
+  min_iter: 3
 
 run_cap: 100
 

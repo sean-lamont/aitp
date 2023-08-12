@@ -17,6 +17,7 @@ exp_config:
   checkpoint_dir: ${.directory}/checkpoints
   accelerator: gpu
   device: [0]
+  resume: False
 
 model_config:
   model_type: ???

@@ -15,7 +15,7 @@ from lightning.pytorch.loggers import WandbLogger
 from models.get_model import get_model
 from models.gnn.formula_net.formula_net import BinaryClassifier
 import torch
-from experiments.pyrallis_configs import PremiseSelectionConfig
+from experiments.pyrallis_configs_old import PremiseSelectionConfig
 
 # @hydra.main(config_path="./", config_name="sweep")
 def sweep(config):

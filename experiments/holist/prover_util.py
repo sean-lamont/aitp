@@ -158,6 +158,7 @@ def try_tactics(node: proof_search_tree.ProofSearchNode, max_tries: int,
         round(1000.0 * (time.time() - start_time)))
     logging.info('Suggestions and scores: %s', str(suggestion_scores))
     if not suggestion_scores:
+        print ("No suggestion scores")
         return 0
     top_suggestions = sorted(suggestion_scores, key=lambda x: x[1], reverse=True)
     request = proof_assistant_pb2.ApplyTacticRequest(
@@ -170,6 +171,7 @@ def try_tactics(node: proof_search_tree.ProofSearchNode, max_tries: int,
             (len(node.successful_attempts) < min_successes or
              (len(node.successful_attempts) + len(node.failed_attempts) <= max_tries))
             and (len(node.successful_attempts) < max_successes)):
+
         top_suggestion, score = top_suggestions.pop(0)
         request.tactic = top_suggestion
 

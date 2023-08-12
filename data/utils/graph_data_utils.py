@@ -39,7 +39,8 @@ Used for masking attention in Structure Aware Transformer (SAT) Models
 
 
 def get_directed_edge_index(num_nodes, edge_idx):
-    if num_nodes == 1:
+    # empty, or too large
+    if num_nodes == 1 or edge_idx.shape[1] > 1850:
         return torch.LongTensor([[], []])
 
     from_idx = []
@@ -157,13 +158,16 @@ def list_to_graph(data_list, attributes):
 
 
 # todo rename/refactor to 'Transforms'
-def to_data(expr, data_type, vocab, config=None):
+def to_data(expr, data_type, vocab, config=None, attention_edge=None):
     if data_type == 'graph':
         data = DirectedData(x=torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in expr['tokens']]),
                             edge_index=torch.LongTensor(expr['edge_index']),
                             edge_attr=torch.LongTensor(expr['edge_attr']), )
 
-        if config is not None:
+        if config is not None or attention_edge is not None:
+            if attention_edge is not None:
+                data.attention_edge_index = torch.LongTensor(expr['attention_edge_index'])
+                return data
             if 'attention_edge' in config.attributes and config.attributes['attention_edge'] == 'directed':
                 data.attention_edge_index = torch.LongTensor(expr['attention_edge_index'])
             if 'pe' in config.attributes:
@@ -189,7 +193,7 @@ def to_data(expr, data_type, vocab, config=None):
         return torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in expr['polished']])
 
     elif data_type == 'ensemble':
-        return (to_data(expr, 'graph', vocab, config), to_data(expr, 'sequence_polished', vocab, config))
+        return (to_data(expr, 'graph', vocab, config), to_data(expr, 'sequence', vocab, config))
         # return (to_data(expr, 'graph', vocab, config), to_data(expr, 'sequence', vocab, config))
 
     # add other transforms here, map from stored expression data to preprocessed format.

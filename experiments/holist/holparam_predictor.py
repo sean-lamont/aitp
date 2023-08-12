@@ -71,20 +71,50 @@ class HolparamPredictor(predictions.Predictions):
         self.config = config
 
         # todo load model arch from config and get_model
-
-        self.embedding_model_goal = GraphTransformer(input_shape=1500,
+        self.embedding_model_goal = GNNEncoder(input_shape=1500,
                                                embedding_dim=128,
-                                               k_hop=1,
-                                               dropout=0.2,
-                                                batch_norm=False,
-                                                     global_pool='max',
-                                                     num_edge_features=3,
-                                                     ).cuda()
+                                               num_iterations=12,
+                                               dropout=0.2).cuda()
 
         self.embedding_model_premise = GNNEncoder(input_shape=1500,
                                                   embedding_dim=128,
                                                   num_iterations=12,
                                                   dropout=0.2).cuda()
+
+        # self.embedding_model_goal = GraphTransformer(in_size=1500,
+        #                                              num_class=2,
+        #                                              d_model=128,
+        #                                              k_hop=1,
+        #                                              dropout=0.2,
+        #                                              batch_norm=False,
+        #                                              global_pool='max',
+        #                                              num_edge_features=3,
+        #                                              dim_feedforward=256,
+        #                                              num_heads=4,
+        #                                              num_layers=4,
+        #                                              in_embed=True,
+        #                                              se='gnn-encoder',
+        #                                              abs_pe=False,
+        #                                              use_edge_attr=True,
+        #                                              ).cuda()
+        #
+        # self.embedding_model_premise = GraphTransformer(in_size=1500,
+        #                                                 d_model=128,
+        #                                                 k_hop=1,
+        #                                                 num_class=2,
+        #                                                 dropout=0.2,
+        #                                                 batch_norm=False,
+        #                                                 global_pool='max',
+        #                                                 num_edge_features=3,
+        #                                                 dim_feedforward=256,
+        #                                                 num_heads=4,
+        #                                                 num_layers=4,
+        #                                                 in_embed=True,
+        #                                                 se='gnn-encoder',
+        #                                                 abs_pe=False,
+        #                                                 use_edge_attr=True,
+        #                                                 ).cuda()
+
 
         self.tac_model = TacticPrecdictor(
             embedding_dim=1024,
@@ -107,20 +137,20 @@ class HolparamPredictor(predictions.Predictions):
         db = client['holist']
         expr_col = db['expression_graphs']
         vocab_col = db['vocab']
-        filter = ['tokens', 'edge_index', 'edge_attr']
+        filter = ['tokens', 'edge_index', 'edge_attr', 'attention_edge_index']
 
         self.vocab = {k['_id']: k['index'] for k in vocab_col.find()}
         self.filter = filter
 
         logging.info("Loading expression dictionary..")
 
-        # self.expr_dict = {v["_id"]: self.to_torch(v['data'])
+        print("loading expressions..")
+        self.expr_dict = {}
+        # self.expr_dict = {v["_id"]: {x: v['data'][x] for x in self.filter}#self.to_torch(v['data'])
         #                   for v in tqdm(expr_col.find({}))}
-        #
-
 
     def load_pretrained_model(self, ckpt_dir):
-        print ("loading")
+        print("loading")
         logging.info(f"Loading checkpoint from {ckpt_dir}")
         ckpt = torch.load(ckpt_dir + '.ckpt')['state_dict']
         self.embedding_model_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
@@ -129,7 +159,11 @@ class HolparamPredictor(predictions.Predictions):
         self.combiner_model.load_state_dict(get_model_dict('combiner_model', ckpt))
 
     def to_torch(self, data_dict):
-        return to_data({x: data_dict[x] for x in self.filter}, data_type='graph', vocab=self.vocab)
+        # if data_dict not in self.expr_dict:
+        # return to_data({x: data_dict[x] for x in self.filter}, data_type='graph', vocab=self.vocab, attention_edge=True)
+        # return to_data({x: data_dict[x] for x in self.filter}, data_type='graph', vocab=self.vocab, attention_edge=True)
+
+        return to_data(data_dict, data_type='graph', vocab=self.vocab, attention_edge=True)
 
     def _goal_string_for_predictions(self, goals: List[Text]) -> List[Text]:
         return [process_sexp.process_sexp(goal) for goal in goals]
@@ -144,12 +178,13 @@ class HolparamPredictor(predictions.Predictions):
         with torch.no_grad():
             goals = self._goal_string_for_predictions(goals)
 
-            # goal_data = Batch.from_data_list([self.expr_dict[t] if t in self.expr_dict
-            #                                   else self.to_torch(sexpression_to_graph(t))
+            # goals = [self.expr_col.find_one({'_id': t}) if t in for t in goals]
+            # goal_data = Batch.from_data_list([self.to_torch(sexpression_to_graph(t))
             #                                   for t in goals])
-            #
-            goal_data = Batch.from_data_list([self.to_torch(sexpression_to_graph(t))
-                                              for t in goals])
+
+            goal_data = Batch.from_data_list(
+                [self.to_torch(sexpression_to_graph(t, all_data=True)) if t not in self.expr_dict else self.to_torch(self.expr_dict[t])
+                 for t in goals])
 
             embeddings = self.embedding_model_goal(goal_data.cuda())
             embeddings = embeddings.cpu().numpy()
@@ -160,15 +195,12 @@ class HolparamPredictor(predictions.Predictions):
         # The checkpoint should have exactly one value in this collection.
         with torch.no_grad():
             thms = self._thm_string_for_predictions(thms)
-            # todo configure data type
-            #
-            # thms_data = Batch.from_data_list([self.expr_dict[t] if t in self.expr_dict
-            #                                   else self.to_torch(sexpression_to_graph(t))
-            #                                   for t in thms])
-            #
 
-            thms_data = Batch.from_data_list([self.to_torch(sexpression_to_graph(t))
-                                              for t in thms])
+            # todo configure data type
+
+            thms_data = Batch.from_data_list(
+                [self.to_torch(sexpression_to_graph(t, all_data=True)) if t not in self.expr_dict else self.to_torch(self.expr_dict[t])
+                 for t in thms])
 
             embeddings = self.embedding_model_premise(thms_data.cuda())
             embeddings = embeddings.cpu().numpy()
@@ -177,7 +209,6 @@ class HolparamPredictor(predictions.Predictions):
     def thm_embedding(self, thm: Text) -> THM_EMB_TYPE:
         """Given a theorem as a string, compute and return its embedding."""
         # Pack and unpack the thm into a batch of size one.
-        # [embedding] = self.batch_thm_embedding([thm])
         [embedding] = self.batch_thm_embedding([thm])
         return embedding
 

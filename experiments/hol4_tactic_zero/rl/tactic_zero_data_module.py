@@ -10,7 +10,7 @@ from tqdm import tqdm
 from data.hol4 import ast_def
 from data.utils.graph_data_utils import to_data, list_to_data
 from environments.get_env import get_env
-from experiments.pyrallis_configs import DataConfig
+from experiments.pyrallis_configs_old import DataConfig
 
 
 class RLData(pl.LightningDataModule):

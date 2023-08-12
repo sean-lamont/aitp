@@ -12,7 +12,7 @@ from experiments.holist import io_util, deephol_pb2
 from experiments.holist.deephol_loop import options_pb2
 from experiments.holist.utilities import prooflog_to_examples
 from experiments.holist.utilities.sexpression_graphs import SExpressionGraph
-from experiments.holist.utilities.sexpression_to_graph import sexpression_to_graph
+from experiments.holist.utilities.sexpression_to_graph import sexpression_to_graph, sexpression_to_polish
 
 
 def tokenize_string(string):
@@ -22,28 +22,28 @@ def tokenize_string(string):
     return tokens
 
 
-def sexpression_to_polish(sexpression_text):
-    sexpression = SExpressionGraph()
-    sexpression.add_sexp(sexpression_text)
-    out = []
-
-    def process_node(node):
-        if len(sexpression.get_children(node)) == 0:
-            out.append(node)
-
-
-        for i, child in enumerate(sexpression.get_children(node)):
-            if i == 0:
-                # out.append('@') for i in range(sexpression.get_children(node) - 1)
-                out.append(sexpression.to_text(child))
-                continue
-            # todo add special char when adding child? e.g. out.append('@') for i in range(sexpression.get_children(node) - 1)
-            process_node(sexpression.to_text(child))
-
-    process_node(sexpression.to_text(sexpression.roots()[0]))
-    return out
-
-
+# def sexpression_to_polish(sexpression_text):
+#     sexpression = SExpressionGraph()
+#     sexpression.add_sexp(sexpression_text)
+#     out = []
+#
+#     def process_node(node):
+#         if len(sexpression.get_children(node)) == 0:
+#             out.append(node)
+#
+#
+#         for i, child in enumerate(sexpression.get_children(node)):
+#             if i == 0:
+#                 # out.append('@') for i in range(sexpression.get_children(node) - 1)
+#                 out.append(sexpression.to_text(child))
+#                 continue
+#             # todo add special char when adding child? e.g. out.append('@') for i in range(sexpression.get_children(node) - 1)
+#             process_node(sexpression.to_text(child))
+#
+#     process_node(sexpression.to_text(sexpression.roots()[0]))
+#     return out
+#
+#
 # gen vocab dictionary from file
 def gen_vocab_dict(vocab_file):
     with open(vocab_file) as f:

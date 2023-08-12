@@ -74,7 +74,7 @@ flags.DEFINE_integer(
 flags.DEFINE_integer('max_theorem_parameters', None,
                         'Override max_theorem_parameters in prover options.')
 
-flags.DEFINE_string('output', '/home/sean/Documents/phd/repo/aitp/data/holist/proof_logs.textpbs',
+flags.DEFINE_string('output', '/home/sean/Documents/phd/repo/aitp/data/holist/proof_logs_gnn.textpbs',
                     'Path where proof logs are saved.')
 
 
@@ -190,17 +190,23 @@ def process_prover_flags():
         sorted(list(library_tags))))
 
   # Fail fast in case error in specifying tactics.
+
   _ = io_util.load_tactics_from_file(
       str(prover_options.path_tactics),
       str(prover_options.path_tactics_replace))
+
   theorem_db = io_util.load_theorem_database_from_file(
       str(prover_options.path_theorem_database))
+
   if not theorem_db.HasField('name'):
     theorem_db.name = 'default'  # Set a dummy name for backwards compatibility
+
     logging.warning('Missing theorem database name is set to %s',
                        theorem_db.name)
+
   if FLAGS.task_list and FLAGS.tasks:
     logging.fatal('Only one of --tasks or --task_list is allowed.')
+
   prover_tasks = prover_util.get_task_list(FLAGS.tasks, FLAGS.task_list,
                                            FLAGS.tasks_by_fingerprint,
                                            theorem_db, splits_to_prove,
@@ -209,4 +215,5 @@ def process_prover_flags():
   # TODO(szegedy): Verify tasks that they all fit the theorem database(s)
 
   logging.info('Number of prover tasks: %d', len(prover_tasks))
+
   return (prover_tasks, prover_options, FLAGS.output)

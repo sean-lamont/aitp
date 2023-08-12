@@ -1,3 +1,4 @@
+import logging
 import os
 import warnings
 
@@ -7,6 +8,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from omegaconf import OmegaConf
 
 from data.get_data import get_data
+from experiments.get_optim import get_optim
 
 warnings.filterwarnings('ignore')
 import lightning.pytorch as pl
@@ -89,6 +91,7 @@ class PremiseSelection(pl.LightningModule):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[5, 15, 25], gamma=0.1)
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
+        # return torch.optim.Adam(self.parameters(), lr=self.lr)
 
     def backward(self, loss, *args, **kwargs) -> None:
         try:
@@ -109,7 +112,7 @@ def premise_selection_experiment(config):
     torch.set_float32_matmul_precision('medium')
 
     OmegaConf.resolve(config)
-    os.makedirs(config.exp_config.directory + '/checkpoints')
+    os.makedirs(config.exp_config.directory + '/checkpoints', exist_ok=True)
 
     experiment = PremiseSelection(get_model(config.model_config),
                                   get_model(config.model_config),
@@ -119,13 +122,27 @@ def premise_selection_experiment(config):
 
     data_module = get_data(config.data_config)
 
-    logger = WandbLogger(project=config.logging_config.project,
-                         name=config.exp_config.name,
-                         config=config_to_dict(config),
-                         notes=config.logging_config.notes,
-                         offline=config.logging_config.offline,
-                         save_dir=config.exp_config.directory,
-                         )
+    if config.exp_config.resume:
+        logging.info('Resuming run..')
+        logger = WandbLogger(project=config.logging_config.project,
+                             name=config.exp_config.name,
+                             config=config_to_dict(config),
+                             notes=config.logging_config.notes,
+                             offline=config.logging_config.offline,
+                             save_dir=config.exp_config.directory,
+                             id=config.logging_config.id,
+                             resume='must',
+                             )
+
+    else:
+        logger = WandbLogger(project=config.logging_config.project,
+                             name=config.exp_config.name,
+                             config=config_to_dict(config),
+                             notes=config.logging_config.notes,
+                             offline=config.logging_config.offline,
+                             save_dir=config.exp_config.directory,
+                             )
+
 
     callbacks = []
 
@@ -133,9 +150,7 @@ def premise_selection_experiment(config):
                                           auto_insert_metric_name=True,
                                           save_top_k=3,
                                           filename="{epoch}-{acc}",
-                                          # save_on_train_epoch_end=True,
                                           save_last=True,
-                                          # save_weights_only=True,
                                           dirpath=config.exp_config.checkpoint_dir)
 
     callbacks.append(checkpoint_callback)
@@ -155,7 +170,24 @@ def premise_selection_experiment(config):
     if config.limit_val_batches:
         trainer.limit_val_batches = config.val_size // config.batch_size
 
-    trainer.fit(model=experiment, datamodule=data_module)
+
+    if config.exp_config.resume:
+
+        logging.debug("Resuming experiment from last checkpoint..")
+        ckpt_dir = config.exp_config.checkpoint_dir + "/last.ckpt"
+
+        if not os.path.exists(ckpt_dir):
+            raise Exception(f"Missing checkpoint in {ckpt_dir}")
+
+        logging.debug("Resuming experiment from last checkpoint..")
+        ckpt_dir = config.exp_config.checkpoint_dir + "/last.ckpt"
+        state_dict = torch.load(ckpt_dir)['state_dict']
+        experiment.load_state_dict(state_dict)
+        trainer.fit(model=experiment, datamodule=data_module, ckpt_path=ckpt_dir)
+    else:
+        trainer.fit(model=experiment, datamodule=data_module)
+
+    # trainer.fit(model=experiment, datamodule=data_module)
     logger.experiment.finish()
 
 

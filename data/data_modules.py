@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from data.stream_dataset import MongoStreamDataset
 from data.utils.graph_data_utils import to_data, list_to_data
-from experiments.pyrallis_configs import DataConfig
+from experiments.pyrallis_configs_old import DataConfig
 
 '''
 

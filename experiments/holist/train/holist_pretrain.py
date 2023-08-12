@@ -6,7 +6,7 @@ import pyrallis
 import torch
 
 from data.get_data import get_data
-from experiments.pyrallis_configs import HOListPretrainConfig
+from experiments.pyrallis_configs_old import HOListPretrainConfig
 from models.get_model import get_model
 from models.holist_models.tactic_predictor import TacticPrecdictor, CombinerNetwork
 from lightning.pytorch.callbacks import ModelCheckpoint

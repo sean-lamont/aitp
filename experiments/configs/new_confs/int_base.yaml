@@ -14,7 +14,7 @@ logging_config:
 resume: False
 
 exp_config:
-  name: transformer
+  name: offline_gnn_5_5
   experiment: int_experiment
   directory: 'experiments/runs/${.experiment}/${now:%Y_%m_%d}/${.name}_${now:%H_%M_%S}'#'experiments/runs/holist_pretrain/2023_08_05/int_experiment_17_55_27'
   checkpoint_dir: ${.directory}/checkpoints
@@ -36,8 +36,8 @@ hydra:
 use_gpu: True
 timestamp: ${now:%Y_%m_%d_%H_%M_%S}
 path_to_data: ""
-train_sets: ["k=3_l=3"]
-test_sets: ["k=3_l=3"]
+train_sets: ["k=5_l=5"]
+test_sets: ["k=5_l=5"]
 # whether to test graph or transformer encoder
 obs_mode: "geometric"
 num_probs: 1000
@@ -47,7 +47,7 @@ num_test_probs: 100
 transform_gt: True
 online: True
 combo_path: ???
-online_order_generation: True
+online_order_generation: False
 num_order_or_combo: -1
 cuda: True
 dump: ???

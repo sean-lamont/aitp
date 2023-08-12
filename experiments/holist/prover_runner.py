@@ -48,17 +48,20 @@ def compute_stats(output):
 
 
 def run_pipeline(prover_tasks: List[proof_assistant_pb2.ProverTask],
-                 prover_options: deephol_pb2.ProverOptions, path_output: Text):
+                 prover_options: deephol_pb2.ProverOptions, path_output: Text, config):
     """Iterate over all prover tasks and store them in the specified file."""
 
-    if FLAGS.output.split('.')[-1] != 'textpbs':
+    # if FLAGS.output.split('.')[-1] != 'textpbs':
+    #     logging.warning('Output file should end in ".textpbs"')
+
+    if config.output.split('.')[-1] != 'textpbs':
         logging.warning('Output file should end in ".textpbs"')
 
     prover.cache_embeddings(prover_options)
     this_prover = prover.create_prover(prover_options)
     proof_logs = []
 
-    print (f"Running {len(prover_tasks)}..")
+    print (f"Evaluating {len(prover_tasks)} goals..")
     random.shuffle(prover_tasks)
     for i, task in tqdm(enumerate(prover_tasks)):
         proof_log = this_prover.prove(task)
@@ -74,6 +77,7 @@ def run_pipeline(prover_tasks: List[proof_assistant_pb2.ProverTask],
     if path_output:
         logging.info('Writing %d proof logs as text proto to %s',
                      len(proof_logs), path_output)
+
         io_util.write_text_protos(path_output, proof_logs)
 
     logging.info('Proving complete!')

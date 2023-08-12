@@ -91,6 +91,7 @@ def sexpression_to_graph(sexpression_txt: Text):
         if len(sexpression.get_children(node)) == 0:
             if node_id not in node_to_tok:
                 node_to_tok[node_id] = node
+
             assert sexpression.is_leaf_node(node_id)
 
         for i, child in enumerate(sexpression.get_children(node)):

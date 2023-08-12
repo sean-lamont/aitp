@@ -28,7 +28,6 @@ class CombinedAggregation(nn.Module):
 
     def forward(self, x):
         x = self.mlp(x)
-        # x = torch.relu(self.bn(self.fc(x)))
         return x
 
 

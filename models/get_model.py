@@ -1,7 +1,7 @@
 from models.amr.amr import AMRTransformer
 from models.gnn.digae.digae_model import DigaeEmbedding
 from models.gnn.formula_net.formula_net import FormulaNet, FormulaNetEdges
-from models.gnn.pna import GCNGNN, DiGCNGNN
+from models.gnn.gcn import GCNGNN, DiGCNGNN
 from models.gnn_transformer import GNNTransformer
 from models.relation_transformer.relation_transformer_new import AttentionRelations
 from models.relation_transformer.relation_transformer_small import AttentionRelationSmall
@@ -82,9 +82,9 @@ def get_model(model_config):
                               )
 
     elif model_config.model_type == 'gcn':
-        return GCNGNN(model_config['vocab_size'],
-                      model_config['embedding_dim'],
-                      model_config['gnn_layers'],
+        return GCNGNN(model_config.model_attributes['vocab_size'],
+                      model_config.model_attributes['embedding_dim'],
+                      model_config.model_attributes['gnn_layers'],
                       )
 
     elif model_config.model_type == 'di_gcn':
@@ -158,6 +158,7 @@ def get_model(model_config):
         return GNNEncoder(input_shape=model_config.model_attributes['vocab_size'],
                           embedding_dim=model_config.model_attributes['embedding_dim'],
                           num_iterations=model_config.model_attributes['gnn_layers'],
+                          max_edges=model_config.model_attributes['max_edges'] if 'max_edges' in model_config.model_attributes else 3,
                           dropout=model_config.model_attributes[
                               'dropout'] if 'dropout' in model_config.model_attributes else 0.5)
 

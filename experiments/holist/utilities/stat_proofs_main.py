@@ -1,5 +1,6 @@
 r"""Print some statistics and optionally a short summary about each proof.
 
+
 This is just a preliminary executable to examine the proofs produced by the
 prover.
 
