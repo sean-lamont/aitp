@@ -1,7 +1,7 @@
 from environments.hol4.new_env import HolEnv
 import json
 import pickle
-from data.hol4 import generate_gnn_data
+from data.hol4.utils import generate_gnn_data
 import os
 
 def gen_pretraining_data():

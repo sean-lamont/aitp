@@ -1,51 +1,8 @@
-from data.holist.utils.sexpression_graphs import SExpressionGraph
-from data.holist.utils import sexpression_graphs
-from typing import Text
 import logging
+from typing import Text
 
-
-# def sexpression_to_polish(sexpression_text):
-#     sexpression = SExpressionGraph()
-#     sexpression.add_sexp(sexpression_text)
-#     out = []
-#
-#     def process_node(node):
-#         if len(sexpression.get_children(node)) == 0:
-#             out.append(node)
-#
-#
-#         for i, child in enumerate(sexpression.get_children(node)):
-#             if i == 0:
-#                 # out.append('@') for i in range(sexpression.get_children(node) - 1)
-#                 out.append(sexpression.to_text(child))
-#                 continue
-#             # todo add special char when adding child? e.g. out.append('@') for i in range(sexpression.get_children(node) - 1)
-#             process_node(sexpression.to_text(child))
-#
-#     process_node(sexpression.to_text(sexpression.roots()[0]))
-#     return out
-
-# def sexpression_to_polish(sexpression_text):
-#     sexpression = SExpressionGraph()
-#     sexpression.add_sexp(sexpression_text)
-#     out = []
-#
-#     def process_node(node):
-#         if len(sexpression.get_children(node)) == 0:
-#             out.append(node)
-#
-#
-#         for i, child in enumerate(sexpression.get_children(node)):
-#             if i == 0:
-#                 # out.append('@') for i in range(sexpression.get_children(node) - 1)
-#                 out.append(sexpression.to_text(child))
-#                 continue
-#             # todo add special char when adding child? e.g. out.append('@') for i in range(sexpression.get_children(node) - 1)
-#             process_node(sexpression.to_text(child))
-#
-#     process_node(sexpression.to_text(sexpression.roots()[0]))
-#     return out
-#
+from data.holist.utils import sexpression_graphs
+from data.holist.utils.sexpression_graphs import SExpressionGraph
 
 def sexpression_to_polish(sexpression_text):
     sexpression = SExpressionGraph()
@@ -140,7 +97,5 @@ def sexpression_to_graph(sexpression_txt: Text):
 
     else:
         tok_list = ["UNK"]
-
-    # todo add options (e.g. attention_edge_index or depth)
 
     return {'tokens': tok_list, 'edge_index': [senders, receivers], 'edge_attr': edge_attr}

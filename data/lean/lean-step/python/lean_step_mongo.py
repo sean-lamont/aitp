@@ -6,21 +6,7 @@ from tqdm import tqdm
 from util import files_with_extension
 
 
-_TOKEN_RE = re.compile(r'@|⊢|:|,|\{|}|\(|\)|\[|\]|[^\s@⊢:(){}[]]+')
-
-'''
-
-LeanStepDatapoint fields map to the following:
-
-    - proof_term: t'
-    - result: partial proof term i.e. t with t' masked out
-    - 
-    
-
-
-'''
-
-# def tokenise_expression(expr):
+# _TOKEN_RE = re.compile(r'@|⊢|:|,|\{|}|\(|\)|\[|\]|[^\s@⊢:(){}[]]+')
 
 
 def get_tactic_state(dp, sep="\t"):

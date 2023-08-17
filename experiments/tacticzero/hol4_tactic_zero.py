@@ -4,7 +4,7 @@ import torch.optim
 from torch.distributions import Categorical
 from torch_geometric.data import Batch
 
-from data.hol4 import ast_def
+from data.hol4.utils import ast_def
 from environments.hol4.new_env import *
 from experiments.hol4_tactic_zero.tactic_zero_module import TacticZeroLoop
 

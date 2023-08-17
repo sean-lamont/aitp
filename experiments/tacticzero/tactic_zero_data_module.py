@@ -7,7 +7,7 @@ from pymongo import MongoClient
 from torch.utils.data import DataLoader as loader
 from tqdm import tqdm
 
-from data.hol4 import ast_def
+from data.hol4.utils import ast_def
 from data.utils.graph_data_utils import to_data, list_to_data
 from environments.get_env import get_env
 from experiments.pyrallis_configs_old import DataConfig

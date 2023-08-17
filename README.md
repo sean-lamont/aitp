@@ -1,4 +1,51 @@
 # Setup Instructions
+
+# Todo
+- HOLStep scripts
+- Run and setup hol-light for eval
+- Test fresh setup with python
+- Scripts to download HOLStep, MIZAR, LeanStep
+
+- Hyperparameter table
+
+- Experiment test run, i.e. trainer.test from config
+
+- Qualitative
+  - Give ipynb with embeddings and processing
+
+
+- Dataset summary (size, source, extra processing e.g. sexpression leanstep, polished holist, mizar graph)
+- Hardware
+
+- Documentation
+  - Example run for all experiments
+  - Using configs
+- 
+- HOList eval 
+  - GNN 20 node vs bow 20 vs bow 1 vs gnn 1 vs gnn asm vs bow asm 
+
+- polished vs full_tokens, standardise
+
+- Small sample of HOList proof logs?
+- Small mongorestore?
+
+- graph/ast processing unify
+- 
+
+- Example use case
+  - Add leanstep
+    - make data 
+    - process, with packaged utils
+    - run with config, sweep, use old models
+  - add new model
+    - ensemble?
+      - add architecture  
+      - add to get_model
+      - add transform (graph_data_utils)
+
+
+
+
 ## Python packages
 ### Install torch, torch_geometric and PyG supporting packages based on CUDA version (11.7 shown here)
 - pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu117

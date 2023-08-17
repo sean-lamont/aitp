@@ -8,43 +8,6 @@ from tqdm import tqdm
 
 from data.stream_dataset import MongoStreamDataset
 from data.utils.graph_data_utils import to_data, list_to_data
-# from experiments.pyrallis_configs_old import DataConfig
-
-'''
-
-@todo:
-
-25/7
-
-Experiment plan
-
-INT 
- 
-lean
-    mongo, loaded with vocab
-    
-lean
-    sexpression parser (HOList recycle?), return local variables
-    leanenv tactics
-    model (pretrain only)
-            
-save wandb run in directory so not required in config 
-    
-standardise experiments
-    add resume to pretrain and holist experiments
-    logging/files/directories all the same
-
-NO_PARAM hack for holist
-
-unified proof log format? for HOL4, lean, HOList etc. record proof_state, tactic/args, outcome
-    
-multiple data loader workers
-
-multi GPU
-    
-    
-'''
-
 
 class PremiseDataModule(LightningDataModule):
     def __init__(self, config):

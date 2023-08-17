@@ -1,15 +1,15 @@
-#leanpkg configure
-#leanproject get-mathlib-cache
-#bash ./_target/deps/mathlib/scripts/mk_all.sh
-#leanpkg build  # needs to build everything, takes 20-30m
+leanpkg configure
+leanproject get-mathlib-cache
+bash ./_target/deps/mathlib/scripts/mk_all.sh
+leanpkg build  # needs to build everything, takes 20-30m
 
 # skip tests from original repo
 
-#mkdir ./data
+mkdir ./data
 
-#lean --run src/tools/all_decls.lean
+lean --run src/tools/all_decls.lean
 
-#python3 python/dhash.py ./data/mathlib_decls.log ./data/
+python3 python/dhash.py ./data/mathlib_decls.log ./data/
 
 RAW_DATA_DIR="./raw_data"
 N_WORKERS=5

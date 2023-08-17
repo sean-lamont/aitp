@@ -2,8 +2,7 @@ import pickle
 from data.utils.graph_data_utils import get_directed_edge_index, get_depth_from_graph
 import re
 from tqdm import tqdm
-from data.hol4.ast_def import *
-import data.hol4.ast_def as ast_def
+from data.hol4.utils.ast_def import *
 from sklearn.preprocessing import OneHotEncoder
 
 def gen_train_test_data(data, train_ratio=0.9, val_ratio=0.05, rand=True, deps=None, full_db=None):
