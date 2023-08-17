@@ -21,7 +21,9 @@ def config_to_dict(conf):
 
 @hydra.main(config_path="configs/new_confs", config_name="holist_premise_selection")
 def holist_pretrain_experiment(config):
+
     OmegaConf.resolve(config)
+
     os.makedirs(config.exp_config.directory + '/checkpoints', exist_ok=True)
 
     torch.set_float32_matmul_precision('high')
@@ -71,7 +73,6 @@ def holist_pretrain_experiment(config):
                                           filename="{epoch}-{rel_param_acc}-{topk_acc}",
                                           save_on_train_epoch_end=True,
                                           save_last=True,
-                                          # save_weights_only=True,
                                           dirpath=config.exp_config.checkpoint_dir)
 
     callbacks.append(checkpoint_callback)

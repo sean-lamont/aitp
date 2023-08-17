@@ -258,7 +258,7 @@ class TacticApplication(object):
         raise exception
       return
     if response.HasField('error'):
-      logging.info('Tactic application failed: %s, %s', str(request.tactic),
+      logging.debug('Tactic application failed: %s, %s', str(request.tactic),
                       response.error)
       self.result = deephol_pb2.TacticApplication.ERROR
       self.failed = True
@@ -273,7 +273,7 @@ class TacticApplication(object):
       return t1.conclusion == t2.conclusion and t1.hypotheses == t2.hypotheses
 
     if len(new_subgoals) == 1 and is_same_expr(request.goal, new_subgoals[0]):
-      logging.info('Tactic %s applied, but did not change subgoals.',
+      logging.debug('Tactic %s applied, but did not change subgoals.',
                       request.tactic)
       self.result = deephol_pb2.TacticApplication.UNCHANGED
       self.failed = True
@@ -294,7 +294,7 @@ class TacticApplication(object):
     self.result = deephol_pb2.TacticApplication.SUCCESS
     # We don't know if some of the subgoals will fail or not.
     self.failed = False
-    logging.info('Tactic %s successfully applied.', self.tactic)
+    logging.debug('Tactic %s successfully applied.', self.tactic)
     successful_attempts.append(self)
     if not new_subgoals:
       assert self.update_closed()

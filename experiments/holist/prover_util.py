@@ -152,18 +152,27 @@ def try_tactics(node: proof_search_tree.ProofSearchNode, max_tries: int,
     assert not node.successful_attempts
     assert not node.failed_attempts
     node.closed = False
+
     start_time = time.time()
-    suggestion_scores = action_gen.step(node, premise_set)
+
+    suggestion_scores = action_gen.step(node, premise_set, max_tactics=max_tries)
+
     node.action_generation_time_millisec = int(
         round(1000.0 * (time.time() - start_time)))
-    logging.info('Suggestions and scores: %s', str(suggestion_scores))
+
+    logging.debug('Suggestions and scores: %s', str(suggestion_scores))
+
     if not suggestion_scores:
-        print ("No suggestion scores")
+        print("No suggestion scores")
         return 0
+
     top_suggestions = sorted(suggestion_scores, key=lambda x: x[1], reverse=True)
+
     request = proof_assistant_pb2.ApplyTacticRequest(
         goal=theorem_to_goal_proto(node.goal), timeout_ms=tactic_timeout_ms)
-    logging.info('Attempting to apply tactics: %s', str(top_suggestions))
+
+    logging.debug('Attempting to apply tactics: %s', str(top_suggestions))
+
     node.processed = True
 
     while (
@@ -171,7 +180,6 @@ def try_tactics(node: proof_search_tree.ProofSearchNode, max_tries: int,
             (len(node.successful_attempts) < min_successes or
              (len(node.successful_attempts) + len(node.failed_attempts) <= max_tries))
             and (len(node.successful_attempts) < max_successes)):
-
         top_suggestion, score = top_suggestions.pop(0)
         request.tactic = top_suggestion
 

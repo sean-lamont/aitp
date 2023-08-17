@@ -143,7 +143,8 @@ class ActionGenerator(object):
             predictor: predictions.Predictions,
             options: deephol_pb2.ActionGeneratorOptions,
             model_architecture: deephol_pb2.ProverOptions.ModelArchitecture,
-            emb_store: Optional[embedding_store.TheoremEmbeddingStore] = None):
+            emb_store: Optional[embedding_store.TheoremEmbeddingStore] = None,
+            ):
 
         self.theorem_database = theorem_database
         self.tactics = tactics
@@ -269,7 +270,8 @@ class ActionGenerator(object):
         return (ranked_closest + thm_ranked)[:self.options.max_theorem_parameters]
 
     def step(self, node: proof_search_tree.ProofSearchNode,
-             premises: proof_assistant_pb2.PremiseSet) -> List[Suggestion]:
+
+             premises: proof_assistant_pb2.PremiseSet, max_tactics=5) -> List[Suggestion]:
         """Generates a list of possible ApplyTactic argument strings from a goal.
 
         Args:
@@ -286,19 +288,27 @@ class ActionGenerator(object):
                                              'supported.')
         assert len(premises.sections) == 1, ('Premise set must have exactly one '
                                              'section.')
+
         # TODO(szegedy): If the premise is not specified, we want the whole
         # database to be used. Not sure if -1 or len(database.theorems) would do
         # that or not. Assertion will certainly fail before that.
         # Also we don't have checks on this use case.
+
         assert premises.sections[0].HasField('before_premise'), ('Premise is '
                                                                  'required.')
         fp = premises.sections[0].before_premise
+
         thm_number = self.thm_index_by_fingerprint.get(fp)
+
         assert thm_number is not None
+
         assert theorem_fingerprint.Fingerprint(
             self.theorem_database.theorems[thm_number]) == fp
+
         thm_names = self.thm_names[:thm_number]
+
         # logging.debug(f"thm_names: {thm_names}")
+
         # TODO(smloos): update predictor api to accept theorems directly
 
         # generate goal embedding
@@ -308,11 +318,12 @@ class ActionGenerator(object):
 
         proof_state_emb = self.predictor.proof_state_embedding(proof_state)
         proof_state_enc = self.predictor.proof_state_encoding(proof_state_emb)
-        # logging.debug(f"proof state enc: {proof_state_enc}")
+
 
         tactic_scores = self._compute_tactic_scores(proof_state_enc)
 
         empty_emb = self.predictor.thm_embedding('NO_PARAM')
+
         empty_emb_batch = np.reshape(empty_emb, [1, empty_emb.shape[0]])
 
         enumerated_tactics = enumerate(self.tactics)
@@ -333,19 +344,29 @@ class ActionGenerator(object):
         # get highest ranked theorems from pretrained model
         ret = []
         thm_scores = None
+
+
+
         # TODO(smloos): This computes parameters for all tactics. It should cut off
         # based on the prover BFS options.
-        for tactic_id, tactic in enumerated_tactics:
+        # get top tactics and compute parameters only for these
+        top_tacs = np.argpartition(tactic_scores, -max_tactics)[-max_tactics:]
+        # top_tacs = list(enumerated_tactics)[top_ind]
+
+
+
+        for tactic_id in top_tacs:
+            tactic = self.tactics[tactic_id]
             if (thm_scores is None or self.model_architecture ==
                     deephol_pb2.ProverOptions.PARAMETERS_CONDITIONED_ON_TAC):
+
                 thm_scores = self._get_theorem_scores(proof_state_enc, thm_number,
                                                       tactic_id)
-                # logging.debug(f"thm_scores: {thm_scores}")
 
                 no_params_score = self.predictor.batch_thm_scores(
                     proof_state_enc, empty_emb_batch, tactic_id)[0]
 
-                logging.info('Theorem score for empty theorem: %f0.2',
+                logging.debug('Theorem score for empty theorem: %f0.2',
                              no_params_score)
 
             thm_ranked = sorted(
@@ -356,22 +377,23 @@ class ActionGenerator(object):
             # mix in additional theorems based on similarity wrt self.compute_closest
             thm_ranked = self.add_similar(thm_ranked, ranked_closest)
 
-            logging.info('thm_ranked: %s', str(thm_ranked))
+            logging.debug('thm_ranked: %s', str(thm_ranked))
             tactic_str = str(tactic.name)
             try:
-                # print ("param_types:")
-                # print (list(tactic.parameter_types))
                 tactic_params = _compute_parameter_string(
                     list(tactic.parameter_types), pass_no_arguments, thm_ranked)
-                # print (f"tac_params{tactic_params}")
+
                 for params_str in tactic_params:
                     ret.append(
                         Suggestion(
                             string=tactic_str + params_str,
                             score=tactic_scores[tactic_id]))
+
             except ValueError as e:
-                logging.warning('Failed to compute parameters for tactic %s: %s',
+                logging.debug('Failed to compute parameters for tactic %s: %s',
                                 tactic.name, str(e))
+
+        # logging.info(f"{len(ret)} suggestions")
         return ret
 
 

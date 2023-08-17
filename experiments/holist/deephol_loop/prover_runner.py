@@ -25,7 +25,6 @@ from experiments.holist.deephol_loop import options_pb2
 from environments.holist import proof_assistant_pb2
 from experiments.holist.utilities import prooflog_to_examples
 
-
 pipeline_options = PipelineOptions([
     '--direct_running_mode=multi_threading',
     '--direct_num_workers=4'
@@ -33,10 +32,12 @@ pipeline_options = PipelineOptions([
 
 runner = DirectRunner()
 
+
 class ProverDoFn(beam.DoFn):
     """Beam DoFn for our prover."""
 
     def __init__(self, prover_options: deephol_pb2.ProverOptions):
+
         self.prover_options = prover_options
         self.proven_counter = Metrics.counter(self.__class__, 'proven')
         self.attempted_counter = Metrics.counter(self.__class__, 'attempted')
@@ -53,23 +54,32 @@ class ProverDoFn(beam.DoFn):
     def process(self, task: proof_assistant_pb2.ProverTask
                 ) -> List[deephol_pb2.ProofLog]:
         logging.info('Processing task:\n%s', text_format.MessageToString(task))
+
         self.attempted_counter.inc()
+
         if self.prover.accept_tasks:
             self.accepts_counter.inc()
         else:
             self.does_not_accept_counter.inc()
+
         proof_log = self.prover.prove(task)
         timed_out = self.prover.timed_out()
+
         if proof_log.rejected:
             self.rejected_counter.inc()
+
         if not proof_log.error_message:
             self.proven_counter.inc()
         else:
             logging.info('Failed proof with "%s"', proof_log.error_message)
+
             self.failed_counter.inc()
+
             if timed_out:
                 self.timeout_counter.inc()
+
         proof_log.build_data = build_data.BuildData()
+
         return [proof_log]
 
 
@@ -90,7 +100,6 @@ def make_pipeline(prover_tasks: List[proof_assistant_pb2.ProverTask],
         _ = logs | 'Write' >> beam.io.WriteToText(
             file_path_prefix=path_output,
             coder=beam.coders.ProtoCoder(deephol_pb2.ProofLog))
-
 
         return logs
 
@@ -163,7 +172,7 @@ def training_examples_pipeline(
             beam.io.WriteToText(
                 file_path_prefix=examples_prefix,
                 num_shards=num_shards,
-                coder=beam.coders.BytesCoder(),))
+                coder=beam.coders.BytesCoder(), ))
 
         # _ = examples | ('WriteExamples%d' % i) >> (
         #     sstableio.WriteToSSTable(
@@ -172,6 +181,7 @@ def training_examples_pipeline(
         #         key_coder=beam.coders.BytesCoder(),
         #         value_coder=beam.coders.BytesCoder()))
         #
+
 
 def run_pipeline(examples_sstable: Optional[Text],
                  scrub_parameters: Optional[Text],

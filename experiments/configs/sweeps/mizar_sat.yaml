@@ -1,6 +1,6 @@
 program: experiments.premise_selection_wandb
-name: transformer
-description: Transformer MIZAR40 Sweep
+name: sat
+description: SAT MIZAR40
 project: mizar40
 
 method: bayes
@@ -9,9 +9,11 @@ metric:
   name: acc
 parameters:
   model_config.model_attributes.num_layers:
-    values: [4,2,1]
+    values: [4,2]
+  model_config.model_attributes.se:
+    values: ['formula-net','gcn']
   model_config.model_attributes.num_heads:
-    values: [2]
+    values: [4]
   model_config.model_attributes.embedding_dim:
     values: [128]
 
@@ -24,5 +26,5 @@ command:
   - ${interpreter}
   - '-m'
   - ${program}
-  - '--config-name=mizar_transformer'
+  - '--config-name=mizar_sat_full'
   - ${args_no_hyphens}

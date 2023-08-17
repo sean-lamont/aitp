@@ -92,7 +92,6 @@ class Prover(object):
 
     def __init__(self, prover_options, hol_wrapper, theorem_db, single_goal=True):
         if not single_goal:
-            # tf.logging.fatal('Only one goal per task is supported')
             logging.fatal('Only one goal per task is supported')
 
         self.prover_options = prover_options
@@ -131,7 +130,6 @@ class Prover(object):
     def prove(self, task: proof_assistant_pb2.ProverTask) -> deephol_pb2.ProofLog:
         """Top level prove method."""
         if not self.single_goal:
-            # tf.logging.fatal('Only one goal per task is supported')
             logging.fatal('Only one goal per task is supported')
         return self.prove_one_wrapper(task)
 
@@ -152,7 +150,6 @@ class Prover(object):
         _sample_bfs_options(self.prover_options)
         log = check_task(task, self.prover_options)
         if log is not None:
-            # tf.logging.info('Task did not fit the prover.')
             logging.info('Task did not fit the prover.')
             return log
         goal_thm = task.goals[0]
@@ -161,7 +158,7 @@ class Prover(object):
         if self.accept_tasks:
             try:
                 self.start_time = time.time()
-                logging.info('Attempting task %s.',
+                logging.debug('Attempting task %s.',
                              text_format.MessageToString(task))
 
                 error_message = self.prove_one(tree, task)
@@ -191,9 +188,8 @@ class Prover(object):
 
         proof_log.prover_options.CopyFrom(self.prover_options)
         proof_log.prover_task.CopyFrom(task)
-        # tf.logging.info('Pruning theorem nodes...')
 
-        logging.info('Pruning theorem nodes...')
+        logging.debug('Pruning theorem nodes...')
 
         if self.pruner is not None:
             for node in proof_log.nodes:
@@ -316,17 +312,16 @@ class BFSProver(Prover):
             return 'BFS: Node limit reached.'
 
 
-def get_predictor(options: deephol_pb2.ProverOptions
-                  ) -> predictions.Predictions:
+def get_predictor(options: deephol_pb2.ProverOptions, config) -> predictions.Predictions:
     """Returns appropriate predictor based on prover options."""
     model_arch = options.model_architecture
 
     if model_arch == deephol_pb2.ProverOptions.PAIR_DEFAULT:
-        return holparam_predictor.HolparamPredictor(str(options.path_model_prefix))
+        return holparam_predictor.HolparamPredictor(str(options.path_model_prefix), config=config)
 
     if model_arch == deephol_pb2.ProverOptions.PARAMETERS_CONDITIONED_ON_TAC:
         return holparam_predictor.TacDependentPredictor(
-            str(options.path_model_prefix))
+            str(options.path_model_prefix), config=config)
 
     if model_arch == deephol_pb2.ProverOptions.GNN_GOAL:
         raise NotImplementedError('GNN_GOAL not implemented for %s' %
@@ -343,7 +338,7 @@ def get_predictor(options: deephol_pb2.ProverOptions
                          model_arch)
 
 
-def cache_embeddings(options: deephol_pb2.ProverOptions):
+def cache_embeddings(options: deephol_pb2.ProverOptions, config):
     emb_path = str(options.theorem_embeddings)
 
     if options.HasField('theorem_embeddings') and not os.path.exists(emb_path):
@@ -351,7 +346,7 @@ def cache_embeddings(options: deephol_pb2.ProverOptions):
             'theorem_embeddings file "%s" does not exist, computing & saving.',
             emb_path)
 
-        emb_store = embedding_store.TheoremEmbeddingStore(get_predictor(options))
+        emb_store = embedding_store.TheoremEmbeddingStore(get_predictor(options, config))
 
         emb_store.compute_embeddings_for_thms_from_db_file(
             str(options.path_theorem_database))
@@ -359,7 +354,7 @@ def cache_embeddings(options: deephol_pb2.ProverOptions):
         emb_store.save_embeddings(emb_path)
 
 
-def create_prover(options: deephol_pb2.ProverOptions) -> Prover:
+def create_prover(options: deephol_pb2.ProverOptions, config) -> Prover:
     """Creates a Prover object, initializing all dependencies."""
 
     theorem_database = io_util.load_theorem_database_from_file(
@@ -373,7 +368,7 @@ def create_prover(options: deephol_pb2.ProverOptions) -> Prover:
         action_gen = action_generator.MesonActionGenerator()
 
     else:
-        predictor = get_predictor(options)
+        predictor = get_predictor(options, config)
         emb_store = None
 
         if options.HasField('theorem_embeddings'):

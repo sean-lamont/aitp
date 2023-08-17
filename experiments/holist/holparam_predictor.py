@@ -14,11 +14,12 @@ import numpy as np
 import torch
 from torch_geometric.data import Batch
 
-from data.utils.graph_data_utils import to_data
+from data.utils.graph_data_utils import to_data, list_to_data
 from experiments.hol4_tactic_zero.rl.rl_experiment_ import get_model_dict
 from experiments.holist import predictions
 from experiments.holist.utilities import process_sexp
 from experiments.holist.utilities.sexpression_to_graph import sexpression_to_graph
+from models.get_model import get_model
 from models.holist_models.gnn.gnn_encoder import GNNEncoder
 from pymongo import MongoClient
 
@@ -69,52 +70,8 @@ class HolparamPredictor(predictions.Predictions):
             max_score_batch_size=max_score_batch_size)
 
         self.config = config
-
-        # todo load model arch from config and get_model
-        self.embedding_model_goal = GNNEncoder(input_shape=1500,
-                                               embedding_dim=128,
-                                               num_iterations=12,
-                                               dropout=0.2).cuda()
-
-        self.embedding_model_premise = GNNEncoder(input_shape=1500,
-                                                  embedding_dim=128,
-                                                  num_iterations=12,
-                                                  dropout=0.2).cuda()
-
-        # self.embedding_model_goal = GraphTransformer(in_size=1500,
-        #                                              num_class=2,
-        #                                              d_model=128,
-        #                                              k_hop=1,
-        #                                              dropout=0.2,
-        #                                              batch_norm=False,
-        #                                              global_pool='max',
-        #                                              num_edge_features=3,
-        #                                              dim_feedforward=256,
-        #                                              num_heads=4,
-        #                                              num_layers=4,
-        #                                              in_embed=True,
-        #                                              se='gnn-encoder',
-        #                                              abs_pe=False,
-        #                                              use_edge_attr=True,
-        #                                              ).cuda()
-        #
-        # self.embedding_model_premise = GraphTransformer(in_size=1500,
-        #                                                 d_model=128,
-        #                                                 k_hop=1,
-        #                                                 num_class=2,
-        #                                                 dropout=0.2,
-        #                                                 batch_norm=False,
-        #                                                 global_pool='max',
-        #                                                 num_edge_features=3,
-        #                                                 dim_feedforward=256,
-        #                                                 num_heads=4,
-        #                                                 num_layers=4,
-        #                                                 in_embed=True,
-        #                                                 se='gnn-encoder',
-        #                                                 abs_pe=False,
-        #                                                 use_edge_attr=True,
-        #                                                 ).cuda()
-
+        self.embedding_model_goal = get_model(config.model_config).cuda()
+        self.embedding_model_premise = get_model(config.model_config).cuda()
 
         self.tac_model = TacticPrecdictor(
             embedding_dim=1024,
@@ -132,25 +89,18 @@ class HolparamPredictor(predictions.Predictions):
         self.tac_model.eval()
         self.combiner_model.eval()
 
-        # todo configurable with config
         client = MongoClient()
-        db = client['holist']
-        expr_col = db['expression_graphs']
-        vocab_col = db['vocab']
-        filter = ['tokens', 'edge_index', 'edge_attr', 'attention_edge_index']
+
+        db = client[self.config.data_config.data_options['db']]
+        vocab_col = db[self.config.data_config.data_options['vocab_col']]
+
+        self.filter = self.config.data_config.data_options['filter']
 
         self.vocab = {k['_id']: k['index'] for k in vocab_col.find()}
-        self.filter = filter
 
         logging.info("Loading expression dictionary..")
 
-        print("loading expressions..")
-        self.expr_dict = {}
-        # self.expr_dict = {v["_id"]: {x: v['data'][x] for x in self.filter}#self.to_torch(v['data'])
-        #                   for v in tqdm(expr_col.find({}))}
-
     def load_pretrained_model(self, ckpt_dir):
-        print("loading")
         logging.info(f"Loading checkpoint from {ckpt_dir}")
         ckpt = torch.load(ckpt_dir + '.ckpt')['state_dict']
         self.embedding_model_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
@@ -159,11 +109,10 @@ class HolparamPredictor(predictions.Predictions):
         self.combiner_model.load_state_dict(get_model_dict('combiner_model', ckpt))
 
     def to_torch(self, data_dict):
-        # if data_dict not in self.expr_dict:
-        # return to_data({x: data_dict[x] for x in self.filter}, data_type='graph', vocab=self.vocab, attention_edge=True)
-        # return to_data({x: data_dict[x] for x in self.filter}, data_type='graph', vocab=self.vocab, attention_edge=True)
-
-        return to_data(data_dict, data_type='graph', vocab=self.vocab, attention_edge=True)
+        return to_data(data_dict,
+                       data_type=self.config.data_config.type,
+                       vocab=self.vocab,
+                       config=self.config.data_config)
 
     def _goal_string_for_predictions(self, goals: List[Text]) -> List[Text]:
         return [process_sexp.process_sexp(goal) for goal in goals]
@@ -178,16 +127,14 @@ class HolparamPredictor(predictions.Predictions):
         with torch.no_grad():
             goals = self._goal_string_for_predictions(goals)
 
-            # goals = [self.expr_col.find_one({'_id': t}) if t in for t in goals]
-            # goal_data = Batch.from_data_list([self.to_torch(sexpression_to_graph(t))
-            #                                   for t in goals])
+            goal_data = [self.to_torch(sexpression_to_graph(t, type=self.config.data_config.type)) for t in goals]
 
-            goal_data = Batch.from_data_list(
-                [self.to_torch(sexpression_to_graph(t, all_data=True)) if t not in self.expr_dict else self.to_torch(self.expr_dict[t])
-                 for t in goals])
+            goal_data = list_to_data(goal_data, config=self.config.data_config)
 
             embeddings = self.embedding_model_goal(goal_data.cuda())
+
             embeddings = embeddings.cpu().numpy()
+
         return embeddings
 
     def _batch_thm_embedding(self, thms: List[Text]) -> List[THM_EMB_TYPE]:
@@ -196,11 +143,12 @@ class HolparamPredictor(predictions.Predictions):
         with torch.no_grad():
             thms = self._thm_string_for_predictions(thms)
 
-            # todo configure data type
+            # thms_data = Batch.from_data_list(
+            #     [self.to_torch(sexpression_to_graph(t, all_data=True)) for t in thms])
 
-            thms_data = Batch.from_data_list(
-                [self.to_torch(sexpression_to_graph(t, all_data=True)) if t not in self.expr_dict else self.to_torch(self.expr_dict[t])
-                 for t in thms])
+            thms_data = [self.to_torch(sexpression_to_graph(t, type=self.config.data_config.type)) for t in thms]
+
+            thms_data = list_to_data(thms_data, config=self.config.data_config)
 
             embeddings = self.embedding_model_premise(thms_data.cuda())
             embeddings = embeddings.cpu().numpy()
@@ -226,7 +174,9 @@ class HolparamPredictor(predictions.Predictions):
 
     def _batch_tactic_scores(
             self, state_encodings: List[STATE_ENC_TYPE]) -> List[List[float]]:
-        """Predict tactic probabilities for a batch of goals.
+        """
+
+        Predict tactic probabilities for a batch of goals.
 
         Args:
           state_encodings: A list of n goal embeddings.
@@ -234,7 +184,9 @@ class HolparamPredictor(predictions.Predictions):
         Returns:
           A list of n tactic probabilities, each of length equal to the number of
             tactics.
+
         """
+
         # The checkpoint should have only one value in this collection.
         with torch.no_grad():
             x = torch.from_numpy(np.array(state_encodings))
@@ -248,7 +200,9 @@ class HolparamPredictor(predictions.Predictions):
                           state_encodings: List[STATE_ENC_TYPE],
                           thm_embeddings: List[THM_EMB_TYPE],
                           tactic_id: Optional[int] = None) -> List[float]:
-        """Predict relevance scores for goal, theorem pairs.
+        """
+
+        Predict relevance scores for goal, theorem pairs.
 
         Args:
           state_encodings: A proof state encoding. (effectively goal embedding)
@@ -258,10 +212,13 @@ class HolparamPredictor(predictions.Predictions):
 
         Returns:
           A list of n floats, representing the pairwise score of each goal, thm.
+
         """
+
         del tactic_id  # tactic id not use to predict theorem scores.
         # The checkpoint should have only one value in this collection.
         assert len(state_encodings) == len(thm_embeddings)
+
         # todo use non tac dependent model
 
         tactic_id = [0]
@@ -279,12 +236,12 @@ class TacDependentPredictor(HolparamPredictor):
     def __init__(self,
                  ckpt: Text,
                  max_embedding_batch_size: Optional[int] = 512,
-                 max_score_batch_size: Optional[int] = 512) -> None:
+                 max_score_batch_size: Optional[int] = 512, config=None) -> None:
         """Restore from the checkpoint into the session."""
         super(TacDependentPredictor, self).__init__(
             ckpt,
             max_embedding_batch_size=max_embedding_batch_size,
-            max_score_batch_size=max_score_batch_size)
+            max_score_batch_size=max_score_batch_size, config=config)
         self.selected_tactic = -1
 
     def _batch_thm_scores(self,

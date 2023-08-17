@@ -5,6 +5,7 @@ from experiments.holist.utilities import sexpression_graphs
 from typing import Text
 import logging
 
+
 def sexpression_to_polish(sexpression_text):
     sexpression = SExpressionGraph()
     sexpression.add_sexp(sexpression_text)
@@ -13,7 +14,6 @@ def sexpression_to_polish(sexpression_text):
     def process_node(node):
         if len(sexpression.get_children(node)) == 0:
             out.append(node)
-
 
         for i, child in enumerate(sexpression.get_children(node)):
             if i == 0:
@@ -27,8 +27,11 @@ def sexpression_to_polish(sexpression_text):
     return out
 
 
-def sexpression_to_graph(sexpression_txt: Text, all_data=False):
+def sexpression_to_graph(sexpression_txt: Text, type='graph'):
     sexpression = SExpressionGraph(sexpression_txt)
+
+    if type == 'sequence':
+        return {"full_tokens": sexpression_to_polish(sexpression_txt)[:1024]}
 
     edges = []
     node_to_tok = {}
@@ -81,12 +84,15 @@ def sexpression_to_graph(sexpression_txt: Text, all_data=False):
 
     # todo add options (e.g. attention_edge_index or depth)
 
-    if not all_data:
+    if type == 'graph':
         return {'tokens': tok_list, 'edge_index': [senders, receivers], 'edge_attr': edge_attr}
-    else:
+
+
+    elif type == 'all':
         edge_index = [senders, receivers]
         attention_edge_index = get_directed_edge_index(len(tok_list), torch.LongTensor(edge_index)).tolist()
         depth = get_depth_from_graph(len(tok_list), torch.LongTensor(edge_index)).tolist()
+
         full_tokens = sexpression_to_polish(sexpression_txt)[:1024]
 
         return {'tokens': tok_list,

@@ -9,7 +9,7 @@ data_config:
 epochs: 10
 
 exp_config:
-  name: formula_net
+  name: bag_of_words
 
 
 model_config:
@@ -17,7 +17,7 @@ model_config:
   model_attributes:
     vocab_size: 32700
     embedding_dim: 256
-    gnn_layers: 2
+    gnn_layers: 0
     batch_norm: True
 
 logging_config:

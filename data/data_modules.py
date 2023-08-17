@@ -132,6 +132,7 @@ class PremiseDataModule(LightningDataModule):
         if self.config.source == 'mongodb' and not self.config.data_options['dict_in_memory']:
             tmp_expr_dict = {v["_id"]: self.to_data({x: v["data"][x] for x in self.config.data_options['filter']})
                              for v in self.expr_col.find({'_id': {'$in': data_list}})}
+
             batch = [tmp_expr_dict[d] for d in data_list]
         else:
             batch = [self.expr_dict[d] for d in data_list]

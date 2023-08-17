@@ -12,7 +12,7 @@ data_config:
 #    attention_edge: 'directed'
 
 exp_config:
-  name: bow_1_node
+  name: ensemble
   experiment: holist_eval
   directory: 'experiments/runs/${.experiment}/${now:%Y_%m_%d}/${.name}_${now:%H_%M_%S}'#'experiments/runs/holist_eval/2023_08_14/gnn_fast_21_04_48'
   checkpoint_dir: ${.directory}/checkpoints
@@ -21,12 +21,15 @@ exp_config:
   device: [0]
 
 model_config:
-  model_type: holist_gnn
+  model_type: ensemble
   model_attributes:
-    gnn_layers: 0
+    gnn_layers: 12
     vocab_size: 1500
     dropout: 0.2
     embedding_dim: 128
+    num_heads: 4
+    num_layers: 4
+    max_len: 1024
 
 logging_config:
   project: holist_eval

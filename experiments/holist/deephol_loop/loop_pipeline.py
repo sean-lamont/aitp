@@ -122,21 +122,29 @@ class LoopPipeline(object):
     """High level class for controlling the main Loop."""
 
     def __init__(self, lm: loop_meta.LoopMeta, config: loop_pb2.LoopConfig):
+
         self.loop_meta = lm
         self.config = config
+
         self.checkpoint_monitor = checkpoint_monitor.CheckpointMonitor(
             config.path_model_directory, self.loop_meta.checkpoints_path())
+
         self.theorem_db = io_util.load_theorem_database_from_file(
             str(config.prover_options.path_theorem_database))
+
         if not self.theorem_db.HasField('name'):
             self.theorem_db.name = 'default'
+
         tasks_file = None
+
         if config.HasField('prover_tasks_file'):
             tasks_file = config.prover_tasks_file
+
         self.prover_tasks = prover_util.get_task_list(
             tasks_file, None, None, self.theorem_db,
             config.prover_options.splits_to_prove,
             set(config.prover_options.library_tags))
+
         logging.info('Number of tasks: %d', len(self.prover_tasks))
 
     def create_prover_tasks(self):
@@ -147,7 +155,9 @@ class LoopPipeline(object):
             return random.sample(self.prover_tasks, num_selections)
 
     def prover_pipeline(self, tasks: List[proof_assistant_pb2.ProverTask], root):
+
         """Make a prover pipeline for the given task and this round."""
+
         current_round = self.loop_meta.status.current_round
         prover_options = deephol_pb2.ProverOptions()
         prover_options.CopyFrom(self.config.prover_options)

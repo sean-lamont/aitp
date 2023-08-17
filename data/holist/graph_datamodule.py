@@ -80,6 +80,7 @@ class HOListDataModule(LightningDataModule):
         else:
             raise NotImplementedError
 
+
     def train_dataloader(self):
         return DataLoader(self.train_data, batch_size=self.batch_size, collate_fn=self.gen_batch)#, num_workers=1)
 
