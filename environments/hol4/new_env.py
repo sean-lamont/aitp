@@ -28,16 +28,9 @@ else:
 
 tactic_pool = thms_tactic + thm_tactic + term_tactic + no_arg_tactic
 
-
 UNEXPECTED_REWARD = -10
-
-HOLPATH = "environments/hol4/hol/HOL/bin/hol --maxheap=256"
-
-
+HOLPATH = "environments/hol4/HOL/bin/hol --maxheap=256"
 EXCLUDED_THEORIES = ["min"]
-
-
-
 
 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 

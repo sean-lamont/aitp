@@ -41,11 +41,11 @@ class HOL4TacticZero(TacticZeroLoop):
         self.encoder_premise = encoder_premise
         self.encoder_goal = encoder_goal
 
-        self.thms_tactic = tactics.thms_tactic
-        self.thm_tactic = tactics.thm_tactic
-        self.term_tactic = tactics.term_tactic
-        self.no_arg_tactic = tactics.no_arg_tactic
-        self.tactic_pool = tactics.tactic_pool
+        self.thms_tactic = list(tactics.thms_tactic)
+        self.thm_tactic = list(tactics.thm_tactic)
+        self.term_tactic = list(tactics.term_tactic)
+        self.no_arg_tactic = list(tactics.no_arg_tactic)
+        self.tactic_pool = list(tactics.tactic_pool)
         self.converter = converter
         self.proof_db = proof_db
         self.proof_logs = []

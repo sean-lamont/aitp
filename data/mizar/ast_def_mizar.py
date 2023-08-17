@@ -4,7 +4,6 @@ from torch_geometric.data import Data
 import torch
 import networkx as nx
 import matplotlib.pyplot as plt
-from data.hol4.mongo_to_torch import get_depth_from_graph, get_directed_edge_index
 
 class AST:
     def __init__(self, node, children=[], parent=None):

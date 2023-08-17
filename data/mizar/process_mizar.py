@@ -1,5 +1,5 @@
 import glob
-from data.hol4.mongo_to_torch import get_depth_from_graph, get_directed_edge_index
+from data.utils.graph_data_utils import get_depth_from_graph, get_directed_edge_index
 import torch
 from pymongo import MongoClient
 import random
