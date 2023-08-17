@@ -26,11 +26,7 @@
 
 - polished vs full_tokens, standardise
 
-- Small sample of HOList proof logs?
-- Small mongorestore?
-
 - graph/ast processing unify
-- 
 
 - Example use case
   - Add leanstep
@@ -43,6 +39,8 @@
       - add to get_model
       - add transform (graph_data_utils)
 
+- Small sample of HOList proof logs?
+- Small mongorestore?
 
 
 
