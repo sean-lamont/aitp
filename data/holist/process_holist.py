@@ -8,11 +8,10 @@ from pymongo import MongoClient
 from tqdm import tqdm
 
 from data.utils.graph_data_utils import get_directed_edge_index, get_depth_from_graph
-from experiments.holist import io_util, deephol_pb2
-from experiments.holist.deephol_loop import options_pb2
-from experiments.holist.utilities import prooflog_to_examples
-from experiments.holist.utilities.sexpression_graphs import SExpressionGraph
-from experiments.holist.utilities.sexpression_to_graph import sexpression_to_graph, sexpression_to_polish
+from experiments.holist import deephol_pb2
+from experiments.holist.distributed_loop import options_pb2
+from data.holist.utils import prooflog_to_examples, io_util
+from data.holist.utils.sexpression_to_graph import sexpression_to_graph, sexpression_to_polish
 
 
 def tokenize_string(string):

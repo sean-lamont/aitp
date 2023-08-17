@@ -1,8 +1,7 @@
 import torch
-from pymongo import MongoClient
 from torch_geometric.data import Data
 
-from experiments.holist.utilities.sexpression_to_graph import sexpression_to_graph
+from data.holist.utils.sexpression_to_graph import sexpression_to_graph
 from data.utils.pyg_plot import plot_pyg_graph_with_graphviz
 
 if __name__ == '__main__':

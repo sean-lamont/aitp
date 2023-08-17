@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from data.stream_dataset import MongoStreamDataset
 from data.utils.graph_data_utils import to_data, list_to_data
-from experiments.pyrallis_configs_old import DataConfig
+# from experiments.pyrallis_configs_old import DataConfig
 
 '''
 
@@ -47,7 +47,7 @@ multi GPU
 
 
 class PremiseDataModule(LightningDataModule):
-    def __init__(self, config: DataConfig):
+    def __init__(self, config):
 
         super().__init__()
         self.config = config

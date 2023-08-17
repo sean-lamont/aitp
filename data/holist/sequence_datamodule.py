@@ -1,5 +1,5 @@
 import logging
-from experiments.holist.utilities.sexpression_graphs import SExpressionGraph
+from data.holist.utils.sexpression_graphs import SExpressionGraph
 import os.path
 
 import torch

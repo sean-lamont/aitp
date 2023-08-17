@@ -1,0 +1,31 @@
+defaults:
+  - data_config
+  - optimiser_config
+  - logging_config
+
+epochs: 10
+
+limit_val_batches: False
+
+val_frequency: 2048
+
+batch_size: 32
+
+exp_config:
+  name: ???
+  experiment: premise_selection
+  directory: experiments/runs/${.experiment}/${.name}_${now:%Y_%m_%d}/${now:%H_%M_%S}
+  checkpoint_dir: ${.directory}/checkpoints
+  accelerator: gpu
+  device: [0]
+  resume: False
+
+hydra:
+  run:
+    dir: ${exp_config.directory}
+  job:
+    chdir: False
+
+model_config:
+  model_type: ???
+  model_attributes: ???

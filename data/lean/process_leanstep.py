@@ -5,8 +5,7 @@ import re
 from pymongo import MongoClient
 from tqdm import tqdm
 
-from experiments.holist.utilities.lean_sexpression_to_graph import sexpression_to_graph, sexpression_to_polish
-from experiments.holist.utilities.sexpression_graphs import SExpressionGraph
+from data.lean.lean_sexpression_to_graph import sexpression_to_graph, sexpression_to_polish
 
 if __name__ == '__main__':
 
