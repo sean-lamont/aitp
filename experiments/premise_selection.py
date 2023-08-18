@@ -183,11 +183,15 @@ def premise_selection_experiment(config):
         ckpt_dir = config.exp_config.checkpoint_dir + "/last.ckpt"
         state_dict = torch.load(ckpt_dir)['state_dict']
         experiment.load_state_dict(state_dict)
+        if hasattr(config, 'test'):
+            if config.test:
+                logging.info("Running checkpoint on test dataset..")
+                trainer.test(model=experiment, data_module=data_module, ckpt_path=ckpt_dir)
+
         trainer.fit(model=experiment, datamodule=data_module, ckpt_path=ckpt_dir)
     else:
         trainer.fit(model=experiment, datamodule=data_module)
 
-    # trainer.fit(model=experiment, datamodule=data_module)
     logger.experiment.finish()
 
 

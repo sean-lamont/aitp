@@ -10,7 +10,7 @@ from tqdm import tqdm
 if __name__ == '__main__':
     source = 'mongo'
     add_attention = False
-    file_dir = 'nnhpdata'
+    file_dir = 'raw_data'
 
     files = glob.glob(file_dir + '/*')
 
