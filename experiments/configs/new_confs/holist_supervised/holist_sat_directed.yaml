@@ -1,5 +1,6 @@
+# @package _global_
 defaults:
-  - holist_pretrain
+  - /experiments/holist_supervised@_here_
 
 batch_size: 16
 tac_embed_dim: 128

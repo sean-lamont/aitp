@@ -1,9 +1,10 @@
 # @package _global_
 defaults:
-  - /experiments/premise_selection@_here_
+  - hol4
+  - /data_type/directed_sat@_here_
 
-epochs: 10
-
+exp_config:
+  name: sat_full
 
 model_config:
   model_type: 'sat'
@@ -24,20 +25,3 @@ model_config:
     gnn_layers: 2
     small_inner: False
     abs_pe_dim: 256
-
-data_config:
-  data_options:
-    db: 'hol4_original_ast'
-    filter: [ 'tokens', 'edge_attr', 'edge_index']#, 'attention_edge_index', 'depth' ]
-  attributes:
-    attention_edge: 'full'
-
-exp_config:
-  name: sat_full
-#  devices: [1]
-
-logging_config:
-  project: hol4_premise_pretrain
-
-#hydra.verbose: True
-

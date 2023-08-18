@@ -1,0 +1,5 @@
+data_config:
+  data_options:
+    filter: ['tokens', 'edge_attr', 'edge_index']
+  attributes:
+    attention_edge: 'full'

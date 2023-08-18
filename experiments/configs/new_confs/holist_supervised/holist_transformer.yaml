@@ -1,26 +1,17 @@
+# @package _global_
 defaults:
-  - holist_pretrain
-
-tac_embed_dim: 128
-final_embed_dim: 1024
-batch_size: 16
+  - /experiments/holist_supervised@_here_
 
 data_config:
   type: sequence_polished
   data_options:
     db: holist
-    thms_col: train_thm_ls
     filter: ['polished']
-    # use a MongoDB cursor to retrieve expression data
-    dict_in_memory: False
   attributes:
       max_len: 1024
 
-  batch_size: 16
-
 exp_config:
   name: transformer
-  device: [1]
 
 model_config:
   model_type: holist_transformer
@@ -32,8 +23,5 @@ model_config:
     num_heads: 4
     dim_feedforward: 256
     max_len: 1024
-
-logging_config:
-  project: test_hydra
 
 hydra.verbose: True

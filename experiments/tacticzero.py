@@ -6,9 +6,9 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 from omegaconf import OmegaConf
 
-from environments.hol4.new_env import *
-from experiments.hol4_tactic_zero.hol4_tactic_zero import HOL4TacticZero
-from experiments.hol4_tactic_zero.tactic_zero_data_module import *
+from environments.hol4.env_wrapper import *
+from experiments.tacticzero.hol4_tactic_zero import HOL4TacticZero
+from experiments.tacticzero.tactic_zero_data_module import *
 from models.get_model import get_model
 from models.gnn.formula_net.formula_net import FormulaNetEdges
 from models.tactic_zero.policy_models import ArgPolicy, TacPolicy, TermPolicy, ContextPolicy

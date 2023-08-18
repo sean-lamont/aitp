@@ -33,12 +33,14 @@ def holist_eval(config):
                    dir=config.exp_config.directory,
                    resume='must',
                    id=config.logging_config.id,
+                   mode='offline' if config.logging_config.offline else 'online'
                    )
     else:
         wandb.init(project=config.logging_config.project,
                    name=config.exp_config.name,
                    config=config_to_dict(config),
                    dir=config.exp_config.directory,
+                   mode='offline' if config.logging_config.offline else 'online'
                    )
 
     prover_options = get_prover_options(config)

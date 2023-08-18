@@ -23,8 +23,7 @@ model_config:
     vocab_size: 1500
 
 logging_config:
-  project: ???
-  offline: True
+  project: holist_eval
 #  id: '4cpiaxjb' #None #override for resume
 
 
@@ -36,8 +35,8 @@ hydra:
 
 
 # Setting ProverOptions Proto
-path_tactics: 'data/holist/hollight_tactics.textpb'
-path_tactics_replace: 'data/holist/hollight_tactics_replacements.textpb'
+path_tactics: 'experiments/configs/holist/hollight_tactics.textpb'
+path_tactics_replace: 'experiments/configs/holist/hollight_tactics_replacements.textpb'
 path_theorem_database: 'data/holist/theorem_database_v1.1.textpb'
 
 model_architecture: PARAMETERS_CONDITIONED_ON_TAC

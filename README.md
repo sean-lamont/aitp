@@ -1,32 +1,30 @@
 # Setup Instructions
 
 # Todo
+- polished vs full_tokens, standardise
+  - holstep polished
+  - Rename all to 'sequence' field
+  - graph_data_utils
 
-- Qualitative
-  - Give ipynb with embeddings and processing
+- config refactor
+  - holist
+  - tacticzero
 
-
-- Dataset summary (size, source, extra processing e.g. sexpression leanstep, polished holist, mizar graph)
-- Hardware
-
-- Experiment test run, i.e. trainer.test from config
- 
 - Documentation
   - Example run for all experiments
   - Using configs
  
-- HOList eval 
-  - GNN 20 node vs bow 20 vs bow 1 vs gnn 1 vs gnn asm vs bow asm 
-
-- polished vs full_tokens, standardise
 
 - graph/ast processing unify
 
 - LeanStep scripts and test
 
-- Test fresh setup with python
-- Run and setup hol-light for eval
-
+- Test fresh setup with python + all configs
+  - Dataset setup, quick run for each
+   
+- HOList eval
+  - GNN 20 node vs bow 20 vs bow 1 vs gnn 1 vs gnn asm vs bow asm 
+   
 
 - Example use case
   - Add leanstep
@@ -41,6 +39,8 @@
 
 - Small sample of HOList proof logs?
 - Small mongorestore?
+
+- INT?
 
 
 

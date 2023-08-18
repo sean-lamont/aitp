@@ -84,7 +84,7 @@ if __name__ == '__main__':
                 'tokens': g['tokens'],
                 'edge_index': g['edge_index'],
                 'edge_attr': g['edge_attr'],
-                'full_tokens': sexpression_to_polish(expr)
+                'sequence': sexpression_to_polish(expr)
             }
         })
 

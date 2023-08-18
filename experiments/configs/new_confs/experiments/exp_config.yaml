@@ -1,16 +1,3 @@
-defaults:
-  - data_config
-  - optimiser_config
-  - logging_config
-
-epochs: 10
-
-limit_val_batches: False
-
-val_frequency: 2048
-
-batch_size: 32
-
 exp_config:
   name: ???
   experiment: premise_selection
@@ -26,6 +13,3 @@ hydra:
   job:
     chdir: False
 
-model_config:
-  model_type: ???
-  model_attributes: ???

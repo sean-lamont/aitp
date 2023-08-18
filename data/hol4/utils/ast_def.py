@@ -290,6 +290,7 @@ def goal_to_graph(polished_goal):
     return rename(merge_leaves(process_lambdas(tokens_to_ast(polished_to_tokens_2(polished_goal)))))
 
 
+# process graph as outlined in Wang et. al. 2017 for HOLStep
 def goal_to_graph_labelled(polished_goal):
     return merge_leaves(process_lambdas(tokens_to_ast(polished_to_tokens_2(polished_goal))))
 
@@ -511,77 +512,81 @@ def graph_to_dict(g):
             'edge_attr': edge_labels, 'labels': labels}
 
 
-'''
-
-Add subexpression field to each node, to reduce graph size
-
-'''
-
-
-def ast_subexps(ast):
-    val = ast.node.value
-    child_exprs = ""
-    for child in ast.children:
-        child_exprs += ast_subexps(child)
-    ast.subexp = val + child_exprs
-    return val + child_exprs
-
-
-'''
-
-Share subexpressions
-
-'''
-
-
-def reduce_subexpressions(ast):
-    nodes = nodes_list(ast, [])
-    exprs = [node.subexp for node in nodes]
-
-    dup_nodes = [node for node in nodes if exprs.count(node.subexp) > 1]
-
-    dups = {}
-    for node in dup_nodes:
-        if node.subexp in dups:
-            dups[node.subexp].append(node)
-        else:
-            dups[node.subexp] = [node]
-
-    for nodes in dups.values():
-        first_node = nodes[0]
-        parents_list = [node.parent for node in nodes]
-
-        for node in nodes[1:]:
-            assert node not in first_node.parent
-            # replace all references to same variable with first node
-            for parent in node.parent:
-                parent.children[parent.children.index(node)] = first_node
-
 
 
 def goal_to_dict(polished_goal):
     ast = goal_to_graph_labelled(polished_goal)
     ret = graph_to_dict(ast)
-    full_tokens = polished_goal.split(" ")
-    ret['full_tokens'] = full_tokens
+    sequence = polished_goal.split(" ")
+    ret['sequence'] = sequence
     return ret
 
-def process_ast(polished_goal, vocab):
-    ast = goal_to_graph_labelled(polished_goal)
 
-    # ast = tokens_to_ast(polished_to_tokens_2(polished_goal))
-    # ast_subexps(ast)
-    # reduce_subexpressions(ast)
+# Subexpression sharing as described in Bansal et. al. 2019
+# '''
+#
+# Add subexpression field to each node, to reduce graph size
+#
+# '''
+#
+#
+# def ast_subexps(ast):
+#     val = ast.node.value
+#     child_exprs = ""
+#     for child in ast.children:
+#         child_exprs += ast_subexps(child)
+#     ast.subexp = val + child_exprs
+#     return val + child_exprs
+#
+# '''
+#
+# Share subexpressions
+#
+# '''
+#
+#
+# def reduce_subexpressions(ast):
+#     nodes = nodes_list(ast, [])
+#     exprs = [node.subexp for node in nodes]
+#
+#     dup_nodes = [node for node in nodes if exprs.count(node.subexp) > 1]
+#
+#     dups = {}
+#     for node in dup_nodes:
+#         if node.subexp in dups:
+#             dups[node.subexp].append(node)
+#         else:
+#             dups[node.subexp] = [node]
+#
+#     for nodes in dups.values():
+#         first_node = nodes[0]
+#         parents_list = [node.parent for node in nodes]
+#
+#         for node in nodes[1:]:
+#             assert node not in first_node.parent
+#             # replace all references to same variable with first node
+#             for parent in node.parent:
+#                 parent.children[parent.children.index(node)] = first_node
+#
 
-    ret = graph_to_dict(ast)
 
-    full_tokens = polished_goal.split(" ")
 
-    ret['full_tokens'] = full_tokens
-
-    data = DirectedData(x=torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in ret['tokens']]),
-                        edge_index=torch.LongTensor(ret['edge_index']),
-                        edge_attr=torch.LongTensor(ret['edge_attr']),
-                        labels=ret['labels'])
-
-    return data
+# def process_ast(polished_goal, vocab):
+#     ast = goal_to_graph_labelled(polished_goal)
+#
+#     # ast = tokens_to_ast(polished_to_tokens_2(polished_goal))
+#     # ast_subexps(ast)
+#     # reduce_subexpressions(ast)
+#
+#     ret = graph_to_dict(ast)
+#
+#     full_tokens = polished_goal.split(" ")
+#
+#     ret['full_tokens'] = full_tokens
+#
+#     data = DirectedData(x=torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in ret['tokens']]),
+#                         edge_index=torch.LongTensor(ret['edge_index']),
+#                         edge_attr=torch.LongTensor(ret['edge_attr']),
+#                         labels=ret['labels'])
+#
+#     return data

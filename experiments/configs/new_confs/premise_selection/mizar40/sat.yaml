@@ -1,15 +1,7 @@
 # @package _global_
 defaults:
-  - /experiments/premise_selection@_here_
-
-data_config:
-  data_options:
-    db: 'mizar40'
-    filter: ['tokens', 'edge_attr', 'edge_index']
-  attributes:
-    attention_edge: 'full'
-
-epochs: 10
+  - mizar
+  - /data_type/sat@_here_
 
 exp_config:
       name: sat_full
@@ -17,7 +9,6 @@ exp_config:
 model_config:
   model_type: 'sat'
   model_attributes:
-    vocab_size: 13420
     embedding_dim: 128
     batch_norm: False
     global_pool: 'max'
@@ -33,6 +24,3 @@ model_config:
     gnn_layers: 0
     small_inner: False
     abs_pe_dim: 256
-
-logging_config:
-  project: mizar40

@@ -53,7 +53,7 @@ def add_databases():
 
     # Database used for replicating TacticZero, and for pretraining using HOL4 dependency information.
     # Contains information from the HOL4 standard library up to and including "probabilityTheory"
-    db_name = "hol4_original_ast"
+    db_name = "hol4"
 
     # Collection containing meta information about an expression (library, theorem name, etc.)
     info_name = "expression_metadata"
@@ -112,7 +112,7 @@ def add_databases():
     vocab_dict = {}
     i = 1
     for v in torch_graph_dict.values():
-        toks = v['full_tokens'] + v['tokens']
+        toks = v['sequence'] + v['tokens']
         for tok in toks:
             if tok not in vocab_dict:
                 vocab_dict[tok] = i

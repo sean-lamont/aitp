@@ -1,4 +1,4 @@
-from environments.hol4.new_env import HolEnv
+from environments.hol4.env_wrapper import HolEnv
 import json
 import pickle
 from data.hol4.utils import generate_gnn_data
@@ -58,4 +58,4 @@ def gen_pretraining_data():
 
     print ("Generating graph dataset for pretraining...")
 
-    generate_gnn_data.generate_gnn_data(gnn_encoder_set, 0.95, 0.05, True, data_dir, deps, full_db)
+    generate_gnn_data.generate_gnn_data(gnn_encoder_set, 0.9, 0.05, True, data_dir, deps, full_db)

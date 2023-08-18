@@ -430,18 +430,6 @@ def graph_to_dict(g):
 
     return {'tokens': labels, 'edge_index': [senders, receivers], 'edge_attr': edge_labels}
 
-    # attention_edge = get_directed_edge_index(len(labels), torch.LongTensor([senders, receivers]))
-    # depth = get_depth_from_graph(len(labels), torch.LongTensor([senders, receivers]))
-    #
-    # return {'tokens': labels,
-    #         'edge_index': [senders, receivers],
-    #         'edge_attr': edge_labels,
-    #         'attention_edge_index': attention_edge,
-    #         'depth': depth
-    #         }
-
-    # return Data(x=nodes, edge_index=edges, edge_attr=torch.LongTensor(edge_labels), labels=labels)
-
 
 
 

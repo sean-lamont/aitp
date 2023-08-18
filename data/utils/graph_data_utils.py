@@ -1,5 +1,5 @@
 """
-Utilities for graph data with Pytorch Geometric
+Data Transforms and utilities
 """
 import torch.nn
 from torch_geometric.data import Data, Batch
@@ -123,6 +123,7 @@ def list_to_sequence(data_list, max_len=1024):
     mask = (data_list == 0).T
     mask = torch.cat([mask, torch.zeros(mask.shape[0]).bool().unsqueeze(1)], dim=1)
     return (data_list, mask)
+    # return (data_list, mask)
 
 
 def list_to_relation(data_list, max_len):
@@ -173,7 +174,7 @@ def to_data(expr, data_type, vocab, config=None):
         return data
 
     elif data_type == 'sequence':
-        return torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in expr['full_tokens']])
+        return torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in expr['sequence']])
 
     elif data_type == 'fixed':
         return expr
@@ -186,11 +187,11 @@ def to_data(expr, data_type, vocab, config=None):
         xj = torch.LongTensor([x[i] for i in edge_index[1]])
         return (xi, xj, edge_attr)
 
-    elif data_type == 'sequence_polished':
-        return torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in expr['polished']])
+    # elif data_type == 'sequence_polished':
+    #     return torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in expr['polished']])
 
     elif data_type == 'ensemble':
-        return (to_data(expr, 'graph', vocab, config), to_data(expr, 'sequence_polished', vocab, config))
+        return (to_data(expr, 'graph', vocab, config), to_data(expr, 'sequence', vocab, config))
         # return (to_data(expr, 'graph', vocab, config), to_data(expr, 'sequence', vocab, config))
 
     # add other transforms here, map from stored expression data to preprocessed format.
@@ -203,7 +204,7 @@ def to_data(expr, data_type, vocab, config=None):
 def list_to_data(batch, config):
     if config.type == 'graph':
         return list_to_graph(batch, config.attributes)
-    elif config.type == 'sequence' or config.type == 'sequence_polished':
+    elif config.type == 'sequence':
         return list_to_sequence(batch, config.attributes['max_len'])
     elif config.type == 'relation':
         return list_to_relation(batch, config.attributes['max_len'])

@@ -79,7 +79,7 @@ if __name__ == '__main__':
     idx = 0
     for i, k in enumerate(expression_dict.keys()):
         polished_goal = [c for c in k.split(" ") if c != '' and c != '\n']
-        expression_dict[k]['full_tokens'] = polished_goal
+        expression_dict[k]['sequence'] = polished_goal
         for tok in polished_goal:
             if tok not in vocab:
                 # reserve 0 for padding idx
@@ -107,7 +107,7 @@ if __name__ == '__main__':
                     expression_col.insert_one({'_id': k, 'data': {'tokens': v['tokens'],
                                                                   'edge_index': v['edge_index'],
                                                                   'edge_attr': v['edge_attr'],
-                                                                  'full_tokens': v['full_tokens'],
+                                                                  'sequence': v['sequence'],
                                                                   'attention_edge_index': attention_edge_index,
                                                                   'depth': depth
                                                                   }})

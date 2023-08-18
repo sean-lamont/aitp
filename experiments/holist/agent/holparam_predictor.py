@@ -25,6 +25,16 @@ GOAL_EMB_TYPE = predictions.GOAL_EMB_TYPE
 THM_EMB_TYPE = predictions.THM_EMB_TYPE
 STATE_ENC_TYPE = predictions.STATE_ENC_TYPE
 
+def transfer_to_device(x, device):
+    if isinstance(x, tuple):
+        return (tuple([transfer_to_device(xi, device) for xi in x]))
+    if isinstance(x, list):
+        return [transfer_to_device(xi, device) for xi in x]
+    else:
+        return x.to(device)
+
+
+
 def get_model_dict(prefix, state_dict):
     return {k[len(prefix) + 1:]: v for k, v in state_dict.items()
             if k.startswith(prefix)}
@@ -99,7 +109,7 @@ class HolparamPredictor(predictions.Predictions):
 
     def load_pretrained_model(self, ckpt_dir):
         logging.info(f"Loading checkpoint from {ckpt_dir}")
-        ckpt = torch.load(ckpt_dir + '.ckpt')['state_dict']
+        ckpt = torch.load(ckpt_dir + '.ckpt', map_location={'cuda:1': 'cuda:0'})['state_dict']
         self.embedding_model_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
         self.embedding_model_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
         self.tac_model.load_state_dict(get_model_dict('tac_model', ckpt))
@@ -128,7 +138,10 @@ class HolparamPredictor(predictions.Predictions):
 
             goal_data = list_to_data(goal_data, config=self.config.data_config)
 
-            embeddings = self.embedding_model_goal(goal_data.cuda())
+
+            goal_data = transfer_to_device(goal_data, 'cuda')
+
+            embeddings = self.embedding_model_goal(goal_data)
 
             embeddings = embeddings.cpu().numpy()
 
@@ -147,7 +160,9 @@ class HolparamPredictor(predictions.Predictions):
 
             thms_data = list_to_data(thms_data, config=self.config.data_config)
 
-            embeddings = self.embedding_model_premise(thms_data.cuda())
+            thms_data = transfer_to_device(thms_data, 'cuda')
+
+            embeddings = self.embedding_model_premise(thms_data)
             embeddings = embeddings.cpu().numpy()
         return embeddings
 

@@ -48,7 +48,6 @@ def prepare_data(config):
     synthetic_train_logs = io_util.read_protos(synthetic_train_logs, deephol_pb2.ProofLog)
     val_logs = io_util.read_protos(val_logs, deephol_pb2.ProofLog)
     #
-    options = options_pb2.ConvertorOptions(tactics_path=tac_dir, scrub_parameters=scrub_parameters)
     converter = prooflog_to_examples.create_processor(options=options, theorem_database=theorem_db)
     #
     logging.info('Loading human proof logs..')
@@ -218,8 +217,8 @@ if __name__ == '__main__':
     #                                                               torch.LongTensor(
     #                                                                   item['edge_index'])).tolist(),
     #
-    #                                      'data.full_tokens': tokenize_string(item["_id"])[:max_seq_len],
-    #                                      'data.polished': sexpression_to_polish(item["_id"])[:max_seq_len]
+                                         # 'data.full_tokens': tokenize_string(item["_id"])[:max_seq_len],
+    #                                      'data.sequence': sexpression_to_polish(item["_id"])[:max_seq_len]
     #                                  }})
     #     except Exception as e:
     #         print(f"error {e}")

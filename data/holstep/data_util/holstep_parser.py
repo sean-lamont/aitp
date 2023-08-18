@@ -617,6 +617,12 @@ def _add_type(processed_formula, tokenization):
         return tuple(formula)
 
 
+#todo use this to traverse and make polished
+# recursive, e.g.. if isinstance(x, tuple):
+# out.append('@' * num_children')
+# return f(x)
+# else
+# return x
 def parse_formula(formula, tokenization):
     '''Parse HolStep formula to a tupled representation
 

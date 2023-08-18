@@ -32,5 +32,5 @@ command:
   - ${interpreter}
   - '-m'
   - ${program}
-  - '--config-name=hol4_directed_sat'
+  - '--config-name=premise_selection/hol4/directed_sat'
   - ${args_no_hyphens}
