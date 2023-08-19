@@ -257,7 +257,9 @@ class BFSProver(Prover):
                  theorem_db: proof_assistant_pb2.TheoremDatabase):
         super(BFSProver, self).__init__(
             prover_options, hol_wrapper, theorem_db, single_goal=True)
+
         self.action_gen = action_gen
+
         self.options = prover_options.bfs_options
 
     def prove_one(self, tree: proof_search_tree.ProofSearchTree,
@@ -274,18 +276,23 @@ class BFSProver(Prover):
         """
         root = tree.nodes[0]
         nodes_explored = 0
+
         # Note that adding new node to the tree might re-enable previous nodes
         # for tactic applications, if they were marked to be ignored by
         # failing sibling nodes.
         tree.cur_index = 0
         while not self.timed_out() and not root.closed and not root.failed and (
                 nodes_explored < self.options.max_explored_nodes):
+
             if tree.cur_index >= len(tree.nodes):
                 return 'BFS: All nodes are failed or ignored.'
+
             node = tree.nodes[tree.cur_index]
             tree.cur_index += 1
+
             if node.ignore or node.failed or node.closed or node.processed:
                 continue
+
             nodes_explored += 1
             # Note that the following function might change tree.cur_index
             # (if a node that was ignored suddenly becomes subgoal of a new
@@ -296,15 +303,20 @@ class BFSProver(Prover):
                                     self.options.max_successful_branches,
                                     task.premise_set, self.action_gen,
                                     self.prover_options.tactic_timeout_ms)
+
         root_status = ' '.join([
             p[0] for p in [('closed', root.closed), ('failed', root.failed)] if p[1]
         ])
+
         logging.info('Timeout: %s root status: %s explored: %d',
                      str(self.timed_out()), root_status, nodes_explored)
+
         if self.timed_out():
             return 'BFS: Timeout.'
+
         elif root.failed:
             return 'BFS: Root Failed.'
+
         elif nodes_explored >= self.options.max_explored_nodes and not root.closed:
             return 'BFS: Node limit reached.'
 

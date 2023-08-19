@@ -8,8 +8,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from data.stream_dataset import MongoStreamDataset
-from data.utils.graph_data_utils import list_to_data
-from data.utils.graph_data_utils import to_data
+from data.utils.graph_data_utils import transform_batch
+from data.utils.graph_data_utils import transform_expr
 
 
 class HOListDataModule(LightningDataModule):
@@ -88,7 +88,7 @@ class HOListDataModule(LightningDataModule):
         return DataLoader(self.val_data, batch_size=self.batch_size, collate_fn=self.gen_batch)#, num_workers=1)
 
     def to_data(self, expr):
-        return to_data(expr, self.config.type, self.vocab, self.config)
+        return transform_expr(expr, self.config.type, self.vocab, self.config)
 
     def list_to_data(self, data_list):
         if self.config.source == 'mongodb' and not self.config.data_options['dict_in_memory']:
@@ -98,7 +98,7 @@ class HOListDataModule(LightningDataModule):
         else:
             batch = [self.expr_dict[d] for d in data_list]
 
-        return list_to_data(batch, config=self.config)
+        return transform_batch(batch, config=self.config)
 
     def gen_batch(self, batch):
         # todo filter negative sampling to be disjoint from positive samples

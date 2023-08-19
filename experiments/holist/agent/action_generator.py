@@ -142,7 +142,7 @@ class ActionGenerator(object):
             options: deephol_pb2.ActionGeneratorOptions,
             model_architecture: deephol_pb2.ProverOptions.ModelArchitecture,
             emb_store: Optional[embedding_store.TheoremEmbeddingStore] = None,
-            ):
+    ):
 
         self.theorem_database = theorem_database
         self.tactics = tactics
@@ -313,10 +313,8 @@ class ActionGenerator(object):
         proof_state = predictions.ProofState(
             goal=str(normalization_lib.normalize(node.goal).conclusion))
 
-
         proof_state_emb = self.predictor.proof_state_embedding(proof_state)
         proof_state_enc = self.predictor.proof_state_encoding(proof_state_emb)
-
 
         tactic_scores = self._compute_tactic_scores(proof_state_enc)
 
@@ -332,6 +330,12 @@ class ActionGenerator(object):
             assert enumerated_tactics, (
                 'action generator option asm_meson_only requires ASM_MESON_TAC.')
 
+            top_tacs = [enumerated_tactics[0][0]]
+
+        else:
+            # get top tactics and compute parameters only for these
+            top_tacs = np.argpartition(tactic_scores, -max_tactics)[-max_tactics:]
+
         # compute closest theorems to goal
         ranked_closest = self.compute_closest(node.goal, thm_number)
         if ranked_closest:
@@ -343,21 +347,10 @@ class ActionGenerator(object):
         ret = []
         thm_scores = None
 
-
-
-        # TODO(smloos): This computes parameters for all tactics. It should cut off
-        # based on the prover BFS options.
-        # get top tactics and compute parameters only for these
-        top_tacs = np.argpartition(tactic_scores, -max_tactics)[-max_tactics:]
-        # top_tacs = list(enumerated_tactics)[top_ind]
-
-
-
         for tactic_id in top_tacs:
             tactic = self.tactics[tactic_id]
             if (thm_scores is None or self.model_architecture ==
                     deephol_pb2.ProverOptions.PARAMETERS_CONDITIONED_ON_TAC):
-
                 thm_scores = self._get_theorem_scores(proof_state_enc, thm_number,
                                                       tactic_id)
 
@@ -365,7 +358,7 @@ class ActionGenerator(object):
                     proof_state_enc, empty_emb_batch, tactic_id)[0]
 
                 logging.debug('Theorem score for empty theorem: %f0.2',
-                             no_params_score)
+                              no_params_score)
 
             thm_ranked = sorted(
                 zip(thm_scores, self.thm_names),
@@ -389,7 +382,7 @@ class ActionGenerator(object):
 
             except ValueError as e:
                 logging.debug('Failed to compute parameters for tactic %s: %s',
-                                tactic.name, str(e))
+                              tactic.name, str(e))
 
         # logging.info(f"{len(ret)} suggestions")
         return ret

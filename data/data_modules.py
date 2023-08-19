@@ -7,7 +7,7 @@ from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
 
 from data.stream_dataset import MongoStreamDataset
-from data.utils.graph_data_utils import to_data, list_to_data
+from data.utils.graph_data_utils import transform_expr, transform_batch
 
 class PremiseDataModule(LightningDataModule):
     def __init__(self, config):
@@ -100,10 +100,10 @@ class PremiseDataModule(LightningDataModule):
         else:
             batch = [self.expr_dict[d] for d in data_list]
 
-        return list_to_data(batch, config=self.config)
+        return transform_batch(batch, config=self.config)
 
     def to_data(self, expr):
-        return to_data(expr, self.config.type, self.vocab, self.config)
+        return transform_expr(expr, self.config.type, self.vocab, self.config)
 
     def collate_data(self, batch):
         y = torch.LongTensor([b['y'] for b in batch])

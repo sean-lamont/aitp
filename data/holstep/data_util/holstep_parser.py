@@ -32,6 +32,23 @@ OPS = QUANTIFIER | INFIX_OP
 # Only |- can take variable number of inputs
 
 
+def sexpression_from_formula(formula):
+    ret = []
+    if isinstance(formula, tuple):
+        assert len(formula) > 1
+        # tuple will have func as first element, and arguments in subsequent
+        ret.extend(['APPLY_TOK'] * (len(formula) - 1))
+        # if tuple as first argument, indicate this
+        if isinstance(formula[0], tuple):
+            ret.extend(['<TUPLE>'])
+        ret = ret + sexpression_from_formula(formula[0])
+        for child in formula[1:]:
+            ret = ret + sexpression_from_formula(child)
+        return ret
+    else:
+        ret.append(formula)
+        return ret
+
 class Tokenization(object):
     '''A helper class to read tokenization.
 
@@ -623,7 +640,7 @@ def _add_type(processed_formula, tokenization):
 # return f(x)
 # else
 # return x
-def parse_formula(formula, tokenization):
+def parse_formula(formula, tokenization=None):
     '''Parse HolStep formula to a tupled representation
 
     Parameters
@@ -649,12 +666,16 @@ def parse_formula(formula, tokenization):
             stack[-1].append(t)
     assert len(stack) == 1
     processed_formula = _pack_term(stack[0])
+
     if __name__ == '__main__':
         print(processed_formula)
 
-    tokenization = STRIP_TOKEN_RE.sub('', ' ' + tokenization)  # Pad a space
-    typed_formula = _add_type(processed_formula, tokenization)
-    return typed_formula
+    if tokenization:
+        tokenization = STRIP_TOKEN_RE.sub('', ' ' + tokenization)  # Pad a space
+        typed_formula = _add_type(processed_formula, tokenization)
+        return typed_formula
+    else:
+        return processed_formula
 
 
 def graph_from_hol_stmt(formula, tokenization):

@@ -19,7 +19,7 @@ def config_to_dict(conf):
         conf, resolve=True, throw_on_missing=True
     )
 
-@hydra.main(config_path="configs/new_confs", config_name="holist_premise_selection")
+@hydra.main(config_path="configs/experiments", config_name="holist_premise_selection")
 def holist_pretrain_experiment(config):
 
     OmegaConf.resolve(config)

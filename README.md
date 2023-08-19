@@ -1,49 +1,5 @@
 # Setup Instructions
 
-# Todo
-- polished vs full_tokens, standardise
-  - holstep polished
-  - Rename all to 'sequence' field
-  - graph_data_utils
-
-- config refactor
-  - holist
-  - tacticzero
-
-- Documentation
-  - Example run for all experiments
-  - Using configs
- 
-
-- graph/ast processing unify
-
-- LeanStep scripts and test
-
-- Test fresh setup with python + all configs
-  - Dataset setup, quick run for each
-   
-- HOList eval
-  - GNN 20 node vs bow 20 vs bow 1 vs gnn 1 vs gnn asm vs bow asm 
-   
-
-- Example use case
-  - Add leanstep
-    - make data 
-    - process, with packaged utils
-    - run with config, sweep, use old models
-  - add new model
-    - ensemble?
-      - add architecture  
-      - add to get_model
-      - add transform (graph_data_utils)
-
-- Small sample of HOList proof logs?
-- Small mongorestore?
-
-- INT?
-
-
-
 ## Python packages
 ### Install torch, torch_geometric and PyG supporting packages based on CUDA version (11.7 shown here)
 - pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu117
@@ -97,6 +53,7 @@ Install Lean3:
   
 #### Environment (Lean-Gym)
 - Setup 
+ 
 #### Data (LeanStep)
 - Setup pact
 - setup tactic labelled
@@ -135,4 +92,78 @@ pip install baselines
 pip install git+https://github.com/openai/baselines@ea25b9e8
 
 
+
+
+
+# Running Experiments
+
+## Configs
+We use Hydra as our configuration management library. This allows for flexible, minimal changes 
+to configuration files for running experiments. There are several 'levels' of hydra configuration which 
+are analogous to class inheritance. 
+
+Specific experiments should include a subfolder in the `config/experiments` directory,
+such as `premise_selection`. In the root of the subfolder, they should implement a configuration
+file as a base for the experiment, with default configurations for the specific experiment.
+For example, `config/experiments/tacticzero/tactic_zero.yaml` defines the specific tactics used
+in TacticZero, as well as default values for the number of steps `max_steps`, number of epochs etc.
+ This configuration
+should inherit some or all of the configurations under `config/base`, which define how directories,
+checkpoints and logging 
+is managed, as well as the data source.
+
+Within an experiment subdirectory, specific datasets and models can now be configured from the base.
+For premise selection, this is organised into {dataset}/{model}, whereas other experiments such as TacticZero and HOList are
+currently only using one benchmark/dataset, so they are organised based only on {model}. These configurations
+inherit from the base experiment, as well as the default model/data configuration in `config/data_type`. 
+They are the final configuration in the composition order, and are what should be specified when running an experiment. 
+At a minimum, they should specify the experiment name and model to be run. 
+
+## Examples
+### Premise Selection
+To run a premise selection experiment, from the root directory of the project simply run:
+
+`python3 -m experiments.premise_selection --config-name=premise_selection/{dataset}/{model}`
+
+where {dataset} is the desired dataset, and {model} is the desired model. 
+To change model hyperparameters, modify the appropriate {dataset}/{model} config file. 
+
+
+### HOList Supervised
+To run a premise selection experiment, from the root directory of the project simply run:
+
+`python3 -m experiments.holist_supervised --config-name=holist_supervised/{model}`
+
+### HOList Evaluation
+To run a HOList evaluation, from the root directory of the project run:
+
+`python3 -m experiments.holist_eval --config-name=holist_eval/{model}`
+
+There must be a checkpoint file configured which includes the Encoders, Tactic Selection and 
+Combiner Networks from the HOList Supervised task. The checkpoint file is specified by the 
+`path_model_prefix` field in `configs/experiments/holist_eval/holist_eval.yaml'`, and can be overwritten
+from the specific `holist_eval/{model}` file.
+
+The default value, where you can copy HOList supervised checkpoints to is:
+
+`path_model_prefix: 'experiments/holist/checkpoints/checkpoint'`
+
+The first run of the experiment will generate a checkpoint.npy file in the `theorem_embeddings` 
+directory specified in the configuration. If the file exists, it will load from the specified directory. 
+
+
+
+### TacticZero
+To run a TacticZero experiment, from the root directory of the project simply run:
+
+`python3 -m experiments.tacticzero_experiment --config-name=tacticzero/{model}`
+
+## Resuming Runs
+To resume a run, you should add the following fields to the final configuration file:
+
+- `exp_config.resume: True`
+- `logging_config.id: {wandb_id}` where `wandb_id` is the id associated with the resuming run
+- `exp_config.directory: {base_dir}` where `base_dir` is the root of the directory created from the resuming run.
+By default, this is in the format: 
+    `experiments/runs/${.experiment}/${.name}_${%Y_%m_%d}/${%H_%M_%S}`
 

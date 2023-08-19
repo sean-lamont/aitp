@@ -107,7 +107,7 @@ Premise selection experiment with separate encoders for goal and premise
 '''
 
 
-@hydra.main(config_path="configs/new_confs")#, config_name="experiments/ho")
+@hydra.main(config_path="configs/experiments")#, config_name="experiments/ho")
 def premise_selection_experiment(config):
     torch.set_float32_matmul_precision('medium')
 

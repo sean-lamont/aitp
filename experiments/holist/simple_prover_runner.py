@@ -14,7 +14,6 @@ import logging
 from typing import List
 
 import wandb
-# from absl import flags
 from tqdm import tqdm
 
 from environments.holist import proof_assistant_pb2

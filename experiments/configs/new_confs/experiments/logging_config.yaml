@@ -1,6 +1,0 @@
-# config for wandb logging
-logging_config:
-  project: ???
-  offline: False
-  notes: ""
-  id: False

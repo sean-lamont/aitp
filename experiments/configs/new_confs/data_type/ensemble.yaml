@@ -1,6 +1,0 @@
-data_config:
-  type: 'ensemble'
-  data_options:
-    filter: ['tokens', 'edge_attr', 'edge_index', 'polished']
-  attributes:
-    max_len: 1024

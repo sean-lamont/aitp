@@ -14,7 +14,7 @@ import numpy as np
 import torch
 from pymongo import MongoClient
 
-from data.utils.graph_data_utils import to_data, list_to_data
+from data.utils.graph_data_utils import transform_expr, transform_batch
 from experiments.holist.agent import predictions
 from data.holist.utils import process_sexp
 from data.holist.utils.sexpression_to_graph import sexpression_to_graph
@@ -25,6 +25,7 @@ GOAL_EMB_TYPE = predictions.GOAL_EMB_TYPE
 THM_EMB_TYPE = predictions.THM_EMB_TYPE
 STATE_ENC_TYPE = predictions.STATE_ENC_TYPE
 
+# handle different data structures
 def transfer_to_device(x, device):
     if isinstance(x, tuple):
         return (tuple([transfer_to_device(xi, device) for xi in x]))
@@ -32,8 +33,6 @@ def transfer_to_device(x, device):
         return [transfer_to_device(xi, device) for xi in x]
     else:
         return x.to(device)
-
-
 
 def get_model_dict(prefix, state_dict):
     return {k[len(prefix) + 1:]: v for k, v in state_dict.items()
@@ -116,10 +115,10 @@ class HolparamPredictor(predictions.Predictions):
         self.combiner_model.load_state_dict(get_model_dict('combiner_model', ckpt))
 
     def to_torch(self, data_dict):
-        return to_data(data_dict,
-                       data_type=self.config.data_config.type,
-                       vocab=self.vocab,
-                       config=self.config.data_config)
+        return transform_expr(data_dict,
+                              data_type=self.config.data_config.type,
+                              vocab=self.vocab,
+                              config=self.config.data_config)
 
     def _goal_string_for_predictions(self, goals: List[Text]) -> List[Text]:
         return [process_sexp.process_sexp(goal) for goal in goals]
@@ -136,7 +135,7 @@ class HolparamPredictor(predictions.Predictions):
 
             goal_data = [self.to_torch(sexpression_to_graph(t, type=self.config.data_config.type)) for t in goals]
 
-            goal_data = list_to_data(goal_data, config=self.config.data_config)
+            goal_data = transform_batch(goal_data, config=self.config.data_config)
 
 
             goal_data = transfer_to_device(goal_data, 'cuda')
@@ -158,7 +157,7 @@ class HolparamPredictor(predictions.Predictions):
 
             thms_data = [self.to_torch(sexpression_to_graph(t, type=self.config.data_config.type)) for t in thms]
 
-            thms_data = list_to_data(thms_data, config=self.config.data_config)
+            thms_data = transform_batch(thms_data, config=self.config.data_config)
 
             thms_data = transfer_to_device(thms_data, 'cuda')
 
