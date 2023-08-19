@@ -47,7 +47,9 @@ def prepare_data(config):
     human_train_logs = io_util.read_protos(human_train_logs, deephol_pb2.ProofLog)
     synthetic_train_logs = io_util.read_protos(synthetic_train_logs, deephol_pb2.ProofLog)
     val_logs = io_util.read_protos(val_logs, deephol_pb2.ProofLog)
-    #
+
+    options = options_pb2.ConvertorOptions(tactics_path=tac_dir, scrub_parameters=scrub_parameters)
+
     converter = prooflog_to_examples.create_processor(options=options, theorem_database=theorem_db)
     #
     logging.info('Loading human proof logs..')
@@ -93,19 +95,19 @@ def prepare_data(config):
 
     expr_dict = {expr: sexpression_to_graph(expr) for expr in tqdm(all_exprs)}
 
-    human_processed_logs = list(set([{'goal': a['goal'], 'thms': a['thms'], 'tac_id': a['tac_id'],
+    human_processed_logs = list([{'goal': a['goal'], 'thms': a['thms'], 'tac_id': a['tac_id'],
                                       'thms_hard_negatives': a['thms_hard_negatives'], 'split': 'train',
                                       'source': 'human'} for a in
-                                     human_processed_logs]))
+                                     human_processed_logs])
 
-    synthetic_processed_logs = list(set([{'goal': a['goal'], 'thms': a['thms'], 'tac_id': a['tac_id'],
+    synthetic_processed_logs = list([{'goal': a['goal'], 'thms': a['thms'], 'tac_id': a['tac_id'],
                                           'thms_hard_negatives': a['thms_hard_negatives'], 'split': 'train',
                                           'source': 'synthetic'} for a in
-                                         synthetic_processed_logs]))
+                                         synthetic_processed_logs])
 
-    val_processed_logs = list(set([{'goal': a['goal'], 'thms': a['thms'], 'tac_id': a['tac_id'],
+    val_processed_logs = list([{'goal': a['goal'], 'thms': a['thms'], 'tac_id': a['tac_id'],
                                     'thms_hard_negatives': a['thms_hard_negatives'], 'split': 'val', 'source': 'human'}
-                                   for a in val_processed_logs]))
+                                   for a in val_processed_logs])
 
     if vocab_file:
         logging.info(f'Generating vocab from file {vocab_file}..')
@@ -168,9 +170,6 @@ def prepare_data(config):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-    # save_dir = '/home/sean/Documents/phd/deepmath-light/deepmath/combined_train_data'
-    # vocab_file = '/home/sean/Documents/phd/hol-light/holist/hollightdata/final/proofs/human/vocab_ls.txt'
-
     human_train_logs = 'data/holist/raw_data/hollightdata/final/proofs/human/train/prooflogs*'
     human_val_logs = 'data/holist/raw_data/hollightdata/final/proofs/human/valid/prooflogs*'
 
@@ -180,30 +179,32 @@ if __name__ == '__main__':
     all_val_logs = human_val_logs
 
     config = {
-        'tac_dir': 'data/holist/hollight_tactics.textpb',
+        'tac_dir': 'experiments/configs/holist/hollight_tactics.textpb',
         'theorem_dir': 'data/holist/theorem_database_v1.1.textpb',
         'human_train_logs': human_train_logs,
         'val_logs': human_val_logs,
         'synthetic_train_logs': synthetic_train_logs,
         'vocab_file': None,
         'source': 'mongodb',
-        'data_options': {'db': 'holist'},
+        'data_options': {'db': 'holist_'},
     }
 
     prepare_data(config)
 
-    # source = config['source']
-    # data_options = config['data_options']
-    #
-    # client = MongoClient()
-    # db = client[data_options['db']]
-    # expr_col = db['expression_graphs']
-    #
-    # max_seq_len = 10000
-    #
-    #
+    source = config['source']
+    data_options = config['data_options']
+
+    client = MongoClient()
+    db = client[data_options['db']]
+    expr_col = db['expression_graphs']
+
+    max_seq_len = 1024
+
+
+    # uncomment below to add data for Directed SAT
+
+
     # def add_additional_data(item):
-    #     # todo check if attribute exists
     #     try:
     #         expr_col.update_many({"_id": item["_id"]},
     #                              {"$set":
@@ -217,7 +218,6 @@ if __name__ == '__main__':
     #                                                               torch.LongTensor(
     #                                                                   item['edge_index'])).tolist(),
     #
-                                         # 'data.full_tokens': tokenize_string(item["_id"])[:max_seq_len],
     #                                      'data.sequence': sexpression_to_polish(item["_id"])[:max_seq_len]
     #                                  }})
     #     except Exception as e:
@@ -229,11 +229,11 @@ if __name__ == '__main__':
     # items = []
     #
     # # can run the below to retry failed field insertions
-    # for item in tqdm(expr_col.find({'data.attention_edge_index': {'$exists': False}})):
-    #     items.append({'_id': item['_id'], 'tokens': item['data']['tokens'], 'edge_index': item['data']['edge_index']})
-    #
-    # # for item in tqdm(expr_col.find({})):
+    # # for item in tqdm(expr_col.find({'data.attention_edge_index': {'$exists': False}})):
     # #     items.append({'_id': item['_id'], 'tokens': item['data']['tokens'], 'edge_index': item['data']['edge_index']})
+    #
+    # for item in tqdm(expr_col.find({})):
+    #     items.append({'_id': item['_id'], 'tokens': item['data']['tokens'], 'edge_index': item['data']['edge_index']})
     # print(f"num_items {len(items)}")
     #
     # pool = Pool(processes=os.cpu_count() // 2)

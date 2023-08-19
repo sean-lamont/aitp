@@ -91,9 +91,11 @@ if __name__ == '__main__':
         logging.info("Adding vocab Dictionary to MongoDB..")
         loader = data_loader.DataLoader("data/holstep/raw_data/train", "data/holstep/raw_data/hol_train_dict")
         # add dictionary to mongodb
+
         vocab = {}
+
         for k, v in loader.dict.items():
-            vocab[k] = v
+            vocab[k] = v + 1
             vocab_col.insert_one({"_id": k, "index": v})
 
         for k, v in train_expr.items():
@@ -110,6 +112,9 @@ if __name__ == '__main__':
                     vocab_col.insert_one({'id': tok, 'index': new_ind})
 
             expr_col.insert_one({'_id': d, 'data': d['data']})
+
+
+        vocab_col.insert_one({"_id": 'UNK', "index": len(vocab) + 1})
 
 
 

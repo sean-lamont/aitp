@@ -355,7 +355,7 @@ def create_datasets(data_dir: str):
         raise Exception(f"[create_datasets] ERROR: DATA_DIR {data_dir} MUST EXIST")
 
     client = MongoClient()
-    db = client['leanstep']
+    db = client['leanstep_sexpression']
 
     # also "Local context Prediction" from paper
     proof_step_col = db['proof_step']

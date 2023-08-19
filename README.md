@@ -5,43 +5,39 @@
 - pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu117
 - pip install torch_geometric 
 - pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.0.0+cu117.html
-### Install remaining packages from requirements.txt, or from pip as below:
+
+### Run requirements.txt
+- pip install -r requirements.txt
+ 
+### Install remaining packages 
+- pip install pyfarmhash
 - pip install einops matplotlib plotly igraph pymongo pyrallis wandb dill pyfarmhash absl-py grpcio-tools pexpect torchtext
 
 ## Setup Data
 You will need a working MongoDB server. To install one locally, you can follow the instructions based on your OS,
 with e.g. Ubuntu instructions available here: https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/
 
-### Download database dump from ...
-We provide preprocessed databases containing data necessary for experiments across all platforms. You can download these at ...
-You can select which you want specifically by...
+### Download database dump
+We provide preprocessed databases containing data necessary for experiments across all platforms. You can download these at (removed for anonymity)
 
-`mongodump --archive=test.20150715.gz --gzip`
+You can save a current mongodb file for restoration with: 
+
+`mongodump --archive={file}.gz --gzip`
 
 Once you have the archive installed, you can run `mongorestore --gzip --archive={archive}` where `archive` is the download.
 
-### Manually process data
-The data pipeline is:
-- Raw Data from sources. So far we have HOL4, HOLStep, LeanStep, HOList, MIZAR40. You can download these at...
-- Run process_{platform} scripts in the data_directory. You will need to specify:
-    - The directory of the raw data
-    - Whether to use MongoDB or disk (we strongly recommend MongoDB for large datasets such as HOLStep or LeanStep, as it allows for streaming the data without loading it all in memory)
-    - What properties to process. We have full sequence for Transformer and sequence based models, and PyG representations for graphs. 
-      - Also have other graph related properties such as node depth, and ancestor/descendent nodes for use in Directed SAT models
 
 ## Setup
 
 ### HOL4
 #### Environment
 - Download and install polyml: https://polyml.org/download.html 
-- We include a prepackaged version of HOL4, which you can build by running environments/hol4/build_hol.sh.
-- Alternatively, you can install HOL4 from https://hol-theorem-prover.org/, replacing the hol directory in enviroments/hol4. 
-    - (Note that recent versions may not be compatible, the version we used was..)
+- Run the HOL4 build script `bash environments/hol4/build_hol.sh`
 #### Data
 - Raw data included in repository 
-- Run process_hol4 from data/hol4 directory
+- Run `python -m data.hol4.process_hol4` from the root project directory
 
-### Lean
+### LeanStep
 Install Lean3:
 
 - Globally
@@ -50,49 +46,40 @@ Install Lean3:
   - curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
   - source $HOME/.elan/env to add elan to path, or copy/symlink $HOME/.elan/env to venv bin folder
   - pip install mathlibtools
-  
-#### Environment (Lean-Gym)
-- Setup 
+
+- Run `bash data/lean/lean-step/setup.sh` from project root (as this is a large dataset, you can
+ terminate the parallel_data_gen script early and run the final line for a reduced dataset)
+- Run `python -m data.lean.process_leanstep`
  
-#### Data (LeanStep)
-- Setup pact
-- setup tactic labelled
 
 ### HOList
 #### Environment
 - Setup the Docker container which provides an API to a custom HOL-Light environment setup by Google for AITP.
-https://github.com/brain-research/hol-light.git
-
-#### Run HOL light server
-
-- Go to HOL light repo then run:
-
-  - sudo docker build . (returns image_id e.g. 8a85414b942e)
-  - sudo docker run -d -p 2000:2000 --name=holist image_id
-  - Can restart with sudo docker restart and container_id from above
-
-
-#### gRPC install/process
-
-- pip install  pip install grpcio-tools
-- from root (deepmath-light) dir:
-  - python -m grpc_tools.protoc -I=. --python_out=. ./deepmath/deephol/deephol.proto
-  - python -m grpc_tools.protoc -I=. --python_out=. ./deepmath/proof_assistant/proof_assistant.proto --grpc_python_out=.
-
+- Run `bash environments/holist/setup_hollight.sh`
+- (Obtained from https://github.com/brain-research/hol-light.git, with licence in directory)
 
 #### Data
-- Download raw data from:...
+- obtain data from https://storage.googleapis.com/deepmath/deephol.zip and place it in a `raw_data` directory in `data/holist`
+- Run `python -m data.holist.process_holist`
+
 
 ### MIZAR
-- Download raw data from ...
+- Run `bash data/mizar/get_mizar.sh`
+- Run `python -m data.mizar.process_mizar`
+- 
+### HOLStep
+- Run `bash data/holstep/get_holstep.sh`
+- Run `python -m data.holstep.process_holstep`
 
-### INT
-sudo apt-get install libopenmpi-dev
-pip install baselines 
-pip install git+https://github.com/openai/baselines@ea25b9e8
+[//]: # (### INT)
 
+[//]: # (sudo apt-get install libopenmpi-dev)
 
+[//]: # (pip install baselines )
 
+[//]: # (pip install git+https://github.com/openai/baselines@ea25b9e8)
+
+[//]: # ()
 
 
 # Running Experiments
