@@ -337,8 +337,6 @@ def nodes_list(g, result=[]):
 
 
 
-# with open("/home/sean/Documents/phd/aitp/data/hol4/graph_token_encoder.pk", "rb") as f:
-#     token_enc = pickle.load(f)
 
 def sp_to_torch(sparse):
     coo = sparse.tocoo()
